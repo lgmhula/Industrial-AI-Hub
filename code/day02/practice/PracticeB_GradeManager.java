@@ -1,4 +1,4 @@
-/**
+package code.day02.practice; /**
  * 实战题 B：学生成绩管理器
  *
  * 题目要求：

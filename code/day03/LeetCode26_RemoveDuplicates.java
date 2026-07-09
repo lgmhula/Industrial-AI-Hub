@@ -1,16 +1,19 @@
+package code.day03;
 /**
  * LeetCode 26. 删除有序数组中的重复项
- *
+ * <p>
  * 给你一个非严格递增排列的数组 nums，请你原地删除重复出现的元素，
  * 使每个元素只出现一次，返回删除后数组的新长度。
  * 必须原地修改，不能使用额外数组空间。O(1) 额外空间。
- *
+ * <p>
  * 示例：nums = [0,0,1,1,1,2,2,3,3,4]
  * 输出：5, nums 的前五个元素为 [0,1,2,3,4]
- *
+ * <p>
  * 运行：javac LeetCode26_RemoveDuplicates.java && java LeetCode26_RemoveDuplicates
  */
+
 import java.util.Arrays;
+
 
 public class LeetCode26_RemoveDuplicates {
 
@@ -55,11 +58,11 @@ public class LeetCode26_RemoveDuplicates {
 
         // 测试用例
         int[][] testCases = {
-            {0, 0, 1, 1, 1, 2, 2, 3, 3, 4},
-            {1, 1, 2},
-            {1, 2, 3, 4, 5},
-            {1, 1, 1, 1, 1},
-            {}
+                {0, 0, 1, 1, 1, 2, 2, 3, 3, 4},
+                {1, 1, 2},
+                {1, 2, 3, 4, 5},
+                {1, 1, 1, 1, 1},
+                {}
         };
 
         for (int[] arr : testCases) {

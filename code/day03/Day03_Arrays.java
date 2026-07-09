@@ -1,9 +1,11 @@
+package code.day03;
 /**
  * Day 03: 数组全面恢复
  * 内容：一维/二维数组、遍历、排序算法（手写）、Arrays 工具类、杨辉三角
- *
+ * <p>
  * 运行：javac Day03_Arrays.java && java Day03_Arrays
  */
+
 import java.util.Arrays;
 
 public class Day03_Arrays {
@@ -23,7 +25,8 @@ public class Day03_Arrays {
         // 三种声明方式
         int[] arr1 = {5, 2, 8, 1, 9, 3};
         int[] arr2 = new int[]{10, 20, 30, 40, 50};
-        int[] arr3 = new int[5]; // 默认全 0
+        // 默认全 0
+        int[] arr3 = new int[5];
 
         System.out.println("arr1: " + Arrays.toString(arr1));
         System.out.println("arr2: " + Arrays.toString(arr2));
@@ -125,15 +128,14 @@ public class Day03_Arrays {
         // 选择排序：每次从未排序部分选最小的，放到已排序末尾
         int n = arr.length;
         for (int i = 0; i < n - 1; i++) {
-            int minIndex = i; // 假设当前位置是最小的
-
+            // 假设当前位置是最小的
+            int minIndex = i;
             // 在剩余部分找真正的最小值
             for (int j = i + 1; j < n; j++) {
                 if (arr[j] < arr[minIndex]) {
                     minIndex = j;
                 }
             }
-
             // 如果找到更小的，交换
             if (minIndex != i) {
                 int temp = arr[i];
@@ -219,8 +221,10 @@ public class Day03_Arrays {
 
         // 回顾二维数组的声明方式
         System.out.println("\n--- 二维数组声明方式 ---");
-        int[][] grid1 = new int[3][4];        // 3行4列, 规则矩形
-        int[][] grid2 = {{1,2}, {3,4,5}};     // 不规则的, 类似杨辉三角
+        // 3行4列, 规则矩形
+        int[][] grid1 = new int[3][4];
+        // 不规则的, 类似杨辉三角
+        int[][] grid2 = {{1, 2}, {3, 4, 5}};
         System.out.println("grid1 行数: " + grid1.length + ", 列数: " + grid1[0].length);
         System.out.println("grid2 行数: " + grid2.length + ", 第0行列数: " + grid2[0].length
                 + ", 第1行列数: " + grid2[1].length);

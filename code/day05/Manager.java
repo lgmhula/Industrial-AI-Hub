@@ -11,9 +11,7 @@ package code.day05;
  */
 public class Manager extends Employee {
 
-    /**
-     * 管理奖金
-     */
+    /** 管理奖金 */
     private double bonus;
 
     /**
@@ -47,9 +45,7 @@ public class Manager extends Employee {
         return baseSalary + bonus;
     }
 
-    public double getBonus() {
-        return bonus;
-    }
+    public double getBonus() { return bonus; }
 
     @Override
     public String toString() {

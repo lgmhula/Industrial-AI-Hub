@@ -52,7 +52,7 @@ public class Day03_Arrays {
             if (arr1[i] < min) min = arr1[i];
         }
         System.out.printf("\n\n求和: %d | 最大: %d | 最小: %d | 平均: %.2f%n",
-                sum, max, min, (double) sum / arr1.length);
+                    sum, max, min, (double) sum / arr1.length);
 
         // 查找指定元素
         int target = 8;

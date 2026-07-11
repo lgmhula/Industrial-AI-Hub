@@ -66,7 +66,7 @@ public class LeetCode118_PascalTriangle {
 
         for (int n : new int[]{1, 3, 5, 10}) {
             System.out.println("numRows = " + n + ":");
-            List<List<Integer>> triangle = generate(n);
+            List<List<Integer>>  triangle = generate(n);
 
             for (List<Integer> row : triangle) {
                 // 居中打印

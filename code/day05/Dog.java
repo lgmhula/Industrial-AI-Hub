@@ -10,25 +10,22 @@ package code.day05;
  *   <li>{@code @Override} 重写父类方法</li>
  *   <li>子类特有的方法 {@code wagTail()}</li>
  * </ul>
+ * <p>
+ * <<<<<<< HEAD
  *
-<<<<<<< HEAD
  * @author hula
-=======
+ * =======
  * @author Reboot
->>>>>>> main
+ * >>>>>>> main
  * @version 1.0
  * @see Animal
  * @since 2026-07-10
  */
 public class Dog extends Animal {
 
-<<<<<<< HEAD
     /**
      * 品种
      */
-=======
-    /** 品种 */
->>>>>>> main
     private String breed;
 
     /**

@@ -159,14 +159,14 @@
 - [ ] Git commit
 
 ### Day 11（周四）
-- [ ] 回顾：String、StringBuilder、StringBuffer、包装类、日期时间
-- [ ] 写代码练习（至少 200 行）：
+- [x] 回顾：String、StringBuilder、StringBuffer、包装类、日期时间
+- [x] 写代码练习（至少 200 行）：
   - String 常用 API 全部练习一遍
   - StringBuilder 拼接 10000 次性能对比
   - 包装类的自动装箱/拆箱
   - LocalDate/LocalDateTime 日期计算练习
-- [ ] LeetCode 1 道（比如 125.验证回文串）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 125.验证回文串）
+- [x] Git commit
 
 ### Day 12（周五）
 - [ ] 回顾：异常处理（try-catch-finally、throws、自定义异常）

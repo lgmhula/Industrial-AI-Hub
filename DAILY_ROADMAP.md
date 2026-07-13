@@ -169,14 +169,14 @@
 - [x] Git commit
 
 ### Day 12（周五）
-- [ ] 回顾：异常处理（try-catch-finally、throws、自定义异常）
-- [ ] 写代码练习（至少 200 行）：
+- [x] 回顾：异常处理（try-catch-finally、throws、自定义异常）
+- [x] 写代码练习（至少 200 行）：
   - 常见异常模拟（空指针、数组越界、类型转换）
   - try-catch-finally 执行顺序练习
   - 自定义异常类并在项目中实际使用
   - 异常链（cause）的使用
-- [ ] LeetCode 1 道（比如 14.最长公共前缀）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 14.最长公共前缀）
+- [x] Git commit
 
 ### Day 13（周六）
 - [ ] 回顾：IO 流（File、字节流、字符流、缓冲流）

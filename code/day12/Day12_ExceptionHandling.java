@@ -1,5 +1,7 @@
 package code.day12;
 
+package code.day12;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

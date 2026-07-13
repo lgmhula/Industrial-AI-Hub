@@ -138,7 +138,8 @@ public class Day08_Collections {
                 }
                 case 4 -> {
                     System.out.print("删除第几个? (1-" + contacts.size() + "): ");
-                    int idx = scanner.nextInt(); scanner.nextLine();
+                    int idx = scanner.nextInt();
+                    scanner.nextLine();
                     if (idx >= 1 && idx <= contacts.size()) {
                         contacts.remove(idx - 1);
                         System.out.println("已删除。");

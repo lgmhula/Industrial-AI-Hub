@@ -1,6 +1,5 @@
 package code.day12;
 
-package code.day12;
 
 /** LeetCode 14：最长公共前缀。 */
 public class LeetCode14_LongestCommonPrefix {

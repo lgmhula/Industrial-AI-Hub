@@ -1,0 +1,11 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Java
+*.class
+target/
+
+# OS
+.DS_Store

@@ -1,0 +1,157 @@
+# ========================
+# Industrial AI Hub — Unified Docker Compose
+# Infrastructure Baseline V1
+# ========================
+
+networks:
+  industrial-network:
+    driver: bridge
+    name: industrial-network
+
+services:
+
+  # ==========================================
+  # MySQL 8.4 — Primary Database
+  # ==========================================
+  mysql:
+    image: mysql:8.4
+    container_name: mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_HOST: "%"
+      TZ: Asia/Shanghai
+    volumes:
+      - ./mysql/conf/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./mysql/data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # Redis Stack 7.4 — Cache & Modules
+  # ==========================================
+  redis:
+    image: redis/redis-stack:7.4.0-v1
+    container_name: redis
+    restart: unless-stopped
+    command: ["redis-server", "/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}"]
+    ports:
+      - "6379:6379"
+      - "8001:8001"
+    volumes:
+      - ./redis/redis.conf:/etc/redis/redis.conf:ro
+      - ./redis/data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # RabbitMQ 4.0 — Message Broker
+  # ==========================================
+  rabbitmq:
+    image: rabbitmq:4.0-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - ./rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # Nacos 2.4 — Service Registry & Config
+  # ==========================================
+  nacos:
+    image: nacos/nacos-server:v2.4.3
+    container_name: nacos
+    restart: unless-stopped
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "true"
+      NACOS_AUTH_IDENTITY_KEY: ${NACOS_AUTH_IDENTITY_KEY}
+      NACOS_AUTH_IDENTITY_VALUE: ${NACOS_AUTH_IDENTITY_VALUE}
+      NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN}
+    volumes:
+      - ./nacos:/home/nacos/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/v1/console/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # MinIO — Object Storage
+  # ==========================================
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # Elasticsearch 8.x — Search Engine
+  # ==========================================
+  elasticsearch:
+    image: elasticsearch:8.17.0
+    container_name: elasticsearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      xpack.security.enabled: "false"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - ./elasticsearch:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - industrial-network

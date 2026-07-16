@@ -1,0 +1,16 @@
+# ========================
+# Industrial AI Hub — .gitignore
+# ========================
+.env
+.idea/
+*.iml
+out/
+backend/target/
+backend/**/*.class
+frontend/node_modules/
+frontend/dist/
+mysql/data/
+redis/data/
+nginx/logs/
+.DS_Store
+*.log

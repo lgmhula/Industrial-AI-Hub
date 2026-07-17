@@ -1,0 +1,10 @@
+# ========================
+# Industrial AI Hub — MySQL Slave2 Configuration
+# ========================
+[mysqld]
+server-id = 3
+relay-log = relay-bin
+read-only = 1
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+default-time-zone = '+08:00'

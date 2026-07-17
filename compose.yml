@@ -18,7 +18,7 @@ services:
     container_name: mysql
     restart: unless-stopped
     ports:
-      - "3306:3306"
+      - "3307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -154,5 +154,123 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # MySQL Master-Slave — Read/Write Splitting
+  # ==========================================
+  mysql-master:
+    image: mysql:8.4
+    container_name: mysql-master
+    restart: unless-stopped
+    ports:
+      - "13306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: admin123456
+      MYSQL_DATABASE: reboot
+      MYSQL_ROOT_HOST: "%"
+      TZ: Asia/Shanghai
+    volumes:
+      - ./mysql/ms-conf/master.cnf:/etc/mysql/conf.d/master.cnf:ro
+      - ./mysql/ms-data/master:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-padmin123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - industrial-network
+
+  mysql-slave1:
+    image: mysql:8.4
+    container_name: mysql-slave1
+    restart: unless-stopped
+    ports:
+      - "13307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: admin123456
+      MYSQL_ROOT_HOST: "%"
+      TZ: Asia/Shanghai
+    volumes:
+      - ./mysql/ms-conf/slave1.cnf:/etc/mysql/conf.d/slave.cnf:ro
+      - ./mysql/ms-data/slave1:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-padmin123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - industrial-network
+
+  mysql-slave2:
+    image: mysql:8.4
+    container_name: mysql-slave2
+    restart: unless-stopped
+    ports:
+      - "13308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: admin123456
+      MYSQL_ROOT_HOST: "%"
+      TZ: Asia/Shanghai
+    volumes:
+      - ./mysql/ms-conf/slave2.cnf:/etc/mysql/conf.d/slave.cnf:ro
+      - ./mysql/ms-data/slave2:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-padmin123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # Redis Sentinel — High Availability (x3)
+  # ==========================================
+  redis-sentinel1:
+    image: redis/redis-stack:7.4.0-v1
+    container_name: redis-sentinel1
+    restart: unless-stopped
+    command: redis-sentinel /etc/redis/sentinel.conf --sentinel
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./redis/sentinel.conf:/etc/redis/sentinel.conf:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - industrial-network
+
+  redis-sentinel2:
+    image: redis/redis-stack:7.4.0-v1
+    container_name: redis-sentinel2
+    restart: unless-stopped
+    command: redis-sentinel /etc/redis/sentinel.conf --sentinel
+    ports:
+      - "26380:26379"
+    volumes:
+      - ./redis/sentinel.conf:/etc/redis/sentinel.conf:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - industrial-network
+
+  redis-sentinel3:
+    image: redis/redis-stack:7.4.0-v1
+    container_name: redis-sentinel3
+    restart: unless-stopped
+    command: redis-sentinel /etc/redis/sentinel.conf --sentinel
+    ports:
+      - "26381:26379"
+    volumes:
+      - ./redis/sentinel.conf:/etc/redis/sentinel.conf:ro
+    depends_on:
+      redis:
+        condition: service_healthy
     networks:
       - industrial-network

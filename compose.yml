@@ -1,5 +1,5 @@
 # ========================
-# Industrial AI Hub — Unified Docker Compose
+# industrial ai hub — unified docker compose
 # Infrastructure Baseline V1
 # ========================
 
@@ -105,6 +105,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 120s
     networks:
       - industrial-network
 

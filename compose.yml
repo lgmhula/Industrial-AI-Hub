@@ -234,10 +234,11 @@ services:
     image: redis/redis-stack:7.4.0-v1
     container_name: redis-sentinel1
     restart: unless-stopped
-    command: redis-sentinel /etc/redis/sentinel.conf --sentinel
+    entrypoint: ["/entrypoint.sh"]
     ports:
       - "26379:26379"
     volumes:
+      - ./redis/sentinel-entrypoint.sh:/entrypoint.sh:ro
       - ./redis/sentinel.conf:/etc/redis/sentinel.conf:ro
     depends_on:
       redis:
@@ -249,11 +250,11 @@ services:
     image: redis/redis-stack:7.4.0-v1
     container_name: redis-sentinel2
     restart: unless-stopped
-    command: redis-sentinel /etc/redis/sentinel.conf --sentinel
+    entrypoint: ["/entrypoint.sh"]
     ports:
       - "26380:26379"
     volumes:
-      - ./redis/sentinel.conf:/etc/redis/sentinel.conf:ro
+      - ./redis/sentinel-entrypoint.sh:/entrypoint.sh:ro
     depends_on:
       redis:
         condition: service_healthy
@@ -264,11 +265,11 @@ services:
     image: redis/redis-stack:7.4.0-v1
     container_name: redis-sentinel3
     restart: unless-stopped
-    command: redis-sentinel /etc/redis/sentinel.conf --sentinel
+    entrypoint: ["/entrypoint.sh"]
     ports:
       - "26381:26379"
     volumes:
-      - ./redis/sentinel.conf:/etc/redis/sentinel.conf:ro
+      - ./redis/sentinel-entrypoint.sh:/entrypoint.sh:ro
     depends_on:
       redis:
         condition: service_healthy

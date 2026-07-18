@@ -14,3 +14,6 @@ redis/data/
 nginx/logs/
 .DS_Store
 *.log
+backend/target/
+backend/.qodana/
+*.class

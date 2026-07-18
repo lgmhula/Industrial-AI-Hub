@@ -22,7 +22,6 @@ import java.util.List;
 public class Day18_MyBatis {
 
     static SqlSessionFactory factory;
-
     static {
         try {
             factory = new SqlSessionFactoryBuilder()

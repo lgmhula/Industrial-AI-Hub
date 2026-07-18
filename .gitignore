@@ -17,3 +17,8 @@ nginx/logs/
 backend/target/
 backend/.qodana/
 *.class
+backend/src/
+backend/target/
+!backend/src/main/
+!backend/src/main/java/
+!backend/src/main/resources/

@@ -38,10 +38,10 @@
     </dependencies>
 
     <build>
-        <sourceDirectory>.</sourceDirectory>
+        <sourceDirectory>src/main/java</sourceDirectory>
         <resources>
             <resource>
-                <directory>.</directory>
+                <directory>src/main/resources</directory>
                 <includes>
                     <include>**/*.xml</include>
                 </includes>

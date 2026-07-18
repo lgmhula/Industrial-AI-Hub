@@ -1,7 +1,9 @@
+package code.day01;
+
 /**
  * Day 01: Java 基础语法恢复
  * 内容：HelloWorld + 基本数据类型 + 运算符 + 控制台输入 + 字符串操作
- * 运行：javac Day01_Basics.java && java Day01_Basics
+ * 运行：mvn exec:java -Dexec.mainClass=code.day01.Day01_Basics
  */
 import java.util.Scanner;
 

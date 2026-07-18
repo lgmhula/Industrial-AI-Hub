@@ -5,20 +5,20 @@
 .idea/
 *.iml
 out/
+*.log
+.DS_Store
+
+# Java
 backend/target/
+backend/.qodana/
 backend/**/*.class
+
+# Frontend
 frontend/node_modules/
 frontend/dist/
+
+# Infrastructure data (persistent volumes)
 mysql/data/
 redis/data/
 nginx/logs/
-.DS_Store
-*.log
-backend/target/
-backend/.qodana/
-*.class
-backend/src/
-backend/target/
-!backend/src/main/
-!backend/src/main/java/
-!backend/src/main/resources/
+*.tar.gz

@@ -1,3 +1,5 @@
+package code.day01;
+
 /**
  * LeetCode 1. 两数之和
  * <p>
@@ -6,7 +8,7 @@
  * <p>
  * 你可以假设每种输入只会对应一个答案，且不能重复使用同一个元素。
  * <p>
- * 运行：javac LeetCode01_TwoSum.java && java LeetCode01_TwoSum
+ * 运行：mvn exec:java -Dexec.mainClass=code.day01.LeetCode01_TwoSum
  */
 
 import java.util.Arrays;

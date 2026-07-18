@@ -41,7 +41,7 @@ public class Day09_SetsMaps {
 
         // HashSet 特点：不保证顺序
         System.out.println("注意：HashSet 不保证元素顺序！");
-        
+
         // 常用操作
         set.add(10);
         System.out.println("添加 10 后: " + set);
@@ -64,7 +64,7 @@ public class Day09_SetsMaps {
         System.out.println("大于 3 的元素: " + ((TreeSet<Integer>) treeSet).tailSet(4));
         System.out.println("小于 5 的元素: " + ((TreeSet<Integer>) treeSet).headSet(5));
         System.out.println("3~7 之间:      " + ((TreeSet<Integer>) treeSet).subSet(3, 8));
-        
+
         // 字符串的 TreeSet
         Set<String> words = new TreeSet<>(List.of("Java", "Python", "Go", "Rust"));
         System.out.println("字符串 TreeSet: " + words + " (按字典序)");
@@ -123,7 +123,7 @@ public class Day09_SetsMaps {
         for (String word : words) {
             // merge：如果 key 存在则用函数合并，不存在则插入
             freq.merge(word, 1, Integer::sum);
-            
+
             // 等价于：
             // freq.put(word, freq.getOrDefault(word, 0) + 1);
         }

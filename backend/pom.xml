@@ -47,16 +47,13 @@
                 </includes>
             </resource>
         </resources>
-    </build>
-
-    <build>
         <plugins>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.5.0</version>
                 <configuration>
-                    <mainClass>code.day19.Day19_MyBatisAnnotations</mainClass>
+                    <mainClass>code.day20.Day20_ResultMap</mainClass>
                 </configuration>
             </plugin>
         </plugins>

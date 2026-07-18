@@ -1,4 +1,6 @@
-package code.day02.practice; /**
+package code.day02.practice;
+
+/**
  * 实战题 A：菱形图案打印
  *
  * 题目要求：

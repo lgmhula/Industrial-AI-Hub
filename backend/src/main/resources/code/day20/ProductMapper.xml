@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- ProductMapper: 演示 association（一对一）ResultMap -->
+<mapper namespace="code.day20.ProductMapper">
+
+    <!-- ===== ResultMap: Product ←→ Category (一对一) ===== -->
+    <resultMap id="ProductWithCategory" type="code.day20.Product">
+        <id property="id" column="p_id"/>
+        <result property="name" column="p_name"/>
+        <result property="price" column="price"/>
+        <result property="categoryId" column="category_id"/>
+        <!-- association: 一对一关联 -->
+        <association property="category" javaType="code.day20.Category">
+            <id property="id" column="c_id"/>
+            <result property="name" column="c_name"/>
+            <result property="description" column="description"/>
+        </association>
+    </resultMap>
+
+    <!-- 查询所有产品（含分类信息） -->
+    <select id="selectAllWithCategory" resultMap="ProductWithCategory">
+        SELECT p.id AS p_id, p.name AS p_name, p.price, p.category_id,
+               c.id AS c_id, c.name AS c_name, c.description
+        FROM product p
+        INNER JOIN category c ON p.category_id = c.id
+        ORDER BY p.id
+    </select>
+
+    <!-- 按分类 ID 查产品 ===== -->
+    <select id="selectByCategoryId" parameterType="int" resultType="code.day20.Product">
+        SELECT id, name, price, category_id
+        FROM product
+        WHERE category_id = #{categoryId}
+    </select>
+
+    <!-- 动态条件查询（choose/when/otherwise） -->
+    <select id="selectByCondition" parameterType="map" resultType="code.day20.Product">
+        SELECT id, name, price, category_id
+        FROM product
+        <where>
+            <choose>
+                <when test="name != null and name != ''">
+                    AND name LIKE CONCAT('%', #{name}, '%')
+                </when>
+                <when test="categoryId != null">
+                    AND category_id = #{categoryId}
+                </when>
+                <otherwise>
+                    AND price &lt; 1000
+                </otherwise>
+            </choose>
+        </where>
+        ORDER BY price
+    </select>
+</mapper>

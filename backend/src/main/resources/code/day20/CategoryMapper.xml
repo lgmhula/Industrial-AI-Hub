@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- CategoryMapper: 演示 collection（一对多）ResultMap -->
+<mapper namespace="code.day20.CategoryMapper">
+
+    <resultMap id="CategoryWithProducts" type="code.day20.Category">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="description" column="description"/>
+    </resultMap>
+
+    <!-- 查询分类及其下所有产品（一对多） -->
+    <!-- 注：此处用嵌套查询演示 collection，实际项目推荐单条 JOIN 避免 N+1 -->
+    <select id="selectAllCategories" resultMap="CategoryWithProducts">
+        SELECT id, name, description
+        FROM category
+        ORDER BY id
+    </select>
+
+    <!-- 按分类查询产品列表（配合 Java 层组装一对多） -->
+    <select id="selectProductsByCategoryId" parameterType="int" resultType="code.day20.Product">
+        SELECT id, name, price, category_id
+        FROM product
+        WHERE category_id = #{categoryId}
+    </select>
+</mapper>

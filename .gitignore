@@ -1,11 +1,24 @@
-# IDE
+# ========================
+# Industrial AI Hub — .gitignore
+# ========================
+.env
 .idea/
 *.iml
-.vscode/
+out/
+*.log
+.DS_Store
 
 # Java
-*.class
-target/
+backend/target/
+backend/.qodana/
+backend/**/*.class
 
-# OS
-.DS_Store
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Infrastructure data (persistent volumes)
+mysql/data/
+redis/data/
+nginx/logs/
+*.tar.gz

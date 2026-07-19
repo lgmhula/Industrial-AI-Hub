@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="code.day18.UserMapper">
+
+    <resultMap id="userMap" type="code.day18.User">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+        <result property="email" column="email"/>
+        <result property="phone" column="phone"/>
+        <result property="role" column="role"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="userMap">
+        SELECT * FROM `user`
+    </select>
+
+    <select id="findById" resultMap="userMap">
+        SELECT * FROM `user` WHERE id = #{id}
+    </select>
+
+    <select id="findByRole" resultMap="userMap">
+        SELECT * FROM `user` WHERE role = #{role}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `user` (username, password, email, phone, role, status)
+        VALUES (#{username}, #{password}, #{email}, #{phone}, #{role}, 1)
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE `user` SET status = #{status} WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM `user` WHERE id = #{id}
+    </delete>
+</mapper>

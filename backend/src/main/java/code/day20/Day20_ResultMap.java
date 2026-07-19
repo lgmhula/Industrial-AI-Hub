@@ -23,7 +23,7 @@ public class Day20_ResultMap {
     public static void main(String[] args) throws Exception {
         String resource = "code/day20/mybatis-config.xml";
         SqlSessionFactory factory = new SqlSessionFactoryBuilder()
-                .build(Resources.getResourceAsStream(resource));
+            .build(Resources.getResourceAsStream(resource));
 
         try (SqlSession session = factory.openSession()) {
             // ===== 1. JOIN 查询 + association（一对一）=====
@@ -38,7 +38,7 @@ public class Day20_ResultMap {
             List<Category> categories = session.selectList("code.day20.CategoryMapper.selectAllCategories");
             for (Category c : categories) {
                 List<Product> catProducts = session.selectList(
-                        "code.day20.CategoryMapper.selectProductsByCategoryId", c.getId());
+                    "code.day20.CategoryMapper.selectProductsByCategoryId", c.getId());
                 System.out.printf("  %s (%d 个产品)\n", c.getName(), catProducts.size());
                 for (Product p : catProducts) {
                     System.out.printf("    - %s (¥%.2f)\n", p.getName(), p.getPrice());

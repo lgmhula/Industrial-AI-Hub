@@ -12,11 +12,16 @@ package code.day20;
  */
 public class LeetCode234_PalindromeLinkedList {
 
-    /** 链表节点 */
+    /**
+     * 链表节点
+     */
     static class ListNode {
         int val;
         ListNode next;
-        ListNode(int val) { this.val = val; }
+
+        ListNode(int val) {
+            this.val = val;
+        }
     }
 
     /**
@@ -79,7 +84,9 @@ public class LeetCode234_PalindromeLinkedList {
         return dummy.next;
     }
 
-    /** 测试入口 */
+    /**
+     * 测试入口
+     */
     public static void main(String[] args) {
         LeetCode234_PalindromeLinkedList solution = new LeetCode234_PalindromeLinkedList();
 

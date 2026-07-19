@@ -10,35 +10,74 @@ package code.day20;
  */
 public class Product {
 
-    /** 产品 ID */
+    /**
+     * 产品 ID
+     */
     private Integer id;
 
-    /** 产品名称 */
+    /**
+     * 产品名称
+     */
     private String name;
 
-    /** 价格 */
+    /**
+     * 价格
+     */
     private Double price;
 
-    /** 所属分类 ID */
+    /**
+     * 所属分类 ID
+     */
     private Integer categoryId;
 
-    /** 关联的 Category 对象（ResultMap association 填充） */
+    /**
+     * 关联的 Category 对象（ResultMap association 填充）
+     */
     private Category category;
 
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public Double getPrice() { return price; }
-    public void setPrice(Double price) { this.price = price; }
-    public Integer getCategoryId() { return categoryId; }
-    public void setCategoryId(Integer categoryId) { this.categoryId = categoryId; }
-    public Category getCategory() { return category; }
-    public void setCategory(Category category) { this.category = category; }
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Double getPrice() {
+        return price;
+    }
+
+    public void setPrice(Double price) {
+        this.price = price;
+    }
+
+    public Integer getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(Integer categoryId) {
+        this.categoryId = categoryId;
+    }
+
+    public Category getCategory() {
+        return category;
+    }
+
+    public void setCategory(Category category) {
+        this.category = category;
+    }
 
     @Override
     public String toString() {
         return String.format("Product{id=%d, name='%s', price=%.2f, category=%s}",
-                id, name, price, category != null ? category.getName() : "null");
+            id, name, price, category != null ? category.getName() : "null");
     }
 }

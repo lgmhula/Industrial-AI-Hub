@@ -1,8 +1,9 @@
-# Infrastructure Baseline V1
+# Infrastructure Baseline V1.1
 
 > **Status:** Active  
-> **Version:** 1.0  
-> **Last Updated:** 2026-07-16  
+> **Version:** 1.1
+> **Updated:** 2026-07-20
+> **Based on Commit:** 2b56dec  
 > **Governs:** All infrastructure decisions for Industrial AI Hub
 
 ---
@@ -13,6 +14,7 @@
 - **Configuration as Code** — All configs versioned in Git
 - **Separation of Concerns** — config / data / logs in separate directories
 - **Decision Log** — Every architectural choice is documented
+- **Config vs Runtime** — This document tracks **configuration state** (is the service defined, configured, and expected to be used). Runtime state is transient; check with `docker compose ps`.
 
 ---
 
@@ -40,11 +42,14 @@
 ```text
 Industrial-AI-Hub/
 ├── backend/              # Java Spring Boot application
-├── frontend/             # Web frontend
+├── frontend/             # Web frontend [reserved]
 ├── docs/
 │   ├── Architecture/
+│   │   ├── README.md
+│   │   ├── Application-Architecture.md
 │   │   └── Infrastructure-Baseline.md
-│   └── decision-log/
+│   ├── decision-log/
+│   └── reports/
 ├── compose.yml           # Unified Docker Compose
 ├── .env                  # Secrets (NOT committed)
 ├── .env.example          # Template
@@ -104,6 +109,8 @@ All configuration files must include a header:
 - All secrets in `.env` (never committed)
 - `.env.example` committed as template
 - Variable naming: `UPPER_SNAKE_CASE`, service-name prefixed when ambiguous
+- Application DB connection uses `${MYSQL_HOST}`, `${MYSQL_PORT}`, `${MYSQL_USER}`, `${MYSQL_PASSWORD}` with sensible defaults in `application.yml`
+- `.env` is consumed by docker compose only; Spring Boot on host reads OS env vars, falling back to `application.yml` defaults
 
 ---
 
@@ -125,15 +132,19 @@ Every new infrastructure service must satisfy:
 
 ## 8. Current Stack
 
-| Service | Version | Port | Status |
-|---------|---------|------|--------|
-| MySQL | 8.4 | 3306 | Active |
-| Redis Stack | 7.4 | 6379, 8001 | Active |
+> **Config Status key:** Active = primary dev service, always expected running. Configured = defined in compose, on-demand. Not Implemented = reserved, no compose definition.
+
+| Service | Version | Port | Config Status |
+|---------|---------|------|---------------|
+| MySQL | 8.4 | 3307 | Active |
+| Redis Stack | 7.4 | 6379, 8001 | Configured |
 | RabbitMQ | 4.0 | 5672, 15672 | Configured |
 | Nacos | 2.4 | 8848, 9848 | Configured |
 | MinIO | latest | 9000, 9001 | Configured |
 | Elasticsearch | 8.17 | 9200, 9300 | Configured |
-| Nginx | TBD | 80, 443 | Planned |
+| Nginx | TBD | 80, 443 | Not Implemented |
+
+> Runtime state is checked via `docker compose ps` and recorded in audit reports under `docs/reports/`. This table reflects intended configuration, not live status.
 
 ---
 
@@ -151,6 +162,13 @@ Every new infrastructure service must satisfy:
 
 **原则：Docker MySQL 不占用 3306，预留本机 MySQL 独立运行空间。**
 
+### Spring Boot 连接策略
+
+Spring Boot 运行于宿主机，通过 Docker 端口映射连接：
+- `application.yml` default: `jdbc:mysql://127.0.0.1:3307/reboot`
+- 覆盖方式: `export MYSQL_HOST=... MYSQL_PORT=...` 或 IDE Run Configuration
+- 如未来容器化部署: 将 `MYSQL_HOST` 改为 `mysql`（Docker service name），compose 自动注入
+
 ---
 
 ## 10. Redis Stack Modules (Activated)
@@ -165,25 +183,26 @@ Every new infrastructure service must satisfy:
 
 ---
 
-## 11. Redis Sentinel (Pending)
+## 11. Redis Sentinel (Configured)
 
-Sentinel 配置已就绪（`redis/sentinel.conf`），但 Docker 容器内 hostname 解析问题
-导致 `Can't resolve instance hostname`。暂保留配置文件，后续通过 entrypoint 脚本解决。
-Decision Log: `0004-redis-sentinel-pending.md`
+Sentinel 配置已在 compose.yml 中定义（3 节点: 26379-26381），entrypoint 脚本解决了容器内 hostname 解析问题。
+Decision Log: `0006-redis-sentinel-fixed.md`
 
 ---
 
-## 12. Updated Stack (2026-07-17)
+## 12. Full Stack Registry (2026-07-20)
 
-| Service | Version | Port(s) | Status |
-|---------|---------|---------|--------|
+> Config Status: Active = always-on dev service | Configured = compose-defined, on-demand | Not Implemented = reserved, no compose entry
+
+| Service | Version | Port(s) | Config Status |
+|---------|---------|---------|---------------|
 | MySQL | 8.4 | 3307 | Active |
-| MySQL Master | 8.4 | 13306 | Active |
-| MySQL Slave1 | 8.4 | 13307 | Active |
-| MySQL Slave2 | 8.4 | 13308 | Active |
-| Redis Stack | 7.4.0 | 6379, 8001 | Active |
-| RabbitMQ | 4.0 | 5672, 15672 | Active |
-| Nacos | 2.4.3 | 8848, 9848 | Active |
-| MinIO | latest | 9000, 9001 | Active |
-| Elasticsearch | 8.17 | 9200, 9300 | Active |
-| Redis Sentinel (x3) | 7.4.0 | 26379-26381 | Pending |
+| MySQL Master | 8.4 | 13306 | Configured |
+| MySQL Slave1 | 8.4 | 13307 | Configured |
+| MySQL Slave2 | 8.4 | 13308 | Configured |
+| Redis Stack | 7.4.0 | 6379, 8001 | Configured |
+| RabbitMQ | 4.0 | 5672, 15672 | Configured |
+| Nacos | 2.4.3 | 8848, 9848 | Configured |
+| MinIO | latest | 9000, 9001 | Configured |
+| Elasticsearch | 8.17 | 9200, 9300 | Configured |
+| Redis Sentinel (x3) | 7.4.0 | 26379-26381 | Configured |

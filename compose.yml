@@ -1,5 +1,6 @@
 # ========================
 # industrial ai hub — unified docker compose
+# Version: v1.1 | Updated: 2026-07-20
 # Infrastructure Baseline V1
 # ========================
 
@@ -167,7 +168,7 @@ services:
     ports:
       - "13306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: admin123456
+      MYSQL_ROOT_PASSWORD: ${MYSQL_MS_ROOT_PASSWORD}
       MYSQL_DATABASE: reboot
       MYSQL_ROOT_HOST: "%"
       TZ: Asia/Shanghai
@@ -175,7 +176,7 @@ services:
       - ./mysql/ms-conf/master.cnf:/etc/mysql/conf.d/master.cnf:ro
       - ./mysql/ms-data/master:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-padmin123456"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_MS_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -190,14 +191,14 @@ services:
     ports:
       - "13307:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: admin123456
+      MYSQL_ROOT_PASSWORD: ${MYSQL_MS_ROOT_PASSWORD}
       MYSQL_ROOT_HOST: "%"
       TZ: Asia/Shanghai
     volumes:
       - ./mysql/ms-conf/slave1.cnf:/etc/mysql/conf.d/slave.cnf:ro
       - ./mysql/ms-data/slave1:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-padmin123456"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_MS_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -212,14 +213,14 @@ services:
     ports:
       - "13308:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: admin123456
+      MYSQL_ROOT_PASSWORD: ${MYSQL_MS_ROOT_PASSWORD}
       MYSQL_ROOT_HOST: "%"
       TZ: Asia/Shanghai
     volumes:
       - ./mysql/ms-conf/slave2.cnf:/etc/mysql/conf.d/slave.cnf:ro
       - ./mysql/ms-data/slave2:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-padmin123456"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_MS_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5

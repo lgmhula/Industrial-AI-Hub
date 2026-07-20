@@ -6,32 +6,36 @@ import org.apache.ibatis.annotations.*;
 import java.util.List;
 
 /**
- * Device 表 Mapper —— 演示 MyBatis 注解 + Spring Boot 自动注入。
- *
- * <p>@Mapper 让 MyBatis-Spring 自动生成代理 Bean，无需手动 SqlSession。</p>
+ * Device 表 Mapper。
  *
  * @author hula0710
- * @since 2026-07-19
+ * @since 2026-07-20
  */
 @Mapper
 public interface DeviceMapper {
 
-    @Select("SELECT id, name, type, status FROM device")
+    @Select("SELECT * FROM device ORDER BY id DESC")
     List<Device> findAll();
 
-    @Select("SELECT id, name, type, status FROM device WHERE id = #{id}")
+    @Select("SELECT * FROM device WHERE id = #{id}")
     Device findById(Long id);
 
-    @Insert("INSERT INTO device(name, type, status) VALUES(#{name}, #{type}, #{status})")
+    @Select("SELECT * FROM device WHERE device_code = #{deviceCode}")
+    Device findByCode(String deviceCode);
+
+    @Insert("INSERT INTO device(device_name, device_code, device_type, status, ip_address, port, location) "
+          + "VALUES(#{deviceName}, #{deviceCode}, #{deviceType}, #{status}, #{ipAddress}, #{port}, #{location})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(Device device);
 
-    @Update("UPDATE device SET name=#{name}, type=#{type}, status=#{status} WHERE id=#{id}")
+    @Update("UPDATE device SET device_name=#{deviceName}, device_type=#{deviceType}, "
+          + "status=#{status}, ip_address=#{ipAddress}, port=#{port}, location=#{location} "
+          + "WHERE id=#{id}")
     int update(Device device);
 
     @Delete("DELETE FROM device WHERE id = #{id}")
     int deleteById(Long id);
 
-    @Select("SELECT id, name, type, status FROM device WHERE type = #{type}")
-    List<Device> findByType(String type);
+    @Select("SELECT * FROM device WHERE device_type = #{deviceType}")
+    List<Device> findByType(String deviceType);
 }

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- ProductMapper XML —— Spring Boot ResultMap 多表关联演示 -->
+<mapper namespace="dev.reboot.mapper.ProductMapper">
+
+    <!-- ===== ResultMap: Product ←→ Category（association 一对一）===== -->
+    <resultMap id="ProductWithCategory" type="dev.reboot.entity.Product">
+        <id property="id" column="p_id"/>
+        <result property="name" column="p_name"/>
+        <result property="price" column="price"/>
+        <result property="categoryId" column="category_id"/>
+        <association property="category" javaType="dev.reboot.entity.Category">
+            <id property="id" column="c_id"/>
+            <result property="name" column="c_name"/>
+            <result property="description" column="description"/>
+        </association>
+    </resultMap>
+
+    <select id="selectProductWithCategory" parameterType="long" resultMap="ProductWithCategory">
+        SELECT p.id AS p_id, p.name AS p_name, p.price, p.category_id,
+               c.id AS c_id, c.name AS c_name, c.description
+        FROM product p
+        INNER JOIN category c ON p.category_id = c.id
+        WHERE p.id = #{id}
+    </select>
+
+    <select id="selectAllWithCategory" resultMap="ProductWithCategory">
+        SELECT p.id AS p_id, p.name AS p_name, p.price, p.category_id,
+               c.id AS c_id, c.name AS c_name, c.description
+        FROM product p
+        INNER JOIN category c ON p.category_id = c.id
+        ORDER BY p.id
+    </select>
+
+    <select id="selectByCategoryId" parameterType="long" resultType="dev.reboot.entity.Product">
+        SELECT id, name, price, category_id
+        FROM product
+        WHERE category_id = #{categoryId}
+    </select>
+</mapper>

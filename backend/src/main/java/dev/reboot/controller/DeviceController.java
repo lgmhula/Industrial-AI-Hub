@@ -1,15 +1,14 @@
 package dev.reboot.controller;
 
+import dev.reboot.common.ApiResponse;
 import dev.reboot.entity.Device;
-import dev.reboot.mapper.DeviceMapper;
+import dev.reboot.service.DeviceService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
- * Device REST 控制器 —— 工业 AI Hub 首个 API 端点。
- *
- * <p>提供设备的 CRUD 操作，采用标准 RESTful 风格。</p>
+ * Device REST 控制器 —— 三层架构：Controller → Service → Mapper。
  *
  * @author hula0710
  * @since 2026-07-19
@@ -18,50 +17,40 @@ import java.util.List;
 @RequestMapping("/api/devices")
 public class DeviceController {
 
-    private final DeviceMapper deviceMapper;
+    private final DeviceService deviceService;
 
-    /** 构造器注入（Spring 推荐方式） */
-    public DeviceController(DeviceMapper deviceMapper) {
-        this.deviceMapper = deviceMapper;
+    public DeviceController(DeviceService deviceService) {
+        this.deviceService = deviceService;
     }
 
-    /** GET /api/devices —— 查询全部设备 */
     @GetMapping
-    public List<Device> list() {
-        return deviceMapper.findAll();
+    public ApiResponse<List<Device>> list() {
+        return ApiResponse.success(deviceService.findAll());
     }
 
-    /** GET /api/devices/{id} —— 按 ID 查询 */
     @GetMapping("/{id}")
-    public Device getById(@PathVariable Long id) {
-        return deviceMapper.findById(id);
+    public ApiResponse<Device> getById(@PathVariable Long id) {
+        return ApiResponse.success(deviceService.findById(id));
     }
 
-    /** GET /api/devices/type/{type} —— 按类型查询 */
     @GetMapping("/type/{type}")
-    public List<Device> getByType(@PathVariable String type) {
-        return deviceMapper.findByType(type);
+    public ApiResponse<List<Device>> getByType(@PathVariable String type) {
+        return ApiResponse.success(deviceService.findByType(type));
     }
 
-    /** POST /api/devices —— 新增设备 */
     @PostMapping
-    public Device create(@RequestBody Device device) {
-        deviceMapper.insert(device);
-        return device;
+    public ApiResponse<Device> create(@RequestBody Device device) {
+        return ApiResponse.success(deviceService.create(device));
     }
 
-    /** PUT /api/devices/{id} —— 更新设备 */
     @PutMapping("/{id}")
-    public Device update(@PathVariable Long id, @RequestBody Device device) {
-        device.setId(id);
-        deviceMapper.update(device);
-        return device;
+    public ApiResponse<Device> update(@PathVariable Long id, @RequestBody Device device) {
+        return ApiResponse.success(deviceService.update(id, device));
     }
 
-    /** DELETE /api/devices/{id} —— 删除设备 */
     @DeleteMapping("/{id}")
-    public String delete(@PathVariable Long id) {
-        deviceMapper.deleteById(id);
-        return "deleted: " + id;
+    public ApiResponse<String> delete(@PathVariable Long id) {
+        deviceService.delete(id);
+        return ApiResponse.success("deleted: " + id);
     }
 }

@@ -12,9 +12,11 @@ spring:
     password: 1zxcvbnm
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-# MyBatis
+# MyBatis —— 注解 Mapper（code/）+ XML Mapper（mapper/）
 mybatis:
-  mapper-locations: classpath:code/**/*Mapper.xml
+  mapper-locations:
+    - classpath:code/**/*Mapper.xml
+    - classpath:mapper/**/*Mapper.xml
   type-aliases-package: dev.reboot.entity
   configuration:
     map-underscore-to-camel-case: true

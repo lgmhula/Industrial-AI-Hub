@@ -1,6 +1,6 @@
 # Industrial AI Hub — Architecture Docs
 
-> 最后更新: 2026-07-20
+> 最后更新: 2026-07-21
 
 ## 文档索引
 

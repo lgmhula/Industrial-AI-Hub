@@ -19,6 +19,7 @@ frontend/dist/
 
 # Infrastructure data (persistent volumes)
 mysql/data/
+mysql/ms-data/
 redis/data/
 nginx/logs/
 *.tar.gz

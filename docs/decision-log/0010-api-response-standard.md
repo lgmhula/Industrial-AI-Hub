@@ -30,7 +30,7 @@ Day 21 的 API 直接返回裸对象（`List<Device>`, `Device`），
 
 ## 后果
 
-- 新增 `dev.reboot.common.ApiResponse<T>`
-- 新增 `dev.reboot.common.GlobalExceptionHandler`
+- 新增 `dev.reboot.dto.ApiResponse<T>`
+- 新增 `dev.reboot.config.GlobalExceptionHandler`（计划中）
 - 所有 Controller 重构为返回 `ApiResponse<T>`
 - 调用方需要适配 `response.data` 取值

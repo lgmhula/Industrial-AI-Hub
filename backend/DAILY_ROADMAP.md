@@ -54,109 +54,109 @@
 ## 第 1 周：Java 核心语法 + OOP
 
 ### Day 1（周一）
-- [ ] 搭建开发环境：JDK 17 + IDEA + Git 配置 + Maven
-- [ ] 创建第一个 Java 项目，写出 HelloWorld
-- [ ] 回顾：基本数据类型、变量声明、运算符
-- [ ] 写代码练习（至少 200 行）：
+- [x] 搭建开发环境：JDK 17 + IDEA + Git 配置 + Maven
+- [x] 创建第一个 Java 项目，写出 HelloWorld
+- [x] 回顾：基本数据类型、变量声明、运算符
+- [x] 写代码练习（至少 200 行）：
   - 声明 8 种基本类型变量并打印
   - 实现四则运算计算器（从控制台读取输入）
   - 字符串拼接、截取、替换练习
-- [ ] 笔记：整理 Java 数据类型速查表到 NOTES/Java/basics.md
-- [ ] LeetCode 1 道简单题（比如 1.两数之和）
-- [ ] Git commit：初始化仓库 + Day1 代码
+- [x] 笔记：整理 Java 数据类型速查表到 NOTES/Java/basics.md
+- [x] LeetCode 1 道简单题（比如 1.两数之和）
+- [x] Git commit：初始化仓库 + Day1 代码
 
 ### Day 2（周二）
-- [ ] 回顾：if/else、switch、for、while、do-while
-- [ ] 写代码练习（至少 250 行）：
+- [x] 回顾：if/else、switch、for、while、do-while
+- [x] 写代码练习（至少 250 行）：
   - 打印九九乘法表（for 循环）
   - 判断闰年（if/else）
   - 猜数字游戏（while 循环 + 随机数）
   - 输出 1-100 的质数（双重 for）
   - switch 实现简易菜单选择
-- [ ] LeetCode 1 道（比如 9.回文数）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 9.回文数）
+- [x] Git commit
 
 ### Day 3（周三）
-- [ ] 回顾：数组（一维、二维）、Arrays 工具类
-- [ ] 写代码练习（至少 200 行）：
+- [x] 回顾：数组（一维、二维）、Arrays 工具类
+- [x] 写代码练习（至少 200 行）：
   - 数组遍历、求和、最大值、最小值
   - 冒泡排序、选择排序（手写，不要复制）
   - 二维数组实现杨辉三角
   - 数组反转
-- [ ] LeetCode 1 道（比如 26.删除有序数组中的重复项）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 26.删除有序数组中的重复项）
+- [x] Git commit
 
 ### Day 4（周四）
-- [ ] 回顾：类与对象、构造方法、this、封装
-- [ ] 写代码练习（至少 200 行）：
+- [x] 回顾：类与对象、构造方法、this、封装
+- [x] 写代码练习（至少 200 行）：
   - 定义一个 Student 类（属性：name, age, score）
   - 实现构造方法、getter/setter
   - 创建对象数组并排序
   - 实现一个简易银行账户类（存钱、取钱、查询余额）
-- [ ] LeetCode 1 道（比如 66.加一）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 66.加一）
+- [x] Git commit
 
 ### Day 5（周五）
-- [ ] 回顾：继承、super、方法重写、多态
-- [ ] 写代码练习（至少 200 行）：
+- [x] 回顾：继承、super、方法重写、多态
+- [x] 写代码练习（至少 200 行）：
   - Animal → Dog/Cat 继承体系
   - 方法重写 + super 调用
   - 多态：父类引用指向子类对象
   - 实现一个简易员工管理系统（Employee → Manager/Developer）
-- [ ] LeetCode 1 道（比如 88.合并两个有序数组）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 88.合并两个有序数组）
+- [x] Git commit
 
 ### Day 6（周六）
-- [ ] 回顾：抽象类、接口、final、static
-- [ ] 写代码练习（至少 200 行）：
+- [x] 回顾：抽象类、接口、final、static
+- [x] 写代码练习（至少 200 行）：
   - 接口定义与实现（USB 接口 → Mouse/Keyboard）
   - 抽象类 vs 接口对比练习
   - static 变量和方法的实际应用
   - final 修饰类/方法/变量的效果
-- [ ] LeetCode 1 道（比如 118.杨辉三角）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 118.杨辉三角）
+- [x] Git commit
 
 ### Day 7（周日）—— 每周复盘日
-- [ ] 上午：回顾本周所有代码，重构一个觉得写得不好的模块
-- [ ] 下午：写本周学习总结（REVIEW/Week01.md）
+- [x] 上午：回顾本周所有代码，重构一个觉得写得不好的模块
+- [x] 下午：写本周学习总结（REVIEW/Week01.md）
   - 哪些知识点已经完全恢复？
   - 哪些还需要加强？
   - 本周写了多少行代码？提交了几次？
-- [ ] 刷 3 道 LeetCode（复习本周做过的）
-- [ ] Git commit + push
+- [x] 刷 3 道 LeetCode（复习本周做过的）
+- [x] Git commit + push
 
 ---
 
 ## 第 2 周：集合 + 异常 + IO + 常用类
 
 ### Day 8（周一）
-- [ ] 回顾：ArrayList、LinkedList
-- [ ] 写代码练习（至少 200 行）：
+- [x] 回顾：ArrayList、LinkedList
+- [x] 写代码练习（至少 200 行）：
   - ArrayList 增删改查遍历（4 种遍历方式）
   - 用 ArrayList 实现一个简易通讯录
   - LinkedList vs ArrayList 性能对比
-- [ ] LeetCode 1 道（比如 206.反转链表）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 206.反转链表）
+- [x] Git commit
 
 ### Day 9（周二）
-- [ ] 回顾：HashSet、TreeSet、HashMap、TreeMap
-- [ ] 写代码练习（至少 200 行）：
+- [x] 回顾：HashSet、TreeSet、HashMap、TreeMap
+- [x] 写代码练习（至少 200 行）：
   - HashMap 存放学生信息并遍历
   - 统计一段文本中每个单词出现的次数（HashMap）
   - HashSet 去重练习
   - 理解 equals() 和 hashCode() 的关系
-- [ ] LeetCode 1 道（比如 217.存在重复元素）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 217.存在重复元素）
+- [x] Git commit
 
 ### Day 10（周三）
-- [ ] 回顾：泛型、Collections 工具类、Comparable/Comparator
-- [ ] 写代码练习（至少 200 行）：
+- [x] 回顾：泛型、Collections 工具类、Comparable/Comparator
+- [x] 写代码练习（至少 200 行）：
   - 自定义泛型类和方法
   - Collections.sort() 对对象排序
   - 实现 Comparable 和 Comparator 两种排序方式
   - 斗地主发牌模拟（综合：集合 + 排序 + 随机）
-- [ ] LeetCode 1 道（比如 242.有效的字母异位词）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 242.有效的字母异位词）
+- [x] Git commit
 
 ### Day 11（周四）
 - [x] 回顾：String、StringBuilder、StringBuffer、包装类、日期时间
@@ -179,94 +179,94 @@
 - [x] Git commit
 
 ### Day 13（周六）
-- [ ] 回顾：IO 流（File、字节流、字符流、缓冲流）
-- [ ] 写代码练习（至少 200 行）：
+- [x] 回顾：IO 流（File、字节流、字符流、缓冲流）
+- [x] 写代码练习（至少 200 行）：
   - 使用 File 类遍历目录
   - 文件复制（字节流 vs 缓冲流性能对比）
   - 字符流读写文本文件
   - 实现一个简易文本日志工具类
-- [ ] LeetCode 1 道（比如 20.有效的括号）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 20.有效的括号）
+- [x] Git commit
 
 ### Day 14（周日）—— 每周复盘日
-- [ ] 上午：写一个综合练习——简易学生管理系统（控制台版）
+- [x] 上午：写一个综合练习——简易学生管理系统（控制台版）
   - 用集合存储学生数据
   - 增删改查 + 排序 + 文件读写持久化
   - 至少 300 行代码
-- [ ] 下午：写本周学习总结（REVIEW/Week02.md）
-- [ ] Git commit + push
+- [x] 下午：写本周学习总结（REVIEW/Week02.md）
+- [x] Git commit + push
 
 ---
 
 ## 第 3 周：MySQL + JDBC + MyBatis + SpringBoot 入门
 
 ### Day 15（周一）
-- [ ] 安装 MySQL 8.0，创建数据库 reboot
-- [ ] 回顾：DDL（CREATE/ALTER/DROP）、DML（INSERT/UPDATE/DELETE）、DQL（SELECT）
-- [ ] 练习：
+- [x] 安装 MySQL 8.0，创建数据库 reboot
+- [x] 回顾：DDL（CREATE/ALTER/DROP）、DML（INSERT/UPDATE/DELETE）、DQL（SELECT）
+- [x] 练习：
   - 创建 user 表（id, username, password, email, created_at）
   - 插入 10 条测试数据
   - 各种查询：WHERE、LIKE、BETWEEN、IN、ORDER BY、LIMIT
   - GROUP BY + 聚合函数（COUNT/SUM/AVG/MAX/MIN）
-- [ ] LeetCode 1 道（比如 21.合并两个有序链表）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 21.合并两个有序链表）
+- [x] Git commit
 
 ### Day 16（周二）
-- [ ] 回顾：多表查询（INNER JOIN/LEFT JOIN/RIGHT JOIN）、子查询
-- [ ] 练习：
+- [x] 回顾：多表查询（INNER JOIN/LEFT JOIN/RIGHT JOIN）、子查询
+- [x] 练习：
   - 创建 device 表（id, name, type, status, created_at）
   - 创建 device_data 表（id, device_id, value, unit, recorded_at）
   - JOIN 查询设备及其最新数据
   - 子查询：查询数据值超过平均值的设备
-- [ ] 创建 Industrial AI Hub 的初始数据库设计文档
-- [ ] LeetCode 1 道（比如 141.环形链表）
-- [ ] Git commit
+- [x] 创建 Industrial AI Hub 的初始数据库设计文档
+- [x] LeetCode 1 道（比如 141.环形链表）
+- [x] Git commit
 
 ### Day 17（周三）
-- [ ] 回顾：索引、事务、JDBC
-- [ ] 练习：
+- [x] 回顾：索引、事务、JDBC
+- [x] 练习：
   - 创建索引并 EXPLAIN 分析查询性能
   - JDBC 连接 MySQL，执行 CRUD（纯 JDBC，不用框架）
   - 理解 Connection、Statement、PreparedStatement、ResultSet
   - JDBC 事务控制（commit/rollback）
-- [ ] LeetCode 1 道（比如 160.相交链表）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 160.相交链表）
+- [x] Git commit
 
 ### Day 18（周四）
-- [ ] 学习：MyBatis 配置 + XML 映射
-- [ ] 练习：
+- [x] 学习：MyBatis 配置 + XML 映射
+- [x] 练习：
   - 搭建 Maven 项目，引入 MyBatis 依赖
   - 编写 mybatis-config.xml
   - 创建 UserMapper.xml，实现 User 的 CRUD
   - 使用 SqlSession 执行查询
-- [ ] Git commit
+- [x] Git commit
 
 ### Day 19（周五）
-- [ ] 学习：MyBatis 注解方式 + 动态 SQL + 分页
-- [ ] 练习：
+- [x] 学习：MyBatis 注解方式 + 动态 SQL + 分页
+- [x] 练习：
   - @Select/@Insert/@Update/@Delete 注解实现 Device CRUD
   - 动态 SQL：if/where/foreach
   - 实现分页查询
-- [ ] 整合到项目中：将 JDBC 版本替换为 MyBatis
-- [ ] Git commit
+- [x] 整合到项目中：将 JDBC 版本替换为 MyBatis
+- [x] Git commit
 
 ### Day 20（周六）
-- [ ] 学习：SpringBoot 入门
-- [ ] 练习：
+- [x] 学习：SpringBoot 入门
+- [x] 练习：
   - 创建 SpringBoot 项目（使用 Spring Initializr）
   - 理解 @SpringBootApplication、自动配置
   - 编写第一个 REST 接口（Hello World）
   - 理解 application.yml 配置
-- [ ] LeetCode 1 道（比如 234.回文链表）
-- [ ] Git commit
+- [x] LeetCode 1 道（比如 234.回文链表）
+- [x] Git commit
 
 ### Day 21（周日）—— 第三周复盘
-- [ ] 上午：SpringBoot + MyBatis 整合
+- [x] 上午：SpringBoot + MyBatis 整合
   - 整合 MyBatis 到 SpringBoot 项目
   - 实现 User 的 RESTful API（GET/POST/PUT/DELETE）
   - 用 Postman 测试所有接口
-- [ ] 下午：写本周学习总结（REVIEW/Week03.md）
-- [ ] Git commit + push
+- [x] 下午：写本周学习总结（REVIEW/Week03.md）
+- [x] Git commit + push
 
 > **第一阶段检查点**：能独立写出 SpringBoot + MyBatis CRUD API，能手写 for/while/集合遍历/SQL 查询。如果做不到，多花 2-3 天补齐再进入下一阶段。
 
@@ -282,11 +282,11 @@
 ## 第 4 周：项目骨架 + 用户和认证模块
 
 ### Day 22（周一）
-- [ ] 创建 SpringBoot 项目 industrial-ai-hub
-- [ ] 设计项目包结构（controller/service/mapper/entity/dto/config）
-- [ ] 数据库表设计定稿：user, role, user_role, device, device_data, alarm, operation_log
-- [ ] 编写数据库初始化 SQL 脚本
-- [ ] Git commit：项目初始化
+- [x] 创建 SpringBoot 项目 industrial-ai-hub
+- [x] 设计项目包结构（controller/service/mapper/entity/dto/config）
+- [x] 数据库表设计定稿：user, role, user_role, device, device_data, alarm, operation_log
+- [x] 编写数据库初始化 SQL 脚本
+- [x] Git commit：项目初始化
 
 ### Day 23（周二）
 - [ ] 实现 JWT 工具类（生成 token、验证 token、解析 token）
@@ -651,11 +651,17 @@ __ 行
 > 
 > 现在，从 Day 1 开始。
 
-## 技术栈更新（2026-07-11 决定）
+## 技术栈更新（2026-07-11 决定，2026-07-21 补全）
 
 | 组件 | 版本 | 说明 |
 |------|------|------|
 | JDK | 25 LTS (Temurin) | Oracle LTS 节奏 17→21→25，2025年9月发布 |
-| Spring Boot | 3.5.x | 当前最新稳定版，JDK 25 兼容 |
-| Maven | 3.9.6 | 已就绪 |
-| MySQL | 8.0+ | - |
+| Spring Boot | 3.5.0 | 当前最新稳定版，JDK 25 兼容 |
+| Maven | 3.9.6 | Maven Wrapper 锁定，不使用 4.x RC |
+| MyBatis Spring Boot | 3.0.5 | 显式声明 |
+| MySQL Connector/J | 9.2.0 | Spring Boot parent 管理 |
+| MySQL (Docker) | 8.4 | compose.yml 锁定 |
+| Redis Stack | 7.4.0-v1 | compose.yml 锁定 |
+| RabbitMQ | 4.0-management | compose.yml 锁定 |
+| Nacos | 2.4.3 | compose.yml 锁定 |
+| Elasticsearch | 8.17.0 | compose.yml 锁定 |

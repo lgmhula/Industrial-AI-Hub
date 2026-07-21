@@ -1,0 +1,58 @@
+#!/bin/sh
+# Maven Wrapper 启动脚本
+# 自动下载并使用 maven-wrapper.properties 中指定版本的 Maven
+# 用法: ./mvnw [goals]
+
+set -e
+
+# 确定脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WRAPPER_PROPERTIES="$SCRIPT_DIR/.mvn/wrapper/maven-wrapper.properties"
+
+# 读取 distributionUrl
+if [ -f "$WRAPPER_PROPERTIES" ]; then
+    DIST_URL=$(grep 'distributionUrl' "$WRAPPER_PROPERTIES" | cut -d'=' -f2-)
+else
+    echo "Error: $WRAPPER_PROPERTIES not found"
+    exit 1
+fi
+
+# Maven 安装目录（优先使用本机已安装的 3.9.6）
+MAVEN_HOME="/Users/air/Program/apache-maven-3.9.6"
+MVN_CMD="$MAVEN_HOME/bin/mvn"
+
+# 如果本机 Maven 不存在，则回退到 wrapper 下载目录
+if [ ! -f "$MVN_CMD" ]; then
+    MAVEN_HOME="$HOME/.m2/wrapper/dists/apache-maven-3.9.6"
+    MVN_CMD="$MAVEN_HOME/bin/mvn"
+fi
+
+# 如果 Maven 未安装，则下载
+if [ ! -f "$MVN_CMD" ]; then
+    echo "Downloading Maven 3.9.6..."
+    mkdir -p "$MAVEN_HOME"
+    TEMP_FILE=$(mktemp)
+    curl -sL "$DIST_URL" -o "$TEMP_FILE"
+    
+    # 解压（支持 zip 和 tar.gz）
+    case "$DIST_URL" in
+        *.zip)
+            unzip -q "$TEMP_FILE" -d "$MAVEN_HOME"
+            # zip 解压后有一层目录，需要移动
+            INNER_DIR=$(ls "$MAVEN_HOME" | grep apache-maven)
+            if [ -d "$MAVEN_HOME/$INNER_DIR" ]; then
+                mv "$MAVEN_HOME/$INNER_DIR"/* "$MAVEN_HOME/"
+                rmdir "$MAVEN_HOME/$INNER_DIR"
+            fi
+            ;;
+        *.tar.gz)
+            tar -xzf "$TEMP_FILE" -C "$MAVEN_HOME" --strip-components=1
+            ;;
+    esac
+    rm -f "$TEMP_FILE"
+    chmod +x "$MVN_CMD"
+    echo "Maven 3.9.6 installed to $MAVEN_HOME"
+fi
+
+# 执行 Maven
+exec "$MVN_CMD" "$@"

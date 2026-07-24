@@ -6,10 +6,10 @@ import org.apache.ibatis.annotations.*;
 import java.util.List;
 
 /**
- * User 表 Mapper —— 所有 SQL 中表名使用反引号包裹（user 是 MySQL 保留字）。
+ * User 表 Mapper。
  *
  * @author hula0710
- * @since 2026-07-24
+ * @since 2026-07-25
  */
 @Mapper
 public interface UserMapper {
@@ -28,8 +28,12 @@ public interface UserMapper {
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(User user);
 
-    @Update("UPDATE `user` SET email=#{email}, phone=#{phone}, status=#{status} WHERE id=#{id}")
+    @Update("UPDATE `user` SET email=#{email}, phone=#{phone} WHERE id=#{id}")
     int update(User user);
+
+    /** 启用/禁用用户。 */
+    @Update("UPDATE `user` SET status=#{status} WHERE id=#{id}")
+    int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 
     @Update("UPDATE `user` SET password=#{password} WHERE id=#{id}")
     int updatePassword(Long id, String password);

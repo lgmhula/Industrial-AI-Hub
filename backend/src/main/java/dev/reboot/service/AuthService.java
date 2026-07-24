@@ -13,6 +13,9 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import dev.reboot.enums.RoleEnum;
+
+import java.util.List;
 
 /**
  * 认证业务逻辑层 —— 登录、注册、BCrypt 加密。
@@ -37,10 +40,7 @@ public class AuthService {
     }
 
     /**
-     * 登录 —— 验证用户名/密码，返回 JWT。
-     *
-     * @param dto 登录请求
-     * @return JWT Token，null 表示用户名或密码错误
+     * 登录 —— 验证用户名/密码，返回包含角色信息的 JWT。
      */
     public String login(LoginDTO dto) {
         User user = userMapper.findByUsername(dto.getUsername());
@@ -56,15 +56,14 @@ public class AuthService {
             log.warn("登录失败：密码错误 username={}", dto.getUsername());
             return null;
         }
-        log.info("登录成功 username={}", dto.getUsername());
-        return JwtUtils.generateToken(user.getId(), user.getUsername());
+
+        List<String> roles = userRoleMapper.findRoleCodesByUserId(user.getId());
+        log.info("登录成功 username={} roles={}", dto.getUsername(), roles);
+        return JwtUtils.generateToken(user.getId(), user.getUsername(), roles);
     }
 
     /**
-     * 注册 —— 创建新用户，密码 BCrypt 加密，返回安全的 RegisterResponse。
-     *
-     * @param dto 注册请求
-     * @return 注册成功响应，username 重复或数据库异常时返回 null
+     * 注册 —— 创建用户，分配默认 VIEWER 角色。
      */
     @Transactional
     public RegisterResponse register(LoginDTO dto) {
@@ -80,10 +79,9 @@ public class AuthService {
             return null;
         }
 
-        // 分配默认 VIEWER 角色
         UserRole userRole = new UserRole();
         userRole.setUserId(user.getId());
-        userRole.setRoleId(3L); // VIEWER
+        userRole.setRoleId(RoleEnum.VIEWER.getRoleId());
         userRoleMapper.insert(userRole);
 
         log.info("注册成功 username={} userId={}", dto.getUsername(), user.getId());

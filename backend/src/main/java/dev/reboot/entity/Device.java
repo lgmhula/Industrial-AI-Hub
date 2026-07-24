@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
  * 设备实体 —— 对应 reboot.device 表。
  *
  * @author hula0710
- * @since 2026-07-20
+ * @since 2026-07-24
  */
 public class Device {
 
@@ -18,6 +18,7 @@ public class Device {
     private String ipAddress;
     private Integer port;
     private String location;
+    private Integer isDeleted;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -37,6 +38,8 @@ public class Device {
     public void setPort(Integer port) { this.port = port; }
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
+    public Integer getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(Integer isDeleted) { this.isDeleted = isDeleted; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

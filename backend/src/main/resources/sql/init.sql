@@ -1,7 +1,7 @@
 -- ===================================================================
 -- Industrial AI Hub — 数据库初始化脚本
--- Version: 1.0
--- Created: 2026-07-20
+-- Version: 1.1
+-- Updated: 2026-07-24
 -- Database: reboot
 -- Encoding: utf8mb4
 -- ===================================================================
@@ -67,25 +67,27 @@ CREATE TABLE IF NOT EXISTS `device` (
     `ip_address`   VARCHAR(45)  DEFAULT NULL             COMMENT 'IP 地址',
     `port`         INT          DEFAULT NULL             COMMENT '端口号',
     `location`     VARCHAR(256) DEFAULT NULL             COMMENT '安装位置',
+    `is_deleted`   TINYINT      NOT NULL DEFAULT 0       COMMENT '逻辑删除：0-正常 1-已删除',
     `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_device_code` (`device_code`),
     KEY `idx_device_type` (`device_type`),
-    KEY `idx_status` (`status`)
+    KEY `idx_status` (`status`),
+    KEY `idx_is_deleted` (`is_deleted`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='设备表';
 
 -- ================================================================
 -- 5. 设备数据表 (device_data)
 -- ================================================================
 CREATE TABLE IF NOT EXISTS `device_data` (
-    `id`           BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
-    `device_id`    BIGINT       NOT NULL                 COMMENT '设备 ID',
-    `data_type`    VARCHAR(32)  NOT NULL                 COMMENT '数据类型：TEMPERATURE/PRESSURE/SPEED/HUMIDITY',
-    `data_value`   DOUBLE       NOT NULL                 COMMENT '数据值',
-    `unit`         VARCHAR(16)  DEFAULT NULL             COMMENT '单位：°C/MPa/RPM/%',
-    `recorded_at`  DATETIME     NOT NULL                 COMMENT '采集时间',
-    `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
+    `id`           BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '主键',
+    `device_id`    BIGINT          NOT NULL                 COMMENT '设备 ID',
+    `data_type`    VARCHAR(32)     NOT NULL                 COMMENT '数据类型：TEMPERATURE/PRESSURE/SPEED/HUMIDITY',
+    `data_value`   DECIMAL(18,6)   NOT NULL                 COMMENT '数据值（工业精度）',
+    `unit`         VARCHAR(16)     DEFAULT NULL             COMMENT '单位：°C/MPa/RPM/%',
+    `recorded_at`  DATETIME        NOT NULL                 COMMENT '采集时间',
+    `created_at`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
     PRIMARY KEY (`id`),
     KEY `idx_device_id` (`device_id`),
     KEY `idx_recorded_at` (`recorded_at`),
@@ -138,3 +140,13 @@ INSERT INTO `role` (`role_name`, `role_code`, `description`) VALUES
     ('操作员',  'OPERATOR', '设备操作员，可查看和操作设备'),
     ('观察者',  'VIEWER',   '只读权限，仅可查看数据和报表')
 ON DUPLICATE KEY UPDATE `role_name` = VALUES(`role_name`);
+
+-- ================================================================
+-- 初始数据：默认管理员 (密码: admin123)
+-- ================================================================
+INSERT INTO `user` (`id`, `username`, `password`, `status`) VALUES
+    (1, 'admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 1)
+ON DUPLICATE KEY UPDATE `username` = VALUES(`username`);
+
+INSERT INTO `user_role` (`user_id`, `role_id`) VALUES (1, 1)
+ON DUPLICATE KEY UPDATE `user_id` = VALUES(`user_id`);

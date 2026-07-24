@@ -1,19 +1,20 @@
 package dev.reboot.entity;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
  * 设备数据实体 —— 对应 reboot.device_data 表。
  *
  * @author hula0710
- * @since 2026-07-20
+ * @since 2026-07-24
  */
 public class DeviceData {
 
     private Long id;
     private Long deviceId;
     private String dataType;
-    private Double dataValue;
+    private BigDecimal dataValue;
     private String unit;
     private LocalDateTime recordedAt;
     private LocalDateTime createdAt;
@@ -24,8 +25,8 @@ public class DeviceData {
     public void setDeviceId(Long deviceId) { this.deviceId = deviceId; }
     public String getDataType() { return dataType; }
     public void setDataType(String dataType) { this.dataType = dataType; }
-    public Double getDataValue() { return dataValue; }
-    public void setDataValue(Double dataValue) { this.dataValue = dataValue; }
+    public BigDecimal getDataValue() { return dataValue; }
+    public void setDataValue(BigDecimal dataValue) { this.dataValue = dataValue; }
     public String getUnit() { return unit; }
     public void setUnit(String unit) { this.unit = unit; }
     public LocalDateTime getRecordedAt() { return recordedAt; }
@@ -35,7 +36,7 @@ public class DeviceData {
 
     @Override
     public String toString() {
-        return String.format("DeviceData{id=%d, deviceId=%d, dataType='%s', value=%.2f%s}",
+        return String.format("DeviceData{id=%d, deviceId=%d, dataType='%s', value=%s%s}",
                 id, deviceId, dataType, dataValue, unit);
     }
 }

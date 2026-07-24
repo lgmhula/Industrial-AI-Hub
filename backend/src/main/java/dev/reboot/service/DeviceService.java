@@ -57,6 +57,6 @@ public class DeviceService {
     }
 
     public boolean delete(Long id) {
-        return deviceMapper.deleteById(id) > 0;
+        return deviceMapper.softDeleteById(id) > 0;
     }
 }

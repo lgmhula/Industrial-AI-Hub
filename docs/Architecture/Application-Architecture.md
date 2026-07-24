@@ -1,9 +1,9 @@
-# Application Architecture V1.2
+# Application Architecture V1.3
 
 > **Status:** Active  
-> **Version:** 1.2
-> **Updated:** 2026-07-21
-> **Based on Commit:** Day 022 (三层架构 + ApiResponse 实现)  
+> **Version:** 1.3
+> **Updated:** 2026-07-24
+> **Based on Commit:** Day 024 (三层架构 + ApiResponse 实现)  
 > **Governs:** All application-layer decisions for Industrial AI Hub Backend
 
 ---
@@ -52,46 +52,57 @@
 
 ## 2. 项目分层架构 (Layered Architecture)
 
-### 当前实现 (Day 022)
+### 当前实现 (Day 024)
 
 ```
-┌──────────────────────────────────────┐
-│            Presentation              │  Controller
-│     @RestController + @RequestMapping│
-├──────────────────────────────────────┤
-│            Business Logic            │  Service
-│     @Service (业务逻辑 + 事务)        │
-├──────────────────────────────────────┤
-│           Persistence                │  Mapper
-│     @Mapper (注解 SQL)               │
-├──────────────────────────────────────┤
-│           Infrastructure             │  MySQL / HikariCP
-│     compose.yml 统一管理              │
-└──────────────────────────────────────┘
+HTTP Request
+  │
+  ▼
+┌──────────────────────┐
+│    JwtAuthFilter     │  Filter — Bearer Token 提取 + 验证
+│   request attribute   │  userId / username / roles
+└──────┬───────────────┘
+       ▼
+┌──────────────────────┐
+│   AuthInterceptor    │  HandlerInterceptor — @RequireRole 检查
+│   401 / 403 响应      │  无注解→放行  无Token→401  角色不足→403
+└──────┬───────────────┘
+       ▼
+┌──────────────────────┐
+│     Controller       │  @RestController
+│  DeviceController    │  AuthController
+└──────┬───────────────┘
+       ▼
+┌──────────────────────┐
+│      Service         │  @Service
+│  Device / Auth / User│  BCrypt + JWT + 业务逻辑
+└──────┬───────────────┘
+       ▼
+┌──────────────────────┐
+│      Mapper          │  @Mapper (注解 SQL)
+│   Device / User /    │  逻辑删除 (is_deleted = 0)
+│   UserRole / Role    │
+└──────┬───────────────┘
+       ▼
+     MySQL (HikariCP)
 ```
 
-### 调用链路
+### 已实现模块 (Day 024)
 
-```
-HTTP Request → DeviceController (@RestController)
-  → DeviceService (@Service, 业务逻辑)
-    → DeviceMapper (@Mapper, 数据访问)
-      → MySQL (HikariCP 连接池)
-```
+- **认证** — AuthController (POST /api/auth/login, /api/auth/register) + JwtUtils + BCrypt
+- **权限** — RoleEnum (ADMIN/OPERATOR/VIEWER) + @RequireRole 注解 + AuthInterceptor + JwtAuthFilter
+- **Service 层** — DeviceService / UserService / AuthService / AlarmService
+- **DTO/VO 层** — ApiResponse<T> / DeviceDTO / DeviceVO / UserVO / LoginDTO / RegisterResponse
+- **Mapper 层** — 7 张表全 Mapper，逻辑删除 + 反引号保护
+- **CORS / Security** — CorsConfig / SecurityConfig / WebMvcConfig
+- **Config** — BCryptPasswordEncoder Bean + 拦截器注册
+- **数据库** — init.sql (v1.1, is_deleted + DECIMAL + 默认 admin)
 
-### 已实现模块 (Day 022)
+### 计划中 (Day 025+)
 
-- **Service 层** (`dev.reboot.service`) — DeviceService / UserService / AlarmService
-- **统一响应** (`dev.reboot.dto.ApiResponse<T>`) — 标准 JSON 响应格式 {code, message, data}
-- **CORS 配置** (`dev.reboot.config.CorsConfig`) — 跨域支持
-- **DTO 层** (`dev.reboot.dto`) — DeviceDTO / LoginDTO
-
-### 计划中 (Day 023+)
-
-- **JWT 认证** — 登录/注册接口 + Token 生成/验证
-- **全局异常处理** (`dev.reboot.config.GlobalExceptionHandler`) — @RestControllerAdvice
-- **RBAC 权限拦截** — @RequireRole 注解 + JWT Filter
-- **Product/Category 模块** — XML ResultMap 关联查询
+- **用户管理模块** — 用户列表、分页查询（PageHelper）、启用/禁用
+- **全局异常处理** — @RestControllerAdvice (Day 26)
+- **参数校验** — @Valid + JSR-303 (Day 26)
 
 ---
 
@@ -160,7 +171,7 @@ spring.datasource:
   # 使用环境变量，Docker MySQL 端口映射为 3307
   url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3307}/reboot
   username: ${MYSQL_USER:root}
-  password: ${MYSQL_PASSWORD:1zxcvbnm}
+  password: ${MYSQL_PASSWORD}  # 无默认值，必须设置环境变量
 
 mybatis:
   mapper-locations: classpath:code/**/*Mapper.xml
@@ -218,6 +229,9 @@ Spring Boot 运行于宿主机，通过 Docker 端口映射 (`3307:3306`) 访问
 | ADR-003 | @Mapper 注解模式（XML 保留用于学习） | 2026-07-20 | ✅ 已实施 |
 | ADR-004 | Controller→Service→Mapper 三层架构 | 2026-07-20 | ✅ 已实施 |
 | ADR-005 | ApiResponse<T> 统一响应 (dev.reboot.dto) | 2026-07-20 | ✅ 已实施 |
+| ADR-006 | JWT 认证（jjwt 0.12.6，无 Spring Security 全栈） | 2026-07-21 | ✅ 已实施 |
+| ADR-007 | RBAC interceptor + @RequireRole（无 Spring Security） | 2026-07-24 | ✅ 已实施 |
+| ADR-008 | DeviceVO/UserVO 视图隔离，杜绝敏感字段外泄 | 2026-07-24 | ✅ 已实施 |
 
 ---
 
@@ -243,6 +257,6 @@ curl http://localhost:8080/api/devices
 | Phase 1 (Day 1-7) | Java 基础语法 | ✅ 完成 |
 | Phase 2 (Day 8-14) | 集合/泛型/异常/IO | ✅ 完成 |
 | Phase 3 (Day 15-21) | MySQL/JDBC/MyBatis/SB | ✅ 完成 |
-| Phase 4 (Day 22-28) | 工程化/校验/分页/Redis | 🔄 进行中 (Day 22 ✅) |
+| Phase 4 (Day 22-28) | 工程化/校验/分页/Redis | 🔄 进行中 (Day 24 ✅) |
 | Phase 5 (Day 29-42) | Spring Security/JWT | 📅 计划 |
 | Phase 6 (Day 43-56) | 微服务 Spring Cloud | 📅 计划 |

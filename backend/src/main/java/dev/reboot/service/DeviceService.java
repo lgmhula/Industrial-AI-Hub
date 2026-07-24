@@ -1,6 +1,7 @@
 package dev.reboot.service;
 
 import dev.reboot.dto.DeviceDTO;
+import dev.reboot.dto.DeviceVO;
 import dev.reboot.entity.Device;
 import dev.reboot.mapper.DeviceMapper;
 import org.springframework.stereotype.Service;
@@ -11,7 +12,7 @@ import java.util.List;
  * Device 业务逻辑层。
  *
  * @author hula0710
- * @since 2026-07-20
+ * @since 2026-07-24
  */
 @Service
 public class DeviceService {
@@ -22,12 +23,17 @@ public class DeviceService {
         this.deviceMapper = deviceMapper;
     }
 
-    public List<Device> listAll() {
-        return deviceMapper.findAll();
+    /** 查询所有设备，返回 DeviceVO（不含内部标记字段）。 */
+    public List<DeviceVO> listAll() {
+        return deviceMapper.findAll().stream()
+                .map(DeviceVO::from)
+                .toList();
     }
 
-    public Device getById(Long id) {
-        return deviceMapper.findById(id);
+    /** 按 ID 查询，返回 DeviceVO。 */
+    public DeviceVO getById(Long id) {
+        Device device = deviceMapper.findById(id);
+        return device != null ? DeviceVO.from(device) : null;
     }
 
     public Device create(DeviceDTO dto) {
@@ -43,7 +49,7 @@ public class DeviceService {
         return device;
     }
 
-    public Device update(Long id, DeviceDTO dto) {
+    public DeviceVO update(Long id, DeviceDTO dto) {
         Device device = deviceMapper.findById(id);
         if (device == null) return null;
         device.setDeviceName(dto.getDeviceName());
@@ -53,9 +59,10 @@ public class DeviceService {
         device.setPort(dto.getPort());
         device.setLocation(dto.getLocation());
         deviceMapper.update(device);
-        return device;
+        return DeviceVO.from(device);
     }
 
+    /** 逻辑删除设备。 */
     public boolean delete(Long id) {
         return deviceMapper.softDeleteById(id) > 0;
     }

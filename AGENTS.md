@@ -122,9 +122,10 @@ Industrial-AI-Hub/
 - **数据库**：`reboot`，7 张表（user/role/user_role/device/device_data/alarm/operation_log）
 - **API 前缀**：`/api/`
 - **端口**：Spring Boot 8080，MySQL(Docker) 3307，Redis 6379
-- **密码加密**：BCrypt（尚未实现，Day 23 开始）
-- **认证方式**：JWT（尚未实现，Day 23 开始）
-- **权限模型**：RBAC（user_role 表，角色：ADMIN/OPERATOR/VIEWER）
+- **密码加密**：BCrypt（已实现，Day 23）
+- **认证方式**：JWT — JwtUtils 生成/验证/解析 + AuthService 登录/注册（已实现，Day 23）
+- **权限模型**：RBAC — 拦截器 AuthInterceptor + @RequireRole 注解（已实现，Day 24）
+- **逻辑删除**：device 表 is_deleted + softDeleteById（已实现，Day 24 post-audit）
 
 ---
 

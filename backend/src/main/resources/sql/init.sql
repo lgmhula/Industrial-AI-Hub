@@ -145,7 +145,7 @@ ON DUPLICATE KEY UPDATE `role_name` = VALUES(`role_name`);
 -- 初始数据：默认管理员 (密码: admin123)
 -- ================================================================
 INSERT INTO `user` (`id`, `username`, `password`, `status`) VALUES
-    (1, 'admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 1)
+    (1, 'admin', '$2b$10$4KMuiB2W7NzIXQpnrG2cW.DfqL1WL4woBUK1/pPzjmsqfluFJ6Bea', 1)
 ON DUPLICATE KEY UPDATE `username` = VALUES(`username`);
 
 INSERT INTO `user_role` (`user_id`, `role_id`) VALUES (1, 1)

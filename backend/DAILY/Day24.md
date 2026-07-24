@@ -78,13 +78,8 @@ dev.reboot.config/
 
 ## Postman 测试
 ```bash
-# 1. 注册 admin 用户
-POST /api/auth/register {"username":"admin","password":"123456"}
-# 手动在数据库改为 ADMIN 角色:
-# INSERT INTO user_role(user_id, role_id) VALUES(<admin_id>, 1);
-
-# 2. 登录获取 token
-POST /api/auth/login {"username":"admin","password":"123456"}
+# 1. 登录默认管理员（init.sql 已预置 admin/admin123 + ADMIN 角色）
+POST /api/auth/login {"username":"admin","password":"admin123"}
 # → token: eyJ...
 
 # 3. 测试各接口（Header: Authorization: Bearer <token>）

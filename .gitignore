@@ -22,4 +22,12 @@ mysql/data/
 mysql/ms-data/
 redis/data/
 nginx/logs/
+rabbitmq/mnesia/
+rabbitmq/data/
+nacos/data/
+nacos/logs/
+minio/data/
+elasticsearch/data/
+
+# Archives
 *.tar.gz

@@ -2,7 +2,7 @@ package dev.reboot.controller;
 
 import dev.reboot.dto.ApiResponse;
 import dev.reboot.dto.LoginDTO;
-import dev.reboot.entity.User;
+import dev.reboot.dto.RegisterResponse;
 import dev.reboot.service.AuthService;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,11 +12,11 @@ import org.springframework.web.bind.annotation.*;
  * <h3>端点</h3>
  * <ul>
  *   <li>POST /api/auth/login    —— 登录，返回 JWT Token</li>
- *   <li>POST /api/auth/register —— 注册，返回用户信息</li>
+ *   <li>POST /api/auth/register —— 注册，返回 RegisterResponse（无密码字段）</li>
  * </ul>
  *
  * @author hula0710
- * @since 2026-07-21
+ * @since 2026-07-24
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -33,8 +33,6 @@ public class AuthController {
      *
      * <p>请求体示例：
      * <pre>{@code {"username": "admin", "password": "123456"}}</pre>
-     *
-     * <p>成功返回 JWT token，放入 data 字段。</p>
      */
     @PostMapping("/login")
     public ApiResponse<String> login(@RequestBody LoginDTO dto) {
@@ -57,7 +55,7 @@ public class AuthController {
      * <pre>{@code {"username": "newuser", "password": "mypassword"}}</pre>
      */
     @PostMapping("/register")
-    public ApiResponse<User> register(@RequestBody LoginDTO dto) {
+    public ApiResponse<RegisterResponse> register(@RequestBody LoginDTO dto) {
         if (dto.getUsername() == null || dto.getUsername().isBlank()
                 || dto.getPassword() == null || dto.getPassword().isBlank()) {
             return ApiResponse.error(400, "用户名和密码不能为空");
@@ -66,10 +64,10 @@ public class AuthController {
             return ApiResponse.error(400, "密码长度至少 6 位");
         }
 
-        User user = authService.register(dto);
-        if (user == null) {
+        RegisterResponse resp = authService.register(dto);
+        if (resp == null) {
             return ApiResponse.error(409, "用户名已存在");
         }
-        return ApiResponse.ok("注册成功", user);
+        return ApiResponse.ok("注册成功", resp);
     }
 }

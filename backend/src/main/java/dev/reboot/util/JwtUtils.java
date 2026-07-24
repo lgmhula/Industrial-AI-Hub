@@ -12,6 +12,10 @@ import java.util.Date;
 /**
  * JWT 工具类 —— 生成、验证、解析 Token。
  *
+ * <h3>安全说明</h3>
+ * <p>签名密钥通过环境变量 {@code JWT_SECRET} 注入，不硬编码在源码中。
+ * 生产环境必须设置至少 256-bit 长度的密钥。</p>
+ *
  * <h3>依赖</h3>
  * <ul>
  *   <li>jjwt-api 0.12.6</li>
@@ -23,12 +27,24 @@ import java.util.Date;
  */
 public final class JwtUtils {
 
-    /** JWT 签名密钥（生产环境建议放配置文件，至少 256 bit） */
-    private static final String SECRET_KEY = "IndustrialAIHub-2026-SecretKey-ForJWT-Signing-AtLeast256Bit!";
-    private static final SecretKey KEY = Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
+    private static final SecretKey KEY;
 
-    /** Token 有效期：24 小时 */
-    private static final long EXPIRATION_MS = 24 * 60 * 60 * 1000L;
+    /** Token 有效期，通过环境变量 JWT_EXPIRATION_MS 覆盖，默认 24 小时 */
+    private static final long EXPIRATION_MS;
+
+    static {
+        String secret = System.getenv("JWT_SECRET");
+        if (secret == null || secret.isBlank()) {
+            System.err.println("[WARN] JWT_SECRET 未设置，使用开发默认密钥（不安全）");
+            secret = "DevOnly-DefaultKey-DoNotUseInProduction-ChangeMe-256bit!";
+        }
+        KEY = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+
+        String expirationEnv = System.getenv("JWT_EXPIRATION_MS");
+        EXPIRATION_MS = (expirationEnv != null && !expirationEnv.isBlank())
+                ? Long.parseLong(expirationEnv)
+                : 24 * 60 * 60 * 1000L;
+    }
 
     private JwtUtils() {}
 
@@ -69,9 +85,6 @@ public final class JwtUtils {
 
     /**
      * 验证 Token 是否有效（签名正确且未过期）。
-     *
-     * @param token JWT 字符串
-     * @return true 有效，false 无效
      */
     public static boolean validateToken(String token) {
         try {

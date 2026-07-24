@@ -31,10 +31,10 @@
 ## 3. 当前状态
 
 - **阶段**：第二阶段 — Industrial AI Hub V1（第 4-6 周）
-- **进度**：Day 22 已完成，下一步 Day 23
+- **进度**：Day 23 已完成，下一步 Day 24
 - **Day 23 任务**：JWT 工具类 + 登录/注册接口 + BCrypt 加密 + Postman 测试
-- **已完成模块**：设备 CRUD（Controller→Service→Mapper 三层）、ApiResponse 统一响应、CORS 配置
-- **待实现**：JWT 认证、RBAC 权限拦截、全局异常处理、前端页面
+- **已完成模块**：设备 CRUD、JWT 工具类、登录/注册接口、BCrypt 加密、ApiResponse 统一响应、CORS 配置、UserRoleMapper
+- **待实现**：JWT Filter 拦截器、RBAC 权限控制、全局异常处理、前端页面、参数校验
 
 ---
 
@@ -128,4 +128,4 @@ Industrial-AI-Hub/
 
 ---
 
-> 最后更新：2026-07-21 | 维护者：AI 助手 + hula0710
+> 最后更新：2026-07-24 | 维护者：AI 助手 + hula0710

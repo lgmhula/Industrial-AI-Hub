@@ -36,7 +36,7 @@ public class DeviceService {
         return device != null ? DeviceVO.from(device) : null;
     }
 
-    public Device create(DeviceDTO dto) {
+    public DeviceVO create(DeviceDTO dto) {
         Device device = new Device();
         device.setDeviceName(dto.getDeviceName());
         device.setDeviceCode(dto.getDeviceCode());
@@ -46,7 +46,7 @@ public class DeviceService {
         device.setPort(dto.getPort());
         device.setLocation(dto.getLocation());
         deviceMapper.insert(device);
-        return device;
+        return DeviceVO.from(device);
     }
 
     public DeviceVO update(Long id, DeviceDTO dto) {

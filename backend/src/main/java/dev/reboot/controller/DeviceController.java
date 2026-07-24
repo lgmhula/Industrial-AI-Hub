@@ -4,7 +4,6 @@ import dev.reboot.annotation.RequireRole;
 import dev.reboot.dto.ApiResponse;
 import dev.reboot.dto.DeviceDTO;
 import dev.reboot.dto.DeviceVO;
-import dev.reboot.entity.Device;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.DeviceService;
 import org.springframework.web.bind.annotation.*;
@@ -43,7 +42,7 @@ public class DeviceController {
 
     @PostMapping
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
-    public ApiResponse<Device> create(@RequestBody DeviceDTO dto) {
+    public ApiResponse<DeviceVO> create(@RequestBody DeviceDTO dto) {
         return ApiResponse.ok("设备创建成功", deviceService.create(dto));
     }
 

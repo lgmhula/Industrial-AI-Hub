@@ -120,14 +120,17 @@ backend/
 │   ├── dev/reboot/                # === 主应用 (Day 21+) ===
 │   │   ├── IndustrialAiHubApplication.java
 │   │   ├── controller/
-│   │   │   └── DeviceController.java    # /api/devices CRUD
+│   │   │   ├── AuthController.java      # /api/auth/login, /api/auth/register
+│   │   │   └── DeviceController.java    # /api/devices CRUD + @RequireRole
 │   │   ├── service/
-│   │   │   ├── DeviceService.java       # 设备业务逻辑
-│   │   │   ├── UserService.java         # 用户业务逻辑
+│   │   │   ├── AuthService.java         # 登录/注册 + BCrypt + JWT
+│   │   │   ├── DeviceService.java       # 设备业务逻辑（返回 DeviceVO）
+│   │   │   ├── UserService.java         # 用户业务逻辑（返回 UserVO）
 │   │   │   └── AlarmService.java        # 告警业务逻辑
 │   │   ├── mapper/
-│   │   │   ├── DeviceMapper.java        # 注解 SQL
-│   │   │   ├── UserMapper.java
+│   │   │   ├── DeviceMapper.java        # 注解 SQL + 逻辑删除
+│   │   │   ├── UserMapper.java          # 反引号保护 `user`
+│   │   │   ├── UserRoleMapper.java      # RBAC 角色关联查询
 │   │   │   ├── RoleMapper.java
 │   │   │   ├── DeviceDataMapper.java
 │   │   │   ├── AlarmMapper.java
@@ -138,10 +141,22 @@ backend/
 │   │   │   ├── Alarm.java, OperationLog.java
 │   │   ├── dto/
 │   │   │   ├── ApiResponse.java         # 统一响应 {code,message,data}
-│   │   │   ├── DeviceDTO.java
+│   │   │   ├── DeviceDTO.java / DeviceVO.java
+│   │   │   ├── UserVO.java / RegisterResponse.java
 │   │   │   └── LoginDTO.java
+│   │   ├── enums/
+│   │   │   └── RoleEnum.java            # ADMIN/OPERATOR/VIEWER 枚举
+│   │   ├── annotation/
+│   │   │   └── RequireRole.java         # @RequireRole 权限注解
+│   │   ├── security/
+│   │   │   ├── JwtAuthFilter.java       # JWT Bearer Token Filter
+│   │   │   └── AuthInterceptor.java     # @RequireRole 权限拦截器
+│   │   ├── util/
+│   │   │   └── JwtUtils.java            # JWT 生成/验证/解析
 │   │   └── config/
-│   │       └── CorsConfig.java          # 跨域配置
+│   │       ├── CorsConfig.java          # 跨域配置
+│   │       ├── SecurityConfig.java      # BCryptPasswordEncoder Bean
+│   │       └── WebMvcConfig.java        # Filter + Interceptor 注册
 │   │
 │   └── code/day01~22/             # === 学习代码 (Day 1~22) ===
 │       └── dayXX/
@@ -174,7 +189,7 @@ spring.datasource:
   password: ${MYSQL_PASSWORD}  # 无默认值，必须设置环境变量
 
 mybatis:
-  mapper-locations: classpath:code/**/*Mapper.xml
+  mapper-locations: classpath*:code/**/*Mapper.xml, classpath*:mapper/**/*Mapper.xml
   type-aliases-package: dev.reboot.entity
   configuration:
     map-underscore-to-camel-case: true     # 自动驼峰映射
@@ -198,13 +213,14 @@ Spring Boot 运行于宿主机，通过 Docker 端口映射 (`3307:3306`) 访问
 | PUT | /api/devices/{id} | 更新设备 | ✅ |
 | DELETE | /api/devices/{id} | 删除设备 | ✅ |
 
-### Product API (`/api/products`) — 计划中 (Day 022+)
+### Auth API (`/api/auth`) — 已实现
 
 | 方法 | 路径 | 说明 | 状态 |
 |------|------|------|------|
-| GET | /api/products | 全部产品(含分类) | 📅 Planned |
-| GET | /api/products/{id} | 产品+分类(association) | 📅 Planned |
-| GET | /api/products/category/{id} | 按分类筛选 | 📅 Planned |
+| POST | /api/auth/register | 注册（自动分配 VIEWER 角色） | ✅ |
+| POST | /api/auth/login | 登录，返回 JWT Token（含 roles） | ✅ |
+
+> `/api/auth/**` 为公开接口，无需 Bearer Token。
 
 ### 响应格式 (Day 022 已实现)
 
@@ -258,5 +274,5 @@ curl http://localhost:8080/api/devices
 | Phase 2 (Day 8-14) | 集合/泛型/异常/IO | ✅ 完成 |
 | Phase 3 (Day 15-21) | MySQL/JDBC/MyBatis/SB | ✅ 完成 |
 | Phase 4 (Day 22-28) | 工程化/校验/分页/Redis | 🔄 进行中 (Day 24 ✅) |
-| Phase 5 (Day 29-42) | Spring Security/JWT | 📅 计划 |
+| Phase 5 (Day 29-42) | Redis 缓存 + RabbitMQ 消息队列 | 📅 计划（JWT/RBAC 已在 Day 23-24 提前完成） |
 | Phase 6 (Day 43-56) | 微服务 Spring Cloud | 📅 计划 |

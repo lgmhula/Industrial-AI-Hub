@@ -6,6 +6,7 @@ import dev.reboot.dto.DeviceDTO;
 import dev.reboot.dto.DeviceVO;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.DeviceService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -42,7 +43,7 @@ public class DeviceController {
 
     @PostMapping
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
-    public ApiResponse<DeviceVO> create(@RequestBody DeviceDTO dto) {
+    public ApiResponse<DeviceVO> create(@Valid @RequestBody DeviceDTO dto) {
         DeviceVO vo = deviceService.create(dto);
         if (vo == null) return ApiResponse.error(409, "设备编码已存在");
         return ApiResponse.ok("设备创建成功", vo);
@@ -50,7 +51,7 @@ public class DeviceController {
 
     @PutMapping("/{id}")
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
-    public ApiResponse<DeviceVO> update(@PathVariable Long id, @RequestBody DeviceDTO dto) {
+    public ApiResponse<DeviceVO> update(@PathVariable Long id, @Valid @RequestBody DeviceDTO dto) {
         DeviceVO vo = deviceService.update(id, dto);
         if (vo == null) return ApiResponse.error(404, "设备不存在");
         return ApiResponse.ok("设备更新成功", vo);

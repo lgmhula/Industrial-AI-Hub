@@ -4,10 +4,15 @@ import dev.reboot.dto.ApiResponse;
 import dev.reboot.dto.LoginDTO;
 import dev.reboot.dto.UserVO;
 import dev.reboot.service.AuthService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 /**
  * 认证 REST 控制器 —— 登录、注册。
+ *
+ * <p>参数校验已迁移至 DTO 的 Jakarta Validation 注解，
+ * 由 {@code @Valid} 触发，异常统一由
+ * {@link dev.reboot.exception.GlobalExceptionHandler} 处理。</p>
  *
  * @author hula0710
  * @since 2026-07-24
@@ -22,13 +27,9 @@ public class AuthController {
         this.authService = authService;
     }
 
+    /** 登录 — 返回 JWT Token。 */
     @PostMapping("/login")
-    public ApiResponse<String> login(@RequestBody LoginDTO dto) {
-        if (dto.getUsername() == null || dto.getUsername().isBlank()
-                || dto.getPassword() == null || dto.getPassword().isBlank()) {
-            return ApiResponse.error(400, "用户名和密码不能为空");
-        }
-
+    public ApiResponse<String> login(@Valid @RequestBody LoginDTO dto) {
         String token = authService.login(dto);
         if (token == null) {
             return ApiResponse.error(401, "用户名或密码错误");
@@ -36,16 +37,9 @@ public class AuthController {
         return ApiResponse.ok("登录成功", token);
     }
 
+    /** 注册 — 返回新用户的 UserVO（不含密码）。 */
     @PostMapping("/register")
-    public ApiResponse<UserVO> register(@RequestBody LoginDTO dto) {
-        if (dto.getUsername() == null || dto.getUsername().isBlank()
-                || dto.getPassword() == null || dto.getPassword().isBlank()) {
-            return ApiResponse.error(400, "用户名和密码不能为空");
-        }
-        if (dto.getPassword().length() < 6) {
-            return ApiResponse.error(400, "密码长度至少 6 位");
-        }
-
+    public ApiResponse<UserVO> register(@Valid @RequestBody LoginDTO dto) {
         UserVO vo = authService.register(dto);
         if (vo == null) {
             return ApiResponse.error(409, "用户名已存在");

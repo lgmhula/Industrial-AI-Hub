@@ -1,5 +1,6 @@
 package dev.reboot.service;
 
+import dev.reboot.dto.ApiResponse;
 import dev.reboot.dto.DeviceDTO;
 import dev.reboot.dto.DeviceVO;
 import dev.reboot.entity.Device;
@@ -36,7 +37,15 @@ public class DeviceService {
         return device != null ? DeviceVO.from(device) : null;
     }
 
+    /**
+     * 创建设备。
+     *
+     * <p>检查 deviceCode 唯一性，重复时返回 null。</p>
+     */
     public DeviceVO create(DeviceDTO dto) {
+        if (deviceMapper.findByCode(dto.getDeviceCode()) != null) {
+            return null;
+        }
         Device device = new Device();
         device.setDeviceName(dto.getDeviceName());
         device.setDeviceCode(dto.getDeviceCode());

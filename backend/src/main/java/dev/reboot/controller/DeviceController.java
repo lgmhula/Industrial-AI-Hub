@@ -43,7 +43,9 @@ public class DeviceController {
     @PostMapping
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
     public ApiResponse<DeviceVO> create(@RequestBody DeviceDTO dto) {
-        return ApiResponse.ok("设备创建成功", deviceService.create(dto));
+        DeviceVO vo = deviceService.create(dto);
+        if (vo == null) return ApiResponse.error(409, "设备编码已存在");
+        return ApiResponse.ok("设备创建成功", vo);
     }
 
     @PutMapping("/{id}")

@@ -1,9 +1,10 @@
 package dev.reboot.service;
 
 import dev.reboot.dto.LoginDTO;
-import dev.reboot.dto.RegisterResponse;
+import dev.reboot.dto.UserVO;
 import dev.reboot.entity.User;
 import dev.reboot.entity.UserRole;
+import dev.reboot.enums.RoleEnum;
 import dev.reboot.mapper.UserMapper;
 import dev.reboot.mapper.UserRoleMapper;
 import dev.reboot.util.JwtUtils;
@@ -13,7 +14,6 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import dev.reboot.enums.RoleEnum;
 
 import java.util.List;
 
@@ -64,9 +64,11 @@ public class AuthService {
 
     /**
      * 注册 —— 创建用户，分配默认 VIEWER 角色。
+     *
+     * <p>返回 UserVO（绝不包含 password 字段）。</p>
      */
     @Transactional
-    public RegisterResponse register(LoginDTO dto) {
+    public UserVO register(LoginDTO dto) {
         User user = new User();
         user.setUsername(dto.getUsername());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
@@ -85,14 +87,6 @@ public class AuthService {
         userRoleMapper.insert(userRole);
 
         log.info("注册成功 username={} userId={}", dto.getUsername(), user.getId());
-
-        RegisterResponse resp = new RegisterResponse();
-        resp.setId(user.getId());
-        resp.setUsername(user.getUsername());
-        resp.setEmail(user.getEmail());
-        resp.setPhone(user.getPhone());
-        resp.setStatus(user.getStatus());
-        resp.setCreatedAt(user.getCreatedAt());
-        return resp;
+        return UserVO.from(user);
     }
 }

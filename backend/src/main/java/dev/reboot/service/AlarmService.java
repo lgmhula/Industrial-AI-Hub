@@ -1,6 +1,6 @@
 package dev.reboot.service;
 
-import dev.reboot.entity.Alarm;
+import dev.reboot.dto.AlarmVO;
 import dev.reboot.mapper.AlarmMapper;
 import org.springframework.stereotype.Service;
 
@@ -21,16 +21,22 @@ public class AlarmService {
         this.alarmMapper = alarmMapper;
     }
 
-    public List<Alarm> listAll() {
-        return alarmMapper.findAll();
+    public List<AlarmVO> listAll() {
+        return alarmMapper.findAll().stream()
+                .map(AlarmVO::from)
+                .toList();
     }
 
-    public List<Alarm> listByDevice(Long deviceId) {
-        return alarmMapper.findByDeviceId(deviceId);
+    public List<AlarmVO> listByDevice(Long deviceId) {
+        return alarmMapper.findByDeviceId(deviceId).stream()
+                .map(AlarmVO::from)
+                .toList();
     }
 
-    public List<Alarm> listByStatus(Integer status) {
-        return alarmMapper.findByStatus(status);
+    public List<AlarmVO> listByStatus(Integer status) {
+        return alarmMapper.findByStatus(status).stream()
+                .map(AlarmVO::from)
+                .toList();
     }
 
     public boolean acknowledge(Long id) {

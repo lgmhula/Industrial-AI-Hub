@@ -14,30 +14,31 @@ import java.util.List;
 @Mapper
 public interface UserMapper {
 
-    @Select("SELECT * FROM `user` ORDER BY id DESC")
+    @Select("SELECT * FROM user WHERE is_deleted = 0 ORDER BY id DESC")
     List<User> findAll();
 
-    @Select("SELECT * FROM `user` WHERE id = #{id}")
+    @Select("SELECT * FROM user WHERE id = #{id} AND is_deleted = 0")
     User findById(Long id);
 
-    @Select("SELECT * FROM `user` WHERE username = #{username}")
+    @Select("SELECT * FROM user WHERE username = #{username} AND is_deleted = 0")
     User findByUsername(String username);
 
-    @Insert("INSERT INTO `user`(username, password, email, phone, status) "
+    @Insert("INSERT INTO user(username, password, email, phone, status) "
           + "VALUES(#{username}, #{password}, #{email}, #{phone}, #{status})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(User user);
 
-    @Update("UPDATE `user` SET email=#{email}, phone=#{phone} WHERE id=#{id}")
+    @Update("UPDATE user SET email=#{email}, phone=#{phone} WHERE id=#{id} AND is_deleted = 0")
     int update(User user);
 
     /** 启用/禁用用户。 */
-    @Update("UPDATE `user` SET status=#{status} WHERE id=#{id}")
+    @Update("UPDATE user SET status=#{status} WHERE id=#{id} AND is_deleted = 0")
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 
-    @Update("UPDATE `user` SET password=#{password} WHERE id=#{id}")
+    @Update("UPDATE user SET password=#{password} WHERE id=#{id} AND is_deleted = 0")
     int updatePassword(Long id, String password);
 
-    @Delete("DELETE FROM `user` WHERE id = #{id}")
-    int deleteById(Long id);
+    /** 逻辑删除（非物理删除），与 Device 保持一致。 */
+    @Update("UPDATE user SET is_deleted = 1 WHERE id = #{id}")
+    int softDeleteById(Long id);
 }

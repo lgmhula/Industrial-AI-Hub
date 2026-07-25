@@ -7,6 +7,7 @@ import dev.reboot.dto.UserUpdateDTO;
 import dev.reboot.dto.UserVO;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -61,19 +62,26 @@ public class UserController {
     /**
      * 切换用户启用/禁用状态。
      *
-     * <p>1 (启用) ↔ 0 (禁用)。</p>
+     * <p>1 (启用) ↔ 0 (禁用)。返回切换后的新状态值。</p>
      */
     @PutMapping("/{id}/status")
-    public ApiResponse<Void> toggleStatus(@PathVariable Long id) {
-        if (userService.toggleStatus(id)) return ApiResponse.ok(null);
-        return ApiResponse.error(404, "用户不存在");
+    public ApiResponse<Integer> toggleStatus(@PathVariable Long id) {
+        Integer newStatus = userService.toggleStatus(id);
+        if (newStatus == null) return ApiResponse.error(404, "用户不存在");
+        return ApiResponse.ok(newStatus == 1 ? "用户已启用" : "用户已禁用", newStatus);
     }
 
     /**
-     * 删除用户。
+     * 删除用户（逻辑删除）。
+     *
+     * <p>管理员不可删除自己。删除前清理 user_role 关联记录。</p>
      */
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id) {
+    public ApiResponse<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+        Long currentUserId = (Long) request.getAttribute("userId");
+        if (currentUserId != null && currentUserId.equals(id)) {
+            return ApiResponse.error(400, "不能删除当前登录用户");
+        }
         if (userService.delete(id)) return ApiResponse.ok(null);
         return ApiResponse.error(404, "用户不存在");
     }

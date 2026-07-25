@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS `user` (
     `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_username` (`username`),
-    UNIQUE KEY `uk_email` (`email`)
+    UNIQUE KEY `uk_email` (`email`),
     KEY `idx_is_deleted` (`is_deleted`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
@@ -63,7 +63,8 @@ CREATE TABLE IF NOT EXISTS `device` (
     `id`           BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
     `device_name`  VARCHAR(128) NOT NULL                 COMMENT '设备名称',
     `device_code`  VARCHAR(64)  NOT NULL                 COMMENT '设备编码（唯一）',
-    `device_type`  VARCHAR(32)  NOT NULL                 COMMENT '设备类型：PLC/SENSOR/CAMERA/ROBOT',
+    `device_type`  VARCHAR(32)  NOT NULL                 COMMENT '设备类型：PLC/SENSOR/CAMERA/ROBOT/OTHER',
+    CONSTRAINT `chk_device_type` CHECK (`device_type` IN ('PLC','SENSOR','CAMERA','ROBOT','OTHER')),
     `status`       TINYINT      NOT NULL DEFAULT 1       COMMENT '状态：1-在线 0-离线 2-维护中',
     `ip_address`   VARCHAR(45)  DEFAULT NULL             COMMENT 'IP 地址',
     `port`         INT          DEFAULT NULL             COMMENT '端口号',

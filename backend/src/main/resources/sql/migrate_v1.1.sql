@@ -35,3 +35,14 @@ ALTER TABLE `user`
 
 ALTER TABLE `user`
     ADD INDEX IF NOT EXISTS `idx_is_deleted` (`is_deleted`);
+
+-- 6. device 表 device_type CHECK 约束 (v1.2: Day 25 DB audit)
+ALTER TABLE `device`
+    ADD CONSTRAINT IF NOT EXISTS `chk_device_type` CHECK (`device_type` IN ('PLC','SENSOR','CAMERA','ROBOT','OTHER'));
+
+-- 7. alarm 表字段 CHECK 约束 (v1.2: Day 25 DB audit)
+ALTER TABLE `alarm`
+    ADD CONSTRAINT IF NOT EXISTS `chk_alarm_level` CHECK (`alarm_level` IN (1,2,3));
+
+ALTER TABLE `alarm`
+    ADD CONSTRAINT IF NOT EXISTS `chk_alarm_status` CHECK (`status` IN (0,1,2));

@@ -16,7 +16,7 @@ public class User {
     private String email;
     private String phone;
     private Integer status;
-    private Boolean isDeleted;
+    private Integer isDeleted;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -32,8 +32,8 @@ public class User {
     public void setPhone(String phone) { this.phone = phone; }
     public Integer getStatus() { return status; }
     public void setStatus(Integer status) { this.status = status; }
-    public Boolean getIsDeleted() { return isDeleted; }
-    public void setIsDeleted(Boolean isDeleted) { this.isDeleted = isDeleted; }
+    public Integer getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(Integer isDeleted) { this.isDeleted = isDeleted; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

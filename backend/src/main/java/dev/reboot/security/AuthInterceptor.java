@@ -20,6 +20,7 @@ import java.util.List;
  * <ol>
  *   <li>方法无 @RequireRole → 放行（公开接口）</li>
  *   <li>未登录（无 userId attribute）→ 返回 401</li>
+ *   <li>roles 为 null/空 → 返回 403（token 异常但 userId 残留的极端情况）</li>
  *   <li>角色不在允许列表 → 返回 403</li>
  * </ol>
  *
@@ -61,6 +62,18 @@ public class AuthInterceptor implements HandlerInterceptor {
         // 检查角色
         @SuppressWarnings("unchecked")
         List<String> roles = (List<String>) request.getAttribute("roles");
+
+        // 极端情况：userId 存在但 roles 为 null/空 → 视为无权限
+        if (roles == null || roles.isEmpty()) {
+            log.warn("权限不足（roles 为空）: userId={}, {} {}",
+                    userIdObj, request.getMethod(), request.getRequestURI());
+            response.setStatus(403);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write(mapper.writeValueAsString(
+                    ApiResponse.error(403, "权限不足")));
+            return false;
+        }
+
         RoleEnum[] requiredRoles = annotation.value();
 
         for (String roleStr : roles) {

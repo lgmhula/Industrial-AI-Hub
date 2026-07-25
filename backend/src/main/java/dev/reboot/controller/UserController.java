@@ -4,6 +4,7 @@ import com.github.pagehelper.PageInfo;
 import dev.reboot.annotation.RequireRole;
 import dev.reboot.dto.ApiResponse;
 import dev.reboot.dto.UserUpdateDTO;
+import jakarta.validation.Valid;
 import dev.reboot.dto.UserVO;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.UserService;
@@ -53,7 +54,7 @@ public class UserController {
      * 编辑用户信息（email、phone）。
      */
     @PutMapping("/{id}")
-    public ApiResponse<UserVO> update(@PathVariable Long id, @RequestBody UserUpdateDTO dto) {
+    public ApiResponse<UserVO> update(@PathVariable Long id, @Valid @RequestBody UserUpdateDTO dto) {
         UserVO vo = userService.update(id, dto);
         if (vo == null) return ApiResponse.error(404, "用户不存在");
         return ApiResponse.ok("用户信息更新成功", vo);

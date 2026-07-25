@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS `user` (
     `email`        VARCHAR(128) DEFAULT NULL             COMMENT '邮箱',
     `phone`        VARCHAR(20)  DEFAULT NULL             COMMENT '手机号',
     `status`       TINYINT      NOT NULL DEFAULT 1       COMMENT '状态：1-启用 0-禁用',
+    `is_deleted`   TINYINT      NOT NULL DEFAULT 0       COMMENT '逻辑删除：0-正常 1-已删除',
     `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),

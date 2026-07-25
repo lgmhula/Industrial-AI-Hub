@@ -27,3 +27,11 @@ ON DUPLICATE KEY UPDATE `username` = VALUES(`username`);
 
 INSERT INTO `user_role` (`user_id`, `role_id`) VALUES (1, 1)
 ON DUPLICATE KEY UPDATE `user_id` = VALUES(`user_id`);
+
+-- 5. user 表新增逻辑删除字段（v1.2: Day 25 review fix）
+ALTER TABLE `user`
+    ADD COLUMN IF NOT EXISTS `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-正常 1-已删除'
+    AFTER `status`;
+
+ALTER TABLE `user`
+    ADD INDEX IF NOT EXISTS `idx_is_deleted` (`is_deleted`);

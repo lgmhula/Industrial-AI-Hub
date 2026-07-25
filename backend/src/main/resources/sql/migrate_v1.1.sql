@@ -38,11 +38,27 @@ ALTER TABLE `user`
 
 -- 6. device 表 device_type CHECK 约束 (v1.2: Day 25 DB audit)
 ALTER TABLE `device`
-    ADD CONSTRAINT IF NOT EXISTS `chk_device_type` CHECK (`device_type` IN ('PLC','SENSOR','CAMERA','ROBOT','OTHER'));
+    ADD CONSTRAINT `chk_device_type` CHECK (`device_type` IN ('PLC','SENSOR','CAMERA','ROBOT','OTHER'));
 
 -- 7. alarm 表字段 CHECK 约束 (v1.2: Day 25 DB audit)
 ALTER TABLE `alarm`
-    ADD CONSTRAINT IF NOT EXISTS `chk_alarm_level` CHECK (`alarm_level` IN (1,2,3));
+    ADD CONSTRAINT `chk_alarm_level` CHECK (`alarm_level` IN (1,2,3));
 
 ALTER TABLE `alarm`
-    ADD CONSTRAINT IF NOT EXISTS `chk_alarm_status` CHECK (`status` IN (0,1,2));
+    ADD CONSTRAINT `chk_alarm_status` CHECK (`status` IN (0,1,2));
+
+-- 8. 枚举字段 CHECK 约束 (v1.2: Day 25 DB audit P3)
+ALTER TABLE `user`
+    ADD CONSTRAINT `chk_user_status` CHECK (`status` IN (0,1));
+
+ALTER TABLE `device`
+    ADD CONSTRAINT `chk_device_status` CHECK (`status` IN (0,1,2));
+
+ALTER TABLE `device_data`
+    ADD CONSTRAINT `chk_data_type` CHECK (`data_type` IN ('TEMPERATURE','PRESSURE','SPEED','HUMIDITY','CURRENT'));
+
+ALTER TABLE `operation_log`
+    ADD CONSTRAINT `chk_operation_type` CHECK (`operation_type` IN ('CREATE','UPDATE','DELETE','LOGIN','EXPORT'));
+
+ALTER TABLE `operation_log`
+    ADD CONSTRAINT `chk_target_type` CHECK (`target_type` IN ('USER','DEVICE','ALARM','ROLE'));

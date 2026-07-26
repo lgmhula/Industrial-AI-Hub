@@ -46,4 +46,18 @@ public class AlarmService {
     public boolean resolve(Long id) {
         return alarmMapper.resolve(id) > 0;
     }
+
+    /** 创建告警记录（接入之前未使用的 insert()）。 */
+    public AlarmVO createAlarm(Long deviceId, String alarmType, Integer alarmLevel,
+                               String alarmMessage, java.time.LocalDateTime triggeredAt) {
+        dev.reboot.entity.Alarm alarm = new dev.reboot.entity.Alarm();
+        alarm.setDeviceId(deviceId);
+        alarm.setAlarmType(alarmType);
+        alarm.setAlarmLevel(alarmLevel);
+        alarm.setAlarmMessage(alarmMessage);
+        alarm.setStatus(0);
+        alarm.setTriggeredAt(triggeredAt);
+        alarmMapper.insert(alarm);
+        return AlarmVO.from(alarm);
+    }
 }

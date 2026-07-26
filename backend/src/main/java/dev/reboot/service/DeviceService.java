@@ -92,4 +92,11 @@ public class DeviceService {
     public boolean delete(Long id) {
         return deviceMapper.softDeleteById(id) > 0;
     }
+
+    /** 按设备类型查询（接入之前未使用的 findByType()）。 */
+    public java.util.List<dev.reboot.dto.DeviceVO> listByType(String deviceType) {
+        return deviceMapper.findByType(deviceType).stream()
+                .map(dev.reboot.dto.DeviceVO::from)
+                .toList();
+    }
 }

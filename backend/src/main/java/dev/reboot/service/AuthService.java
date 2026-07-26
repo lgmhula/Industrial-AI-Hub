@@ -1,6 +1,7 @@
 package dev.reboot.service;
 
-import dev.reboot.dto.LoginDTO;
+import dev.reboot.dto.LoginRequest;
+import dev.reboot.dto.RegisterRequest;
 import dev.reboot.dto.UserVO;
 import dev.reboot.entity.User;
 import dev.reboot.entity.UserRole;
@@ -49,7 +50,7 @@ public class AuthService {
      *
      * @throws BusinessException 用户名不存在/密码错误 → 401；账户已禁用 → 403
      */
-    public String login(LoginDTO dto) {
+    public String login(LoginRequest dto) {
         User user = userMapper.findByUsername(dto.getUsername());
         if (user == null) {
             log.warn("登录失败：用户不存在 username={}", dto.getUsername());
@@ -76,7 +77,7 @@ public class AuthService {
      * @throws BusinessException 用户名已存在 → 409
      */
     @Transactional
-    public UserVO register(LoginDTO dto) {
+    public UserVO register(RegisterRequest dto) {
         User user = new User();
         user.setUsername(dto.getUsername());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));

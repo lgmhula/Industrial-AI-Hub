@@ -1,7 +1,8 @@
 package dev.reboot.controller;
 
 import dev.reboot.dto.ApiResponse;
-import dev.reboot.dto.LoginDTO;
+import dev.reboot.dto.LoginRequest;
+import dev.reboot.dto.RegisterRequest;
 import dev.reboot.dto.UserVO;
 import dev.reboot.service.AuthService;
 import jakarta.validation.Valid;
@@ -27,14 +28,14 @@ public class AuthController {
 
     /** 登录 — 返回 JWT Token。 */
     @PostMapping("/login")
-    public ApiResponse<String> login(@Valid @RequestBody LoginDTO dto) {
+    public ApiResponse<String> login(@Valid @RequestBody LoginRequest dto) {
         String token = authService.login(dto);
         return ApiResponse.ok("登录成功", token);
     }
 
     /** 注册 — 返回新用户的 UserVO（不含密码）。 */
     @PostMapping("/register")
-    public ApiResponse<UserVO> register(@Valid @RequestBody LoginDTO dto) {
+    public ApiResponse<UserVO> register(@Valid @RequestBody RegisterRequest dto) {
         UserVO vo = authService.register(dto);
         return ApiResponse.ok("注册成功", vo);
     }

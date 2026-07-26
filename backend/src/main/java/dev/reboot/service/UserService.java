@@ -108,10 +108,14 @@ public class UserService {
     @Transactional
     public boolean delete(Long id) {
         User user = userMapper.findById(id);
-        if (user == null) return false;
+        if (user == null) {
+            return false;
+        }
         userRoleMapper.deleteByUserId(id);
         int rows = userMapper.softDeleteById(id);
-        if (rows > 0) log.info("用户已逻辑删除 userId={}", id);
+        if (rows > 0) {
+            log.info("用户已逻辑删除 userId={}", id);
+        }
         return rows > 0;
     }
 

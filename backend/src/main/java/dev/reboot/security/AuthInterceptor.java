@@ -78,7 +78,9 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         for (String roleStr : roles) {
             RoleEnum userRole = RoleEnum.fromCode(roleStr);
-            if (userRole == null) continue;
+            if (userRole == null) {
+                    continue;
+                }
             for (RoleEnum required : requiredRoles) {
                 if (userRole.isAtLeast(required)) {
                     return true;

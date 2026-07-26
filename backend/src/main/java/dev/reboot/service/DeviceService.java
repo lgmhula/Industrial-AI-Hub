@@ -80,7 +80,9 @@ public class DeviceService {
         }
         device.setDeviceName(dto.getDeviceName());
         device.setDeviceType(dto.getDeviceType());
-        if (dto.getStatus() != null) device.setStatus(dto.getStatus());
+        if (dto.getStatus() != null) {
+            device.setStatus(dto.getStatus());
+        }
         device.setIpAddress(dto.getIpAddress());
         device.setPort(dto.getPort());
         device.setLocation(dto.getLocation());
@@ -98,5 +100,33 @@ public class DeviceService {
         return deviceMapper.findByType(deviceType).stream()
                 .map(dev.reboot.dto.DeviceVO::from)
                 .toList();
+    }
+
+    /**
+     * 分页搜索设备 —— 支持关键字模糊、类型筛选、状态筛选。
+     *
+     * @param keyword   设备名称/编码关键字（null=不限）
+     * @param deviceType 设备类型（null=不限）
+     * @param status    状态（null=不限）
+     * @param page      页码
+     * @param size      每页条数
+     * @return PageInfo 分页结果
+     */
+    public com.github.pagehelper.PageInfo<dev.reboot.dto.DeviceVO> searchDevices(
+            String keyword, String deviceType, Integer status, int page, int size) {
+        com.github.pagehelper.PageHelper.startPage(page, size);
+        java.util.List<dev.reboot.entity.Device> devices = deviceMapper.searchDevices(keyword, deviceType, status);
+        com.github.pagehelper.PageInfo<dev.reboot.entity.Device> raw = new com.github.pagehelper.PageInfo<>(devices);
+        java.util.List<dev.reboot.dto.DeviceVO> voList = devices.stream()
+                .map(dev.reboot.dto.DeviceVO::from)
+                .toList();
+        com.github.pagehelper.PageInfo<dev.reboot.dto.DeviceVO> result = new com.github.pagehelper.PageInfo<>();
+        result.setList(voList);
+        result.setTotal(raw.getTotal());
+        result.setPageNum(raw.getPageNum());
+        result.setPageSize(raw.getPageSize());
+        result.setPages(raw.getPages());
+        result.setSize(voList.size());
+        return result;
     }
 }

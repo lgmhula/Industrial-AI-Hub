@@ -106,7 +106,9 @@ public final class JwtUtils {
     public static List<String> getRoles(String token) {
         Claims claims = parseToken(token);
         List<?> raw = claims.get("roles", List.class);
-        if (raw == null) return Collections.emptyList();
+        if (raw == null) {
+            return Collections.emptyList();
+        }
         return raw.stream()
                 .filter(String.class::isInstance)
                 .map(String.class::cast)

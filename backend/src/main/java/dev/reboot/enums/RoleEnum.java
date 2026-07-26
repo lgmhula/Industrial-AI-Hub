@@ -28,7 +28,9 @@ public enum RoleEnum {
     /** 根据 role_code 字符串解析枚举。 */
     public static RoleEnum fromCode(String code) {
         for (RoleEnum r : values()) {
-            if (r.code.equalsIgnoreCase(code)) return r;
+            if (r.code.equalsIgnoreCase(code)) {
+                return r;
+            }
         }
         return null;
     }

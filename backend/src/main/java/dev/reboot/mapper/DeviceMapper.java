@@ -37,6 +37,29 @@ public interface DeviceMapper {
     @Update("UPDATE device SET is_deleted = 1 WHERE id = #{id}")
     int softDeleteById(Long id);
 
+    /**
+     * 动态搜索设备 —— 支持关键字模糊匹配、设备类型筛选、状态筛选。
+     *
+     * <p>使用 MyBatis {@code <script>} 标签实现动态 SQL。</p>
+     */
+    @Select({"<script>",
+        "SELECT * FROM device WHERE is_deleted = 0",
+        "<if test='keyword != null and keyword.length() > 0'>",
+        "  AND (device_name LIKE CONCAT('%', #{keyword}, '%') OR device_code LIKE CONCAT('%', #{keyword}, '%'))",
+        "</if>",
+        "<if test='deviceType != null and deviceType.length() > 0'>",
+        "  AND device_type = #{deviceType}",
+        "</if>",
+        "<if test='status != null'>",
+        "  AND status = #{status}",
+        "</if>",
+        "ORDER BY id DESC",
+        "</script>"})
+    List<Device> searchDevices(@Param("keyword") String keyword,
+                               @Param("deviceType") String deviceType,
+                               @Param("status") Integer status);
+
     @Select("SELECT * FROM device WHERE device_type = #{deviceType} AND is_deleted = 0")
     List<Device> findByType(String deviceType);
+
 }

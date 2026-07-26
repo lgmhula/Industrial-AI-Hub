@@ -1,5 +1,6 @@
 package dev.reboot.controller;
 
+import com.github.pagehelper.PageInfo;
 import dev.reboot.annotation.RequireRole;
 import dev.reboot.dto.ApiResponse;
 import dev.reboot.dto.DeviceDTO;
@@ -8,8 +9,6 @@ import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.DeviceService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * Device REST 控制器。
@@ -29,10 +28,20 @@ public class DeviceController {
         this.deviceService = deviceService;
     }
 
+    /**
+     * 分页搜索设备列表。
+     *
+     * <p>支持关键字模糊搜索（设备名称/编码）、设备类型筛选、状态筛选。</p>
+     */
     @GetMapping
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
-    public ApiResponse<List<DeviceVO>> list() {
-        return ApiResponse.ok(deviceService.listAll());
+    public ApiResponse<PageInfo<DeviceVO>> list(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String deviceType,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.ok(deviceService.searchDevices(keyword, deviceType, status, page, size));
     }
 
     @GetMapping("/{id}")

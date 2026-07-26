@@ -1,0 +1,863 @@
+{
+	"info": {
+		"_postman_id": "industrial-ai-hub",
+		"name": "Industrial AI Hub",
+		"description": "工业 AI 设备管理平台 — 全接口测试用例\n\n测试流程：\n1. 先执行 Auth 注册/登录，Token 自动存入环境变量\n2. User/Device 接口自动携带 Token\n3. 异常用例验证参数校验、权限拦截、业务异常",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{ "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+		{ "key": "token", "value": "", "type": "string" }
+	],
+	"item": [
+		{
+			"name": "01-Auth 认证",
+			"item": [
+				{
+					"name": "注册 — 正常",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('状态码 200', function() { pm.response.to.have.status(200); });",
+									"pm.test('code=200 注册成功', function() {",
+									"    var json = pm.response.json();",
+									"    pm.expect(json.code).to.eql(200);",
+									"    pm.expect(json.message).to.include('注册成功');",
+									"    pm.expect(json.data).to.have.property('id');",
+									"    pm.expect(json.data).to.not.have.property('password');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"testuser\",\n    \"password\": \"test123456\"\n}"
+						}
+					}
+				},
+				{
+					"name": "注册 — 用户名已存在 409",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=409 用户名已存在', function() {",
+									"    var json = pm.response.json();",
+									"    pm.expect(json.code).to.eql(409);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"test123456\"\n}"
+						}
+					}
+				},
+				{
+					"name": "注册 — 用户名为空 400",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('状态码 400', function() { pm.response.to.have.status(400); });",
+									"pm.test('code=400 参数校验失败', function() {",
+									"    var json = pm.response.json();",
+									"    pm.expect(json.code).to.eql(400);",
+									"    pm.expect(json.message).to.include('用户名不能为空');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"\",\n    \"password\": \"test123456\"\n}"
+						}
+					}
+				},
+				{
+					"name": "注册 — 密码过短 400",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('状态码 400', function() { pm.response.to.have.status(400); });",
+									"pm.test('提示密码长度至少6位', function() {",
+									"    var json = pm.response.json();",
+									"    pm.expect(json.message).to.include('密码长度至少6位');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"shortpw\",\n    \"password\": \"123\"\n}"
+						}
+					}
+				},
+				{
+					"name": "登录 — admin 正常",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('状态码 200', function() { pm.response.to.have.status(200); });",
+									"pm.test('code=200 登录成功', function() {",
+									"    var json = pm.response.json();",
+									"    pm.expect(json.code).to.eql(200);",
+									"    pm.expect(json.data).to.be.a('string');",
+									"    // 保存 Token 到集合变量",
+									"    pm.collectionVariables.set('token', json.data);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"admin123\"\n}"
+						}
+					}
+				},
+				{
+					"name": "登录 — testuser 正常",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200', function() {",
+									"    var json = pm.response.json();",
+									"    pm.expect(json.code).to.eql(200);",
+									"    pm.collectionVariables.set('token', json.data);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"testuser\",\n    \"password\": \"test123456\"\n}"
+						}
+					}
+				},
+				{
+					"name": "登录 — 密码错误 401",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=401', function() {",
+									"    var json = pm.response.json();",
+									"    pm.expect(json.code).to.eql(401);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"wrongpassword\"\n}"
+						}
+					}
+				},
+				{
+					"name": "登录 — 用户不存在 401",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=401', function() {",
+									"    var json = pm.response.json();",
+									"    pm.expect(json.code).to.eql(401);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"nonexistent\",\n    \"password\": \"test123456\"\n}"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "02-User 用户管理 (ADMIN)",
+			"item": [
+				{
+					"name": "分页查询 — 第1页",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200', function() { pm.expect(pm.response.json().code).to.eql(200); });",
+									"pm.test('返回分页结构', function() {",
+									"    var data = pm.response.json().data;",
+									"    pm.expect(data).to.have.property('pageNum');",
+									"    pm.expect(data).to.have.property('pageSize');",
+									"    pm.expect(data).to.have.property('total');",
+									"    pm.expect(data).to.have.property('list');",
+									"    pm.expect(data.list).to.be.an('array');",
+									"});",
+									"pm.test('UserVO 不含 password', function() {",
+									"    var list = pm.response.json().data.list;",
+									"    if (list.length > 0) {",
+									"        pm.expect(list[0]).to.not.have.property('password');",
+									"    }",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/users?page=1&size=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users"],
+							"query": [{ "key": "page", "value": "1" }, { "key": "size", "value": "10" }]
+						}
+					}
+				},
+				{
+					"name": "按 ID 查询 — admin(id=1)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200', function() { pm.expect(pm.response.json().code).to.eql(200); });",
+									"pm.test('返回 admin 用户', function() {",
+									"    var data = pm.response.json().data;",
+									"    pm.expect(data.username).to.eql('admin');",
+									"    pm.expect(data).to.not.have.property('password');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/users/1", "host": ["{{baseUrl}}"], "path": ["api", "users", "1"] }
+					}
+				},
+				{
+					"name": "按 ID 查询 — 不存在的用户 404",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=404', function() { pm.expect(pm.response.json().code).to.eql(404); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/users/99999", "host": ["{{baseUrl}}"], "path": ["api", "users", "99999"] }
+					}
+				},
+				{
+					"name": "编辑用户 — 正常",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200', function() { pm.expect(pm.response.json().code).to.eql(200); });",
+									"pm.test('更新成功', function() {",
+									"    var data = pm.response.json().data;",
+									"    pm.expect(data.email).to.eql('admin@industrial.com');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"url": { "raw": "{{baseUrl}}/api/users/1", "host": ["{{baseUrl}}"], "path": ["api", "users", "1"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@industrial.com\",\n    \"phone\": \"13800138000\"\n}"
+						}
+					}
+				},
+				{
+					"name": "编辑用户 — 邮箱格式错误 400",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('状态码 400', function() { pm.response.to.have.status(400); });",
+									"pm.test('提示邮箱格式不正确', function() {",
+									"    pm.expect(pm.response.json().message).to.include('邮箱格式不正确');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"url": { "raw": "{{baseUrl}}/api/users/1", "host": ["{{baseUrl}}"], "path": ["api", "users", "1"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"not-an-email\",\n    \"phone\": \"13800138000\"\n}"
+						}
+					}
+				},
+				{
+					"name": "编辑用户 — 手机号格式错误 400",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('状态码 400', function() { pm.response.to.have.status(400); });",
+									"pm.test('提示手机号格式不正确', function() {",
+									"    pm.expect(pm.response.json().message).to.include('手机号格式不正确');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"url": { "raw": "{{baseUrl}}/api/users/1", "host": ["{{baseUrl}}"], "path": ["api", "users", "1"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@industrial.com\",\n    \"phone\": \"12345\"\n}"
+						}
+					}
+				},
+				{
+					"name": "切换状态 — 禁用用户",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200', function() { pm.expect(pm.response.json().code).to.eql(200); });",
+									"pm.test('返回新状态值', function() {",
+									"    var json = pm.response.json();",
+									"    pm.expect(json.data).to.be.oneOf([0, 1]);",
+									"    pm.expect(json.message).to.include(json.data === 1 ? '已启用' : '已禁用');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/users/2/status", "host": ["{{baseUrl}}"], "path": ["api", "users", "2", "status"] }
+					}
+				},
+				{
+					"name": "切换状态 — 不存在的用户 404",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=404', function() { pm.expect(pm.response.json().code).to.eql(404); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/users/99999/status", "host": ["{{baseUrl}}"], "path": ["api", "users", "99999", "status"] }
+					}
+				},
+				{
+					"name": "删除用户 — 不能删自己 400",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=400 不能删除当前登录用户', function() {",
+									"    var json = pm.response.json();",
+									"    pm.expect(json.code).to.eql(400);",
+									"    pm.expect(json.message).to.include('不能删除');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/users/1", "host": ["{{baseUrl}}"], "path": ["api", "users", "1"] }
+					}
+				},
+				{
+					"name": "删除用户 — 正常(id=2)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200', function() { pm.expect(pm.response.json().code).to.eql(200); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/users/2", "host": ["{{baseUrl}}"], "path": ["api", "users", "2"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "03-Device 设备管理",
+			"item": [
+				{
+					"name": "查询所有设备",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200', function() { pm.expect(pm.response.json().code).to.eql(200); });",
+									"pm.test('返回设备列表', function() {",
+									"    pm.expect(pm.response.json().data).to.be.an('array');",
+									"});",
+									"pm.test('DeviceVO 不含 isDeleted', function() {",
+									"    var list = pm.response.json().data;",
+									"    if (list.length > 0) {",
+									"        pm.expect(list[0]).to.not.have.property('isDeleted');",
+									"    }",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/devices", "host": ["{{baseUrl}}"], "path": ["api", "devices"] }
+					}
+				},
+				{
+					"name": "创建设备 — PLC",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200', function() { pm.expect(pm.response.json().code).to.eql(200); });",
+									"pm.test('设备创建成功', function() {",
+									"    var data = pm.response.json().data;",
+									"    pm.expect(data).to.have.property('id');",
+									"    pm.expect(data.deviceCode).to.eql('PLC-001');",
+									"    pm.expect(data).to.not.have.property('isDeleted');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"url": { "raw": "{{baseUrl}}/api/devices", "host": ["{{baseUrl}}"], "path": ["api", "devices"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"deviceName\": \"1号产线PLC\",\n    \"deviceCode\": \"PLC-001\",\n    \"deviceType\": \"PLC\",\n    \"status\": 1,\n    \"ipAddress\": \"192.168.1.101\",\n    \"port\": 502,\n    \"location\": \"A区1号产线\"\n}"
+						}
+					}
+				},
+				{
+					"name": "创建设备 — SENSOR",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200', function() { pm.expect(pm.response.json().code).to.eql(200); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"url": { "raw": "{{baseUrl}}/api/devices", "host": ["{{baseUrl}}"], "path": ["api", "devices"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"deviceName\": \"温度传感器T1\",\n    \"deviceCode\": \"SENSOR-T1\",\n    \"deviceType\": \"SENSOR\",\n    \"status\": 1,\n    \"ipAddress\": \"192.168.1.201\",\n    \"location\": \"A区温控点\"\n}"
+						}
+					}
+				},
+				{
+					"name": "创建设备 — 编码重复 409",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=409 设备编码已存在', function() {",
+									"    pm.expect(pm.response.json().code).to.eql(409);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"url": { "raw": "{{baseUrl}}/api/devices", "host": ["{{baseUrl}}"], "path": ["api", "devices"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"deviceName\": \"重复设备\",\n    \"deviceCode\": \"PLC-001\",\n    \"deviceType\": \"PLC\"\n}"
+						}
+					}
+				},
+				{
+					"name": "创建设备 — 缺少必填字段 400",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('状态码 400', function() { pm.response.to.have.status(400); });",
+									"pm.test('提示必填字段', function() {",
+									"    var msg = pm.response.json().message;",
+									"    pm.expect(msg).to.match(/不能为空/);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"url": { "raw": "{{baseUrl}}/api/devices", "host": ["{{baseUrl}}"], "path": ["api", "devices"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"deviceName\": \"\",\n    \"deviceCode\": \"\",\n    \"deviceType\": \"\"\n}"
+						}
+					}
+				},
+				{
+					"name": "按 ID 查询设备",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200', function() { pm.expect(pm.response.json().code).to.eql(200); });",
+									"pm.test('设备信息完整', function() {",
+									"    var data = pm.response.json().data;",
+									"    pm.expect(data).to.have.property('deviceName');",
+									"    pm.expect(data).to.have.property('deviceCode');",
+									"    pm.expect(data).to.not.have.property('isDeleted');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/devices/1", "host": ["{{baseUrl}}"], "path": ["api", "devices", "1"] }
+					}
+				},
+				{
+					"name": "按 ID 查询 — 不存在 404",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=404', function() { pm.expect(pm.response.json().code).to.eql(404); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/devices/99999", "host": ["{{baseUrl}}"], "path": ["api", "devices", "99999"] }
+					}
+				},
+				{
+					"name": "更新设备",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200', function() { pm.expect(pm.response.json().code).to.eql(200); });",
+									"pm.test('更新成功', function() {",
+									"    var data = pm.response.json().data;",
+									"    pm.expect(data.location).to.eql('B区2号产线');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"url": { "raw": "{{baseUrl}}/api/devices/1", "host": ["{{baseUrl}}"], "path": ["api", "devices", "1"] },
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"deviceName\": \"1号产线PLC(已迁移)\",\n    \"deviceCode\": \"PLC-001\",\n    \"deviceType\": \"PLC\",\n    \"status\": 1,\n    \"ipAddress\": \"192.168.2.101\",\n    \"port\": 502,\n    \"location\": \"B区2号产线\"\n}"
+						}
+					}
+				},
+				{
+					"name": "删除设备",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200', function() { pm.expect(pm.response.json().code).to.eql(200); });"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/devices/2", "host": ["{{baseUrl}}"], "path": ["api", "devices", "2"] }
+					}
+				}
+			]
+		},
+		{
+			"name": "04-权限拦截测试",
+			"item": [
+				{
+					"name": "无 Token 访问 /api/users → 401",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=401 请先登录', function() {",
+									"    var json = pm.response.json();",
+									"    pm.expect(json.code).to.eql(401);",
+									"    pm.expect(json.message).to.include('登录');",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] }
+					}
+				},
+				{
+					"name": "无 Token 访问 /api/devices → 401",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=401', function() {",
+									"    pm.expect(pm.response.json().code).to.eql(401);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": { "raw": "{{baseUrl}}/api/devices", "host": ["{{baseUrl}}"], "path": ["api", "devices"] }
+					}
+				},
+				{
+					"name": "无效 Token → 401",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=401', function() {",
+									"    pm.expect(pm.response.json().code).to.eql(401);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer invalid.token.here" }],
+						"url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] }
+					}
+				},
+				{
+					"name": "VIEWER 访问 /api/users → 403",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// 先登录 testuser（VIEWER 角色），获取其 Token",
+									"// 注意：执行此用例前，先执行「01-Auth → 登录 testuser」"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=403 权限不足', function() {",
+									"    var json = pm.response.json();",
+									"    pm.expect(json.code).to.eql(403);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] }
+					}
+				},
+				{
+					"name": "VIEWER 访问 /api/devices → 200 (允许)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('code=200 VIEWER 可访问设备列表', function() {",
+									"    pm.expect(pm.response.json().code).to.eql(200);",
+									"});"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": { "raw": "{{baseUrl}}/api/devices", "host": ["{{baseUrl}}"], "path": ["api", "devices"] }
+					}
+				}
+			]
+		}
+	]
+}

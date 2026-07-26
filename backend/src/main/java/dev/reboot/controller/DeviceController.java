@@ -14,6 +14,8 @@ import java.util.List;
 /**
  * Device REST 控制器。
  *
+ * <p>业务异常统一由 {@link dev.reboot.exception.GlobalExceptionHandler} 处理。</p>
+ *
  * @author hula0710
  * @since 2026-07-24
  */
@@ -36,31 +38,25 @@ public class DeviceController {
     @GetMapping("/{id}")
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
     public ApiResponse<DeviceVO> getById(@PathVariable Long id) {
-        DeviceVO vo = deviceService.getById(id);
-        if (vo == null) return ApiResponse.error(404, "设备不存在");
-        return ApiResponse.ok(vo);
+        return ApiResponse.ok(deviceService.getById(id));
     }
 
     @PostMapping
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
     public ApiResponse<DeviceVO> create(@Valid @RequestBody DeviceDTO dto) {
-        DeviceVO vo = deviceService.create(dto);
-        if (vo == null) return ApiResponse.error(409, "设备编码已存在");
-        return ApiResponse.ok("设备创建成功", vo);
+        return ApiResponse.ok("设备创建成功", deviceService.create(dto));
     }
 
     @PutMapping("/{id}")
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
     public ApiResponse<DeviceVO> update(@PathVariable Long id, @Valid @RequestBody DeviceDTO dto) {
-        DeviceVO vo = deviceService.update(id, dto);
-        if (vo == null) return ApiResponse.error(404, "设备不存在");
-        return ApiResponse.ok("设备更新成功", vo);
+        return ApiResponse.ok("设备更新成功", deviceService.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
     @RequireRole(RoleEnum.ADMIN)
     public ApiResponse<Void> delete(@PathVariable Long id) {
-        if (deviceService.delete(id)) return ApiResponse.ok(null);
-        return ApiResponse.error(404, "设备不存在");
+        deviceService.delete(id);
+        return ApiResponse.ok("设备已删除", null);
     }
 }

@@ -5,6 +5,8 @@ import com.github.pagehelper.PageInfo;
 import dev.reboot.dto.UserUpdateDTO;
 import dev.reboot.dto.UserVO;
 import dev.reboot.entity.User;
+import dev.reboot.enums.ErrorCode;
+import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.UserMapper;
 import dev.reboot.mapper.UserRoleMapper;
 import org.slf4j.Logger;
@@ -16,6 +18,8 @@ import java.util.List;
 
 /**
  * User 业务逻辑层。
+ *
+ * <p>错误均通过 {@link BusinessException} 抛出。</p>
  *
  * @author hula0710
  * @since 2026-07-25
@@ -32,23 +36,12 @@ public class UserService {
         this.userRoleMapper = userRoleMapper;
     }
 
-    /**
-     * 分页查询用户列表。
-     *
-     * <p>先通过 PageHelper 分页获取原始数据，捕获分页元数据后再映射为 UserVO。</p>
-     *
-     * @param page 页码 (1-based)
-     * @param size 每页条数
-     * @return PageInfo 包含正确的 pageNum/pages/pageSize/total
-     */
+    /** 分页查询用户列表。 */
     public PageInfo<UserVO> listPage(int page, int size) {
         PageHelper.startPage(page, size);
         List<User> users = userMapper.findAll();
-        // 从 Page 对象捕获分页元数据（PageHelper 返回的 List 实际是 Page 实例）
         PageInfo<User> rawPageInfo = new PageInfo<>(users);
-        // 映射为 VO
         List<UserVO> voList = users.stream().map(UserVO::from).toList();
-        // 构造结果并注入正确的分页元数据
         PageInfo<UserVO> result = new PageInfo<>();
         result.setList(voList);
         result.setTotal(rawPageInfo.getTotal());
@@ -59,10 +52,17 @@ public class UserService {
         return result;
     }
 
-    /** 按 ID 查询，返回 UserVO。 */
+    /**
+     * 按 ID 查询，返回 UserVO。
+     *
+     * @throws BusinessException 用户不存在 → 404
+     */
     public UserVO getById(Long id) {
         User user = userMapper.findById(id);
-        return user != null ? UserVO.from(user) : null;
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+        return UserVO.from(user);
     }
 
     /** 按用户名查询原始实体（内部调用）。 */
@@ -70,10 +70,16 @@ public class UserService {
         return userMapper.findByUsername(username);
     }
 
-    /** 编辑用户信息（email、phone）。 */
+    /**
+     * 编辑用户信息（email、phone）。
+     *
+     * @throws BusinessException 用户不存在 → 404
+     */
     public UserVO update(Long id, UserUpdateDTO dto) {
         User user = userMapper.findById(id);
-        if (user == null) return null;
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
         user.setEmail(dto.getEmail());
         user.setPhone(dto.getPhone());
         userMapper.update(user);
@@ -84,22 +90,21 @@ public class UserService {
     /**
      * 切换用户启用/禁用状态。
      *
-     * @return 切换后的新状态值（1=启用, 0=禁用），用户不存在时返回 null
+     * @return 切换后的新状态值（1=启用, 0=禁用）
+     * @throws BusinessException 用户不存在 → 404
      */
     public Integer toggleStatus(Long id) {
         User user = userMapper.findById(id);
-        if (user == null) return null;
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
         int newStatus = (user.getStatus() != null && user.getStatus() == 1) ? 0 : 1;
         userMapper.updateStatus(id, newStatus);
         log.info("用户状态切换 userId={} newStatus={}", id, newStatus);
         return newStatus;
     }
 
-    /**
-     * 逻辑删除用户及关联的 user_role 记录。
-     *
-     * <p>与 Device 保持一致：逻辑删除而非物理删除。</p>
-     */
+    /** 逻辑删除用户及关联的 user_role 记录。 */
     @Transactional
     public boolean delete(Long id) {
         User user = userMapper.findById(id);

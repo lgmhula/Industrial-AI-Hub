@@ -1,9 +1,10 @@
 package dev.reboot.service;
 
-import dev.reboot.dto.ApiResponse;
 import dev.reboot.dto.DeviceDTO;
 import dev.reboot.dto.DeviceVO;
 import dev.reboot.entity.Device;
+import dev.reboot.enums.ErrorCode;
+import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.DeviceMapper;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +12,8 @@ import java.util.List;
 
 /**
  * Device 业务逻辑层。
+ *
+ * <p>错误均通过 {@link BusinessException} 抛出。</p>
  *
  * @author hula0710
  * @since 2026-07-24
@@ -31,20 +34,27 @@ public class DeviceService {
                 .toList();
     }
 
-    /** 按 ID 查询，返回 DeviceVO。 */
+    /**
+     * 按 ID 查询，返回 DeviceVO。
+     *
+     * @throws BusinessException 设备不存在 → 404
+     */
     public DeviceVO getById(Long id) {
         Device device = deviceMapper.findById(id);
-        return device != null ? DeviceVO.from(device) : null;
+        if (device == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "设备不存在");
+        }
+        return DeviceVO.from(device);
     }
 
     /**
      * 创建设备。
      *
-     * <p>检查 deviceCode 唯一性，重复时返回 null。</p>
+     * @throws BusinessException deviceCode 重复 → 409
      */
     public DeviceVO create(DeviceDTO dto) {
         if (deviceMapper.findByCode(dto.getDeviceCode()) != null) {
-            return null;
+            throw new BusinessException(ErrorCode.CONFLICT, "设备编码已存在: " + dto.getDeviceCode());
         }
         Device device = new Device();
         device.setDeviceName(dto.getDeviceName());
@@ -58,9 +68,16 @@ public class DeviceService {
         return DeviceVO.from(device);
     }
 
+    /**
+     * 更新设备。
+     *
+     * @throws BusinessException 设备不存在 → 404
+     */
     public DeviceVO update(Long id, DeviceDTO dto) {
         Device device = deviceMapper.findById(id);
-        if (device == null) return null;
+        if (device == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "设备不存在");
+        }
         device.setDeviceName(dto.getDeviceName());
         device.setDeviceType(dto.getDeviceType());
         if (dto.getStatus() != null) device.setStatus(dto.getStatus());

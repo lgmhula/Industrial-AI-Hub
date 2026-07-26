@@ -31,10 +31,10 @@
 ## 3. 当前状态
 
 - **阶段**：第二阶段 — Industrial AI Hub V1（第 4-6 周）
-- **进度**：Day 25 已完成，下一步 Day 26
+- **进度**：Day 26 已完成，下一步 Day 27
 - **Day 25 任务**：用户管理模块 + 分页查询（PageHelper） + 用户状态管理
-- **已完成模块**：设备 CRUD、JWT 工具类、登录/注册接口、BCrypt 加密、ApiResponse 统一响应、CORS 配置、RBAC 权限模型（枚举+拦截器+注解）、UserRoleMapper
-- **待实现**：用户管理模块、全局异常处理、前端页面、参数校验
+- **已完成模块**：设备 CRUD、JWT、BCrypt、ApiResponse、CORS、RBAC、UserRoleMapper、User管理、PageHelper分页、GlobalExceptionHandler、@Valid校验
+- **待实现**：前端页面
 
 ---
 

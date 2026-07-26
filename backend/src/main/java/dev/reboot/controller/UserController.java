@@ -4,15 +4,16 @@ import com.github.pagehelper.PageInfo;
 import dev.reboot.annotation.RequireRole;
 import dev.reboot.dto.ApiResponse;
 import dev.reboot.dto.UserUpdateDTO;
-import jakarta.validation.Valid;
 import dev.reboot.dto.UserVO;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.UserService;
-import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 /**
  * 用户管理 REST 控制器 —— 管理员专属。
+ *
+ * <p>业务异常统一由 {@link dev.reboot.exception.GlobalExceptionHandler} 处理。</p>
  *
  * @author hula0710
  * @since 2026-07-25
@@ -28,11 +29,7 @@ public class UserController {
         this.userService = userService;
     }
 
-    /**
-     * 分页查询用户列表。
-     *
-     * <p>GET /api/users?page=1&size=10</p>
-     */
+    /** 分页查询用户列表。 */
     @GetMapping
     public ApiResponse<PageInfo<UserVO>> list(
             @RequestParam(defaultValue = "1") int page,
@@ -40,50 +37,32 @@ public class UserController {
         return ApiResponse.ok(userService.listPage(page, size));
     }
 
-    /**
-     * 按 ID 查询用户。
-     */
+    /** 按 ID 查询用户。 */
     @GetMapping("/{id}")
     public ApiResponse<UserVO> getById(@PathVariable Long id) {
-        UserVO vo = userService.getById(id);
-        if (vo == null) return ApiResponse.error(404, "用户不存在");
-        return ApiResponse.ok(vo);
+        return ApiResponse.ok(userService.getById(id));
     }
 
-    /**
-     * 编辑用户信息（email、phone）。
-     */
+    /** 编辑用户信息（email、phone）。 */
     @PutMapping("/{id}")
     public ApiResponse<UserVO> update(@PathVariable Long id, @Valid @RequestBody UserUpdateDTO dto) {
-        UserVO vo = userService.update(id, dto);
-        if (vo == null) return ApiResponse.error(404, "用户不存在");
-        return ApiResponse.ok("用户信息更新成功", vo);
+        return ApiResponse.ok("用户信息更新成功", userService.update(id, dto));
     }
 
     /**
      * 切换用户启用/禁用状态。
      *
-     * <p>1 (启用) ↔ 0 (禁用)。返回切换后的新状态值。</p>
+     * @return 新状态值（1=启用, 0=禁用）
      */
     @PutMapping("/{id}/status")
     public ApiResponse<Integer> toggleStatus(@PathVariable Long id) {
-        Integer newStatus = userService.toggleStatus(id);
-        if (newStatus == null) return ApiResponse.error(404, "用户不存在");
-        return ApiResponse.ok(newStatus == 1 ? "用户已启用" : "用户已禁用", newStatus);
+        return ApiResponse.ok("状态更新成功", userService.toggleStatus(id));
     }
 
-    /**
-     * 删除用户（逻辑删除）。
-     *
-     * <p>管理员不可删除自己。删除前清理 user_role 关联记录。</p>
-     */
+    /** 逻辑删除用户。 */
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id, HttpServletRequest request) {
-        Long currentUserId = (Long) request.getAttribute("userId");
-        if (currentUserId != null && currentUserId.equals(id)) {
-            return ApiResponse.error(400, "不能删除当前登录用户");
-        }
-        if (userService.delete(id)) return ApiResponse.ok(null);
-        return ApiResponse.error(404, "用户不存在");
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        userService.delete(id);
+        return ApiResponse.ok("用户已删除", null);
     }
 }

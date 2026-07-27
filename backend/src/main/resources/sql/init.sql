@@ -1,16 +1,18 @@
 -- ===================================================================
 -- Industrial AI Hub — 数据库初始化脚本
--- Version: 1.1
--- Updated: 2026-07-24
+-- Version: 1.2
+-- Updated: 2026-07-27
 -- Database: reboot
 -- Encoding: utf8mb4
 -- ===================================================================
 
-CREATE DATABASE IF NOT EXISTS reboot
-    DEFAULT CHARACTER SET utf8mb4
-    DEFAULT COLLATE utf8mb4_unicode_ci;
+-- CREATE DATABASE IF NOT EXISTS reboot
+--     DEFAULT CHARACTER SET utf8mb4
+--     DEFAULT COLLATE utf8mb4_unicode_ci;
+-- (数据库创建由 compose.yml / DBA 统一管理)
 
-USE reboot;
+-- 本地手动执行时，取消下行注释并替换为实际数据库名:
+-- USE reboot;
 
 -- ================================================================
 -- 1. 用户表 (user)

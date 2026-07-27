@@ -48,6 +48,26 @@
 | MinIO | latest | 9000 | Active |
 | Elasticsearch | 8.17 | 9200 | Active |
 
+### Frontend (Day 31+)
+
+| 组件 | 版本 | 说明 |
+|------|------|------|
+| Vue | 3.x | 前端框架 |
+| Vite | 8.x | 构建工具 |
+| Vue Router | 4.x | SPA 路由 |
+| Axios | latest | HTTP 客户端 |
+| ECharts | latest | 数据可视化（按需引入） |
+| vue-echarts | latest | Vue 3 ECharts 封装 |
+
+**前端路由：**
+
+| 路径 | 页面 | 说明 |
+|------|------|------|
+| `/devices` | DeviceList | 设备管理列表 + 新增/编辑弹窗 |
+| `/devices/:id` | DeviceDetail | 设备详情 + 温度/压力趋势图 |
+
+**开发模式：** Vite dev server (5173) → proxy `/api` → Spring Boot (8080)
+
 ---
 
 ## 2. 项目分层架构 (Layered Architecture)

@@ -1,7 +1,12 @@
 -- ================================================================
--- 模拟设备数据 — 为 device(ID=1) 生成 48 条温度+压力数据
--- 适用于 Industrial AI Hub Day 30 验证
+-- Industrial AI Hub — 测试种子数据
+-- Version: 1.0
+-- Updated: 2026-07-27
+-- 用途: 为 device(ID=1) 生成 48 条温度+压力模拟数据
+-- 执行: mysql -u root -p < seed_test_data.sql
 -- ================================================================
+
+USE reboot;
 
 -- 先创建一台测试设备（如果不存在）
 INSERT IGNORE INTO device (id, device_name, device_code, device_type, status)

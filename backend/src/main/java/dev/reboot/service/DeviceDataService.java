@@ -1,5 +1,6 @@
 package dev.reboot.service;
 
+import dev.reboot.dto.AlarmVO;
 import dev.reboot.dto.DataReportRequest;
 import dev.reboot.dto.DeviceDataStats;
 import dev.reboot.entity.DeviceData;
@@ -7,6 +8,7 @@ import dev.reboot.mapper.DeviceDataMapper;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -22,8 +24,11 @@ public class DeviceDataService {
 
     private final DeviceDataMapper deviceDataMapper;
 
-    public DeviceDataService(DeviceDataMapper deviceDataMapper) {
+    private final AlarmDetector alarmDetector;
+
+    public DeviceDataService(DeviceDataMapper deviceDataMapper, AlarmDetector alarmDetector) {
         this.deviceDataMapper = deviceDataMapper;
+        this.alarmDetector = alarmDetector;
     }
 
     /** 按设备 ID 查询所有数据记录。 */
@@ -41,6 +46,11 @@ public class DeviceDataService {
      *
      * @return 持久化后的 DeviceData
      */
+    /**
+     * 上报设备数据，同时执行报警规则检测。
+     *
+     * @return 持久化后的 DeviceData
+     */
     public DeviceData report(Long deviceId, DataReportRequest req) {
         DeviceData data = new DeviceData();
         data.setDeviceId(deviceId);
@@ -49,6 +59,14 @@ public class DeviceDataService {
         data.setUnit(req.getUnit());
         data.setRecordedAt(LocalDateTime.now());
         deviceDataMapper.insert(data);
+
+        // ── 报警检测 ──
+        List<AlarmVO> alarms = alarmDetector.check(deviceId, req.getDataType(), req.getDataValue());
+        if (!alarms.isEmpty()) {
+            // 报警已由 detector 内部持久化，此处仅作日志
+            System.out.printf("[ALARM] device=%d triggered %d alarms%n", deviceId, alarms.size());
+        }
+
         return data;
     }
 

@@ -35,7 +35,7 @@
 
 - **阶段**：第二阶段 — Industrial AI Hub V1（第 4-6 周）
 - **进度**：Day 26 已完成，下一步 Day 31
-- **Day 31 任务**：前端设备管理页面 + ECharts 数据图表（PageHelper） + 用户状态管理
+- **Day 32 任务**：报警规则引擎 + 数据上报自动检测 + 报警处理（PageHelper） + 用户状态管理
 - **已完成模块**：设备 CRUD、JWT、BCrypt、ApiResponse、CORS、RBAC、UserRoleMapper、User管理、PageHelper分页、GlobalExceptionHandler、@Valid校验
 - **待实现**：前端页面
 

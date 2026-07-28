@@ -1,42 +1,46 @@
 package dev.reboot.enums;
 
 /**
- * 角色枚举 —— 对应 role 表的 role_code 字段。
+ * 角色枚举 —— 用于 @RequireRole 注解的权限判定。
  *
- * <p>权限层级：ADMIN &gt; OPERATOR &gt; VIEWER。</p>
+ * <p>权限等级用于 isAtLeast() 比较，值越小权限越高。</p>
  *
  * @author hula0710
  * @since 2026-07-24
  */
 public enum RoleEnum {
 
-    ADMIN("ADMIN", 1L),
-    OPERATOR("OPERATOR", 2L),
-    VIEWER("VIEWER", 3L);
+    ADMIN(1, "ROLE_ADMIN"),
+    OPERATOR(2, "ROLE_OPERATOR"),
+    VIEWER(3, "ROLE_VIEWER");
 
-    private final String code;
-    private final long roleId; // 对应 role 表主键，init.sql 固定分配
+    private final int level;
+    private final String roleCode;
 
-    RoleEnum(String code, long roleId) {
-        this.code = code;
-        this.roleId = roleId;
+    RoleEnum(int level, String roleCode) {
+        this.level = level;
+        this.roleCode = roleCode;
     }
 
-    public String getCode() { return code; }
-    public long getRoleId() { return roleId; }
+    public int getLevel() { return level; }
+    public String getRoleCode() { return roleCode; }
 
-    /** 根据 role_code 字符串解析枚举。 */
+    /**
+     * 当前角色权限是否 ≥ target。
+     * level 值越小权限越高，因此 this.level <= target.level 为 true。
+     */
+    public boolean isAtLeast(RoleEnum target) {
+        return this.level <= target.level;
+    }
+
+    public Long getRoleId() {
+        return (long) this.ordinal() + 1;
+    }
+
     public static RoleEnum fromCode(String code) {
         for (RoleEnum r : values()) {
-            if (r.code.equalsIgnoreCase(code)) {
-                return r;
-            }
+            if (r.roleCode.equals(code)) return r;
         }
         return null;
-    }
-
-    /** 是否权限高于或等于目标角色。 */
-    public boolean isAtLeast(RoleEnum target) {
-        return this.ordinal() <= target.ordinal();
     }
 }

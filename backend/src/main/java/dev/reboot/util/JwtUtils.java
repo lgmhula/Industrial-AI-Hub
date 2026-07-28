@@ -28,7 +28,8 @@ public final class JwtUtils {
     static {
         String secret = System.getenv("JWT_SECRET");
         if (secret == null || secret.isBlank()) {
-            System.err.println("[WARN] JWT_SECRET 未设置，使用开发默认密钥（不安全）");
+            String msg = "[WARN] JWT_SECRET 未设置，使用开发默认密钥——生产环境必须配置!";
+            System.err.println(msg);
             secret = "DevOnly-DefaultKey-DoNotUseInProduction-ChangeMe-256bit!";
         }
         KEY = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));

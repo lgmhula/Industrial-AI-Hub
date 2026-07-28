@@ -24,7 +24,7 @@ public interface DeviceDataMapper {
 
     @Select("SELECT * FROM device_data WHERE device_id = #{deviceId} AND data_type = #{dataType} "
           + "ORDER BY recorded_at DESC LIMIT 1")
-    DeviceData findLatest(Long deviceId, String dataType);
+    DeviceData findLatest(@Param("deviceId") Long deviceId, @Param("dataType") String dataType);
 
     /**
      * 按设备和数据类型查询指定时间范围内的记录。

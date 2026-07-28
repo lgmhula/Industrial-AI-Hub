@@ -6,6 +6,8 @@ import dev.reboot.dto.DeviceDataStats;
 import dev.reboot.entity.DeviceData;
 import dev.reboot.mapper.DeviceDataMapper;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -21,6 +23,8 @@ import java.util.Map;
  */
 @Service
 public class DeviceDataService {
+
+    private static final Logger log = LoggerFactory.getLogger(DeviceDataService.class);
 
     private final DeviceDataMapper deviceDataMapper;
 
@@ -64,7 +68,7 @@ public class DeviceDataService {
         List<AlarmVO> alarms = alarmDetector.check(deviceId, req.getDataType(), req.getDataValue());
         if (!alarms.isEmpty()) {
             // 报警已由 detector 内部持久化，此处仅作日志
-            System.out.printf("[ALARM] device=%d triggered %d alarms%n", deviceId, alarms.size());
+            log.warn("报警触发 device={} alarms={}", deviceId, alarms.size());
         }
 
         return data;

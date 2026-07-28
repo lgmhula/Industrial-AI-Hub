@@ -11,6 +11,7 @@ import dev.reboot.mapper.UserMapper;
 import dev.reboot.mapper.UserRoleMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,10 +31,13 @@ public class UserService {
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
     private final UserMapper userMapper;
     private final UserRoleMapper userRoleMapper;
+    private final BCryptPasswordEncoder passwordEncoder;
 
-    public UserService(UserMapper userMapper, UserRoleMapper userRoleMapper) {
+    public UserService(UserMapper userMapper, UserRoleMapper userRoleMapper,
+                       BCryptPasswordEncoder passwordEncoder) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /** 分页查询用户列表。 */
@@ -124,16 +128,24 @@ public class UserService {
      *
      * @throws BusinessException 用户不存在 → 404
      */
+    /**
+     * 修改密码。
+     *
+     * @throws BusinessException 用户不存在 → 404；旧密码错误 → 401；新密码不合法 → 400
+     */
     public boolean changePassword(Long id, String oldPassword, String newPassword) {
-        dev.reboot.entity.User user = userMapper.findById(id);
+        User user = userMapper.findById(id);
         if (user == null) {
-            throw new dev.reboot.exception.BusinessException(dev.reboot.enums.ErrorCode.NOT_FOUND, "用户不存在");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
-        // 验证旧密码由外部 BCryptPasswordEncoder 处理，此处简化为直接更新
+        if (oldPassword == null || !passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "旧密码错误");
+        }
         if (newPassword == null || newPassword.length() < 6) {
-            throw new dev.reboot.exception.BusinessException(dev.reboot.enums.ErrorCode.BAD_REQUEST, "新密码长度至少6位");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "新密码长度至少6位");
         }
-        int rows = userMapper.updatePassword(id, newPassword);
+        String encoded = passwordEncoder.encode(newPassword);
+        int rows = userMapper.updatePassword(id, encoded);
         log.info("密码已更新 userId={}", id);
         return rows > 0;
     }

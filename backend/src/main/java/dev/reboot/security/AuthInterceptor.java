@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -20,13 +21,14 @@ import java.util.List;
  * <ol>
  *   <li>方法无 @RequireRole → 放行（公开接口）</li>
  *   <li>未登录（无 userId attribute）→ 返回 401</li>
- *   <li>roles 为 null/空 → 返回 403（token 异常但 userId 残留的极端情况）</li>
+ *   <li>@RequireRole 空数组 → 只要已登录即放行</li>
  *   <li>角色不在允许列表 → 返回 403</li>
  * </ol>
  *
  * @author hula0710
  * @since 2026-07-24
  */
+@Component
 public class AuthInterceptor implements HandlerInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(AuthInterceptor.class);
@@ -62,25 +64,16 @@ public class AuthInterceptor implements HandlerInterceptor {
         // 检查角色
         @SuppressWarnings("unchecked")
         List<String> roles = (List<String>) request.getAttribute("roles");
-
-        // 极端情况：userId 存在但 roles 为 null/空 → 视为无权限
-        if (roles == null || roles.isEmpty()) {
-            log.warn("权限不足（roles 为空）: userId={}, {} {}",
-                    userIdObj, request.getMethod(), request.getRequestURI());
-            response.setStatus(403);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write(mapper.writeValueAsString(
-                    ApiResponse.error(403, "权限不足")));
-            return false;
-        }
-
         RoleEnum[] requiredRoles = annotation.value();
+
+        // 空数组 = 只要登录即可访问
+        if (requiredRoles.length == 0) {
+            return true;
+        }
 
         for (String roleStr : roles) {
             RoleEnum userRole = RoleEnum.fromCode(roleStr);
-            if (userRole == null) {
-                    continue;
-                }
+            if (userRole == null) continue;
             for (RoleEnum required : requiredRoles) {
                 if (userRole.isAtLeast(required)) {
                     return true;

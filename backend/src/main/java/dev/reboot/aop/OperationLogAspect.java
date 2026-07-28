@@ -74,17 +74,10 @@ public class OperationLogAspect {
 
     private OperationLog getAnnotation(ProceedingJoinPoint joinPoint) {
         try {
-            String methodName = joinPoint.getSignature().getName();
-            Object[] args = joinPoint.getArgs();
-            Object target = joinPoint.getTarget();
-            for (java.lang.reflect.Method m : target.getClass().getMethods()) {
-                if (m.getName().equals(methodName) && m.getParameterCount() == args.length) {
-                    OperationLog ann = m.getAnnotation(OperationLog.class);
-                    if (ann != null) {
-                        return ann;
-                    }
-                }
-            }
+            org.aspectj.lang.reflect.MethodSignature signature =
+                    (org.aspectj.lang.reflect.MethodSignature) joinPoint.getSignature();
+            java.lang.reflect.Method method = signature.getMethod();
+            return method.getAnnotation(OperationLog.class);
         } catch (Exception e) {
             log.warn("Failed to resolve @OperationLog annotation: {}", e.getMessage());
         }

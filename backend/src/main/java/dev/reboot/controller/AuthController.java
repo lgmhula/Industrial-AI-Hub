@@ -1,6 +1,8 @@
 package dev.reboot.controller;
 
 import dev.reboot.dto.ApiResponse;
+import dev.reboot.util.JwtUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import dev.reboot.annotation.OperationLog;
 import dev.reboot.dto.LoginRequest;
 import dev.reboot.dto.RegisterRequest;
@@ -30,16 +32,25 @@ public class AuthController {
     /** 登录 — 返回 JWT Token。 */
     @OperationLog(operationType = "LOGIN", targetType = "USER", description = "用户登录")
     @PostMapping("/login")
-    public ApiResponse<String> login(@Valid @RequestBody LoginRequest dto) {
+    public ApiResponse<String> login(@Valid @RequestBody LoginRequest dto,
+                                      HttpServletRequest request) {
         String token = authService.login(dto);
+        // 为 OperationLogAspect 提供 userId（login 不走 interceptor，需手动设置）
+        if (token != null && JwtUtils.validateToken(token)) {
+            request.setAttribute("userId", JwtUtils.getUserId(token));
+        }
         return ApiResponse.ok("登录成功", token);
     }
 
     /** 注册 — 返回新用户的 UserVO（不含密码）。 */
     @OperationLog(operationType = "CREATE", targetType = "USER", description = "用户注册")
     @PostMapping("/register")
-    public ApiResponse<UserVO> register(@Valid @RequestBody RegisterRequest dto) {
+    public ApiResponse<UserVO> register(@Valid @RequestBody RegisterRequest dto,
+                                         HttpServletRequest request) {
         UserVO vo = authService.register(dto);
+        if (vo != null) {
+            request.setAttribute("userId", vo.getId());
+        }
         return ApiResponse.ok("注册成功", vo);
     }
 }

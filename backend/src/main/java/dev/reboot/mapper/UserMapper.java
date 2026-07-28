@@ -36,7 +36,7 @@ public interface UserMapper {
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 
     @Update("UPDATE user SET password=#{password} WHERE id=#{id} AND is_deleted = 0")
-    int updatePassword(Long id, String password);
+    int updatePassword(@Param("id") Long id, @Param("password") String password);
 
     /** 逻辑删除（非物理删除），与 Device 保持一致。 */
     @Update("UPDATE user SET is_deleted = 1 WHERE id = #{id}")

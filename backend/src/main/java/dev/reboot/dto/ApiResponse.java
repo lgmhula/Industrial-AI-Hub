@@ -1,5 +1,7 @@
 package dev.reboot.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 /**
  * 统一 API 响应封装。
  *
@@ -11,6 +13,7 @@ public class ApiResponse<T> {
 
     private int code;
     private String message;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private T data;
 
     public static <T> ApiResponse<T> ok(T data) {

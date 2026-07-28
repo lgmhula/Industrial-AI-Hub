@@ -90,8 +90,15 @@ public class DeviceService {
         return DeviceVO.from(device);
     }
 
-    /** 逻辑删除设备。 */
+    /**
+     * 逻辑删除设备。
+     *
+     * @throws BusinessException 设备不存在 → 404
+     */
     public boolean delete(Long id) {
+        if (deviceMapper.findById(id) == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "设备不存在");
+        }
         return deviceMapper.softDeleteById(id) > 0;
     }
 

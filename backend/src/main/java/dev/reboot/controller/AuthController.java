@@ -1,6 +1,7 @@
 package dev.reboot.controller;
 
 import dev.reboot.dto.ApiResponse;
+import dev.reboot.annotation.OperationLog;
 import dev.reboot.dto.LoginRequest;
 import dev.reboot.dto.RegisterRequest;
 import dev.reboot.dto.UserVO;
@@ -27,6 +28,7 @@ public class AuthController {
     }
 
     /** 登录 — 返回 JWT Token。 */
+    @OperationLog(operationType = "LOGIN", targetType = "USER", description = "用户登录")
     @PostMapping("/login")
     public ApiResponse<String> login(@Valid @RequestBody LoginRequest dto) {
         String token = authService.login(dto);
@@ -34,6 +36,7 @@ public class AuthController {
     }
 
     /** 注册 — 返回新用户的 UserVO（不含密码）。 */
+    @OperationLog(operationType = "CREATE", targetType = "USER", description = "用户注册")
     @PostMapping("/register")
     public ApiResponse<UserVO> register(@Valid @RequestBody RegisterRequest dto) {
         UserVO vo = authService.register(dto);

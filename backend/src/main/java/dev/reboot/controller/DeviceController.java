@@ -1,6 +1,7 @@
 package dev.reboot.controller;
 
 import com.github.pagehelper.PageInfo;
+import dev.reboot.annotation.OperationLog;
 import dev.reboot.annotation.RequireRole;
 import dev.reboot.dto.ApiResponse;
 import dev.reboot.dto.DeviceDTO;
@@ -50,18 +51,21 @@ public class DeviceController {
         return ApiResponse.ok(deviceService.getById(id));
     }
 
+    @OperationLog(operationType = "CREATE", targetType = "DEVICE", description = "创建设备")
     @PostMapping
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
     public ApiResponse<DeviceVO> create(@Valid @RequestBody DeviceDTO dto) {
         return ApiResponse.ok("设备创建成功", deviceService.create(dto));
     }
 
+    @OperationLog(operationType = "UPDATE", targetType = "DEVICE", description = "更新设备 {0}")
     @PutMapping("/{id}")
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
     public ApiResponse<DeviceVO> update(@PathVariable Long id, @Valid @RequestBody DeviceDTO dto) {
         return ApiResponse.ok("设备更新成功", deviceService.update(id, dto));
     }
 
+    @OperationLog(operationType = "DELETE", targetType = "DEVICE", description = "删除设备 {0}")
     @DeleteMapping("/{id}")
     @RequireRole(RoleEnum.ADMIN)
     public ApiResponse<Void> delete(@PathVariable Long id) {

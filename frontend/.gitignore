@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Vite scaffold (not project code)
+public/icons.svg
+src/assets/vite.svg
+src/assets/vue.svg
+src/assets/hero.png
+src/components/HelloWorld.vue
+.vscode/

@@ -1,5 +1,6 @@
 package dev.reboot.controller;
 
+import dev.reboot.annotation.OperationLog;
 import dev.reboot.annotation.RequireRole;
 import dev.reboot.dto.AlarmVO;
 import dev.reboot.dto.ApiResponse;
@@ -63,6 +64,7 @@ public class AlarmController {
     }
 
     /** 确认告警。 */
+    @OperationLog(operationType = "ACKNOWLEDGE", targetType = "ALARM", description = "确认告警 {0}")
     @PutMapping("/{id}/acknowledge")
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
     public ApiResponse<Void> acknowledge(@PathVariable Long id) {
@@ -73,6 +75,7 @@ public class AlarmController {
     }
 
     /** 解决告警。 */
+    @OperationLog(operationType = "RESOLVE", targetType = "ALARM", description = "解决告警 {0}")
     @PutMapping("/{id}/resolve")
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
     public ApiResponse<Void> resolve(@PathVariable Long id) {

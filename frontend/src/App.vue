@@ -3,6 +3,8 @@
     <nav class="sidebar">
       <div class="logo">Industrial AI Hub</div>
       <router-link to="/devices" class="nav-item">设备管理</router-link>
+      <router-link to="/alarms" class="nav-item">报警管理</router-link>
+      <router-link to="/logs" class="nav-item">操作日志</router-link>
     </nav>
     <main class="content">
       <router-view />

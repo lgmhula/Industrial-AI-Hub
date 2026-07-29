@@ -20,6 +20,13 @@ api.interceptors.response.use(
   }
 )
 
+// ---------- 认证 ----------
+export const authApi = {
+  login: (data) => api.post('/auth/login', data),
+  register: (data) => api.post('/auth/register', data),
+}
+
+// ---------- 设备 ----------
 export const deviceApi = {
   list: (params) => api.get('/devices', { params }),
   getById: (id) => api.get(`/devices/${id}`),
@@ -28,11 +35,27 @@ export const deviceApi = {
   delete: (id) => api.delete(`/devices/${id}`),
 }
 
+// ---------- 设备数据 ----------
 export const deviceDataApi = {
   report: (deviceId, data) => api.post(`/device-data/device/${deviceId}`, data),
   list: (deviceId, params) => api.get(`/device-data/device/${deviceId}`, { params }),
   stats: (deviceId) => api.get(`/device-data/device/${deviceId}/stats`),
   latest: (deviceId) => api.get(`/device-data/device/${deviceId}/latest`),
+}
+
+// ---------- 报警 ----------
+export const alarmApi = {
+  list: (params) => api.get('/alarms', { params }),
+  listByDevice: (deviceId, params) => api.get(`/alarms/device/${deviceId}`, { params }),
+  listByStatus: (status, params) => api.get(`/alarms/status/${status}`, { params }),
+  acknowledge: (id) => api.put(`/alarms/${id}/acknowledge`),
+  resolve: (id) => api.put(`/alarms/${id}/resolve`),
+}
+
+// ---------- 操作日志 ----------
+export const operationLogApi = {
+  list: (params) => api.get('/operation-logs', { params }),
+  listByUser: (userId, params) => api.get(`/operation-logs/user/${userId}`, { params }),
 }
 
 export default api

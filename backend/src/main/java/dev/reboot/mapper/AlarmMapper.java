@@ -28,7 +28,7 @@ public interface AlarmMapper {
 
     /** 按设备 ID 查询。 */
     @Select("SELECT * FROM alarm WHERE device_id = #{deviceId} ORDER BY triggered_at DESC")
-    List<Alarm> findByDeviceId(Long deviceId);
+    List<Alarm> findByDeviceId(@Param("deviceId") Long deviceId);
 
     /** 按设备 ID 分页查询。 */
     @Select("SELECT * FROM alarm WHERE device_id = #{deviceId} ORDER BY triggered_at DESC LIMIT #{offset}, #{size}")
@@ -37,11 +37,11 @@ public interface AlarmMapper {
 
     /** 按设备统计数。 */
     @Select("SELECT COUNT(*) FROM alarm WHERE device_id = #{deviceId}")
-    long countByDeviceId(Long deviceId);
+    long countByDeviceId(@Param("deviceId") Long deviceId);
 
     /** 按状态查询。 */
     @Select("SELECT * FROM alarm WHERE status = #{status} ORDER BY triggered_at DESC")
-    List<Alarm> findByStatus(Integer status);
+    List<Alarm> findByStatus(@Param("status") Integer status);
 
     /** 按状态分页查询。 */
     @Select("SELECT * FROM alarm WHERE status = #{status} ORDER BY triggered_at DESC LIMIT #{offset}, #{size}")
@@ -50,7 +50,7 @@ public interface AlarmMapper {
 
     /** 按状态统计数。 */
     @Select("SELECT COUNT(*) FROM alarm WHERE status = #{status}")
-    long countByStatus(Integer status);
+    long countByStatus(@Param("status") Integer status);
 
     /** 插入告警。 */
     @Insert("INSERT INTO alarm(device_id, alarm_type, alarm_level, alarm_message, status, triggered_at) "
@@ -60,9 +60,9 @@ public interface AlarmMapper {
 
     /** 确认告警。 */
     @Update("UPDATE alarm SET status=1 WHERE id=#{id}")
-    int acknowledge(Long id);
+    int acknowledge(@Param("id") Long id);
 
     /** 解决告警。 */
     @Update("UPDATE alarm SET status=2, resolved_at=NOW() WHERE id=#{id}")
-    int resolve(Long id);
+    int resolve(@Param("id") Long id);
 }

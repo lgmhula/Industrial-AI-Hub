@@ -21,6 +21,6 @@ public @interface OperationLog {
     /** 目标类型：USER / DEVICE / ALARM / ROLE / DEVICE_DATA。 */
     String targetType();
 
-    /** 操作描述，支持 SpEL 表达式，如 "删除设备 #{#id}"。 */
+    /** 操作描述，支持占位符 {0} {1}，按方法参数位置替换。 */
     String description() default "";
 }

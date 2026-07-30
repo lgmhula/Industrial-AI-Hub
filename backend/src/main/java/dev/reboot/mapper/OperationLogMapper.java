@@ -38,11 +38,11 @@ public interface OperationLogMapper {
 
     /** 按用户 ID 统计。 */
     @Select("SELECT COUNT(*) FROM operation_log WHERE user_id = #{userId}")
-    long countByUserId(Long userId);
+    long countByUserId(@Param("userId") Long userId);
 
     /** 按操作类型统计。 */
     @Select("SELECT COUNT(*) FROM operation_log WHERE operation_type = #{opType}")
-    long countByOpType(String opType);
+    long countByOpType(@Param("opType") String opType);
 
     /** 插入操作日志。 */
     @Insert("INSERT INTO operation_log(user_id, operation_type, target_type, target_id, description, ip_address) "

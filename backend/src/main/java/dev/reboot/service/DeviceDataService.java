@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.util.List;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -45,11 +44,6 @@ public class DeviceDataService {
         return deviceDataMapper.findLatest(deviceId, dataType);
     }
 
-    /**
-     * 上报设备数据。
-     *
-     * @return 持久化后的 DeviceData
-     */
     /**
      * 上报设备数据，同时执行报警规则检测。
      *

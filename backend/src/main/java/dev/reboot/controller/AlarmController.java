@@ -4,8 +4,12 @@ import dev.reboot.annotation.OperationLog;
 import dev.reboot.annotation.RequireRole;
 import dev.reboot.dto.AlarmVO;
 import dev.reboot.dto.ApiResponse;
+import dev.reboot.enums.ErrorCode;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.AlarmService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +23,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/alarms")
+@Validated
 public class AlarmController {
 
     private final AlarmService alarmService;
@@ -31,8 +36,8 @@ public class AlarmController {
     @GetMapping
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
     public ApiResponse<Map<String, Object>> listAllPaged(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         return ApiResponse.ok(alarmService.listAllPaged(page, size));
     }
 
@@ -41,8 +46,8 @@ public class AlarmController {
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
     public ApiResponse<Map<String, Object>> listByDevicePaged(
             @PathVariable Long deviceId,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         return ApiResponse.ok(alarmService.listByDevicePaged(deviceId, page, size));
     }
 
@@ -51,8 +56,8 @@ public class AlarmController {
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
     public ApiResponse<Map<String, Object>> listByStatusPaged(
             @PathVariable Integer status,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         return ApiResponse.ok(alarmService.listByStatusPaged(status, page, size));
     }
 
@@ -71,7 +76,7 @@ public class AlarmController {
         if (alarmService.acknowledge(id)) {
             return ApiResponse.ok("告警已确认", null);
         }
-        return ApiResponse.error(404, "确认失败，告警不存在");
+        return ApiResponse.error(ErrorCode.NOT_FOUND.getCode(), "确认失败，告警不存在");
     }
 
     /** 解决告警。 */
@@ -82,6 +87,6 @@ public class AlarmController {
         if (alarmService.resolve(id)) {
             return ApiResponse.ok("告警已解决", null);
         }
-        return ApiResponse.error(404, "解决失败，告警不存在");
+        return ApiResponse.error(ErrorCode.NOT_FOUND.getCode(), "解决失败，告警不存在");
     }
 }

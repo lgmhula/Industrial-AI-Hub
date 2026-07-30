@@ -16,7 +16,7 @@ import jakarta.servlet.http.HttpServletRequest;
 /**
  * 操作日志 AOP 切面 —— 自动拦截 @OperationLog 注解并写入数据库。
  *
- * <p>从 JwtAuthFilter 设置的 request attribute 中读取当前用户 ID。
+ * <p>无论方法成功或失败，均记录日志（失败时 description 追加 [失败]）。</p>
  *
  * @author hula0710
  * @since 2026-07-28
@@ -35,17 +35,23 @@ public class OperationLogAspect {
 
     @Around("@annotation(dev.reboot.annotation.OperationLog)")
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
-        Object result = joinPoint.proceed();
+        boolean failed = false;
         try {
-            recordLog(joinPoint);
-        } catch (Exception e) {
-            log.error("操作日志记录失败: {}", e.getMessage());
+            return joinPoint.proceed();
+        } catch (Throwable e) {
+            failed = true;
+            throw e;
+        } finally {
+            try {
+                recordLog(joinPoint, failed);
+            } catch (Exception e) {
+                log.error("操作日志记录失败: {}", e.getMessage());
+            }
         }
-        return result;
     }
 
-    private void recordLog(ProceedingJoinPoint joinPoint) {
-        OperationLog annotation = getAnnotation(joinPoint);
+    private void recordLog(ProceedingJoinPoint joinPoint, boolean failed) {
+        var annotation = getAnnotation(joinPoint);
         if (annotation == null) {
             return;
         }
@@ -60,8 +66,11 @@ public class OperationLogAspect {
         Long userId = userIdObj != null ? Long.valueOf(userIdObj.toString()) : null;
 
         String desc = buildDescription(annotation.description(), joinPoint);
+        if (failed) {
+            desc = "[失败] " + desc;
+        }
 
-        dev.reboot.entity.OperationLog entity = new dev.reboot.entity.OperationLog();
+        var entity = new dev.reboot.entity.OperationLog();
         entity.setUserId(userId);
         entity.setOperationType(annotation.operationType());
         entity.setTargetType(annotation.targetType());
@@ -69,34 +78,58 @@ public class OperationLogAspect {
         entity.setIpAddress(getClientIp(request));
 
         operationLogMapper.insert(entity);
-        log.info("操作日志: userId={}, op={}, target={}", userId, annotation.operationType(), annotation.targetType());
+        log.info("操作日志: userId={}, op={}, target={}, failed={}",
+                userId, annotation.operationType(), annotation.targetType(), failed);
     }
 
     private OperationLog getAnnotation(ProceedingJoinPoint joinPoint) {
         try {
-            org.aspectj.lang.reflect.MethodSignature signature =
-                    (org.aspectj.lang.reflect.MethodSignature) joinPoint.getSignature();
-            java.lang.reflect.Method method = signature.getMethod();
-            return method.getAnnotation(OperationLog.class);
+            var signature = (org.aspectj.lang.reflect.MethodSignature) joinPoint.getSignature();
+            return signature.getMethod().getAnnotation(OperationLog.class);
         } catch (Exception e) {
             log.warn("Failed to resolve @OperationLog annotation: {}", e.getMessage());
         }
         return null;
     }
 
+    /**
+     * 构建日志描述，支持 {0} {1} 占位符按方法参数位置替换。
+     *
+     * <p>对非基本类型参数只输出类名短名，避免将整个 DTO 的 toString() 拼入日志。</p>
+     */
     private String buildDescription(String template, ProceedingJoinPoint joinPoint) {
         if (template == null || template.isEmpty()) {
             return joinPoint.getSignature().toShortString();
         }
-        // 使用 args 按位置替换 {0} {1} 占位符
         Object[] args = joinPoint.getArgs();
         String desc = template;
         if (args != null) {
             for (int i = 0; i < args.length; i++) {
-                desc = desc.replace("{" + i + "}", String.valueOf(args[i]));
+                String val = formatArg(args[i]);
+                desc = desc.replace("{" + i + "}", val);
             }
         }
         return desc;
+    }
+
+    /** 格式化参数值：简单类型直接 toString，复杂类型输出类名或提取 ID。 */
+    private String formatArg(Object arg) {
+        if (arg == null) return "null";
+        if (arg instanceof Number || arg instanceof String || arg instanceof Boolean) {
+            return arg.toString();
+        }
+        // 尝试反射提取 id 字段
+        try {
+            var idField = arg.getClass().getDeclaredField("id");
+            idField.setAccessible(true);
+            Object idVal = idField.get(arg);
+            if (idVal != null) {
+                return arg.getClass().getSimpleName() + "(id=" + idVal + ")";
+            }
+        } catch (NoSuchFieldException | IllegalAccessException ignored) {
+        }
+        // 兜底：类名
+        return arg.getClass().getSimpleName();
     }
 
     private String getClientIp(HttpServletRequest request) {

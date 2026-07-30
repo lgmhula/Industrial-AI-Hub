@@ -5,6 +5,9 @@ import dev.reboot.dto.ApiResponse;
 import dev.reboot.entity.OperationLog;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.OperationLogService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +21,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/operation-logs")
+@Validated
 public class OperationLogController {
 
     private final OperationLogService operationLogService;

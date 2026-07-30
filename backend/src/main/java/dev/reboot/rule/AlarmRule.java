@@ -36,6 +36,9 @@ public class AlarmRule {
                      Integer alarmLevel, String alarmType, String messageTemplate) {
         this.dataType = dataType;
         this.operator = operator;
+        if (threshold == null || threshold.isBlank()) {
+            throw new IllegalArgumentException("告警规则阈值不能为空");
+        }
         this.threshold = new BigDecimal(threshold);
         this.alarmLevel = alarmLevel;
         this.alarmType = alarmType;

@@ -2,6 +2,7 @@ package dev.reboot.config;
 
 import dev.reboot.security.AuthInterceptor;
 import dev.reboot.security.JwtAuthFilter;
+import dev.reboot.security.RateLimitInterceptor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,9 +10,9 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * Web MVC 配置 —— 注册 JWT Filter + 权限拦截器。
+ * Web MVC 配置 —— 注册 JWT Filter + 权限拦截器 + 限流拦截器。
  *
- * <p>Filter 和 Interceptor 均为 Spring Bean，支持依赖注入。</p>
+ * <p>执行顺序：JWT Filter → RateLimit → AuthInterceptor → Controller。</p>
  *
  * @author hula0710
  * @since 2026-07-24
@@ -27,21 +28,22 @@ public class WebMvcConfig implements WebMvcConfigurer {
         this.authInterceptor = authInterceptor;
     }
 
-    /** JWT 认证 Filter Bean。 */
     @Bean
     public static JwtAuthFilter jwtAuthFilter() {
         return new JwtAuthFilter();
     }
 
-    /** 权限拦截器 Bean。 */
     @Bean
     public static AuthInterceptor authInterceptor() {
         return new AuthInterceptor();
     }
 
-    /**
-     * JWT 认证 Filter —— 最先执行，对所有 /api/* 请求生效。
-     */
+    /** 限流拦截器 Bean。 */
+    @Bean
+    public static RateLimitInterceptor rateLimitInterceptor() {
+        return new RateLimitInterceptor();
+    }
+
     @Bean
     public FilterRegistrationBean<JwtAuthFilter> jwtAuthFilterRegistration() {
         FilterRegistrationBean<JwtAuthFilter> bean = new FilterRegistrationBean<>();
@@ -52,12 +54,20 @@ public class WebMvcConfig implements WebMvcConfigurer {
     }
 
     /**
-     * 权限拦截器 —— 在 Filter 之后执行，仅拦截 /api/**。
+     * 拦截器注册 —— 限流先于权限。
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // 限流最优先
+        registry.addInterceptor(new RateLimitInterceptor())
+                .addPathPatterns("/api/**")
+                .excludePathPatterns("/api/auth/**")
+                .order(0);
+
+        // 权限校验
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/auth/**");
+                .excludePathPatterns("/api/auth/**")
+                .order(1);
     }
 }

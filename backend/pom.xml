@@ -65,6 +65,13 @@
         </dependency>
 
         <!-- ===== Security (JWT + BCrypt) ===== -->
+
+        <!-- Rate Limiter (Day 37) -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>33.4.0-jre</version>
+        </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>

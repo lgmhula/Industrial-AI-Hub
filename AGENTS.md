@@ -34,8 +34,8 @@
 ## 3. 当前状态
 
 - **阶段**：第二阶段 — Industrial AI Hub V1（第 4-6 周）
-- **进度**：Day 36 已完成，下一步 Day 37
-- **Day 36 任务**：单元测试 — UserService + DeviceService（35 tests，全部通过）
+- **进度**：Day 37 已完成，下一步 Day 38
+- **Day 37 任务：接口限流 + SQL 索引审计 + Postman 更新（已完成）**
 - **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限、分页查询、全局异常处理、@Valid 校验、报警规则引擎、AOP 操作日志、Postman 测试集、Vue 3 前端（设备/报警/日志 3 页面）
 - **待实现**：前端页面、集成测试
 

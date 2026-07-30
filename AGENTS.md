@@ -34,10 +34,10 @@
 ## 3. 当前状态
 
 - **阶段**：第二阶段 — Industrial AI Hub V1（第 4-6 周）
-- **进度**：Day 35 已完成，v1.0-alpha tagged，下一步 Day 36
-- **Day 35 任务**：周复盘 + 代码 Review + v1.0-alpha 里程碑
+- **进度**：Day 36 已完成，下一步 Day 37
+- **Day 36 任务**：单元测试 — UserService + DeviceService（35 tests，全部通过）
 - **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限、分页查询、全局异常处理、@Valid 校验、报警规则引擎、AOP 操作日志、Postman 测试集、Vue 3 前端（设备/报警/日志 3 页面）
-- **待实现**：Phase 3 — 单元测试 + 集成测试
+- **待实现**：前端页面、集成测试
 
 ---
 
@@ -132,4 +132,4 @@ Industrial-AI-Hub/
 
 ---
 
-> 最后更新：2026-07-29 | 维护者：AI 助手 + hula0710
+> 最后更新：2026-07-30 | 维护者：AI 助手 + hula0710

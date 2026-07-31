@@ -1,56 +1,59 @@
 <template>
   <div class="device-detail">
     <div class="header">
-      <button class="back-btn" @click="$router.push('/')">&larr; 返回列表</button>
+      <button class="back-btn" @click="$router.push('/devices')">&larr; 返回列表</button>
       <h2>{{ device.deviceName || '加载中...' }}</h2>
       <span :class="statusClass(device.status)">{{ statusLabel(device.status) }}</span>
     </div>
 
-    <div class="info-grid" v-if="device.id">
-      <div class="info-item"><label>设备编码</label><code>{{ device.deviceCode }}</code></div>
-      <div class="info-item"><label>设备类型</label><span>{{ device.deviceType }}</span></div>
-      <div class="info-item"><label>IP 地址</label><span>{{ device.ipAddress || '-' }}</span></div>
-      <div class="info-item"><label>端口</label><span>{{ device.port || '-' }}</span></div>
-      <div class="info-item"><label>安装位置</label><span>{{ device.location || '-' }}</span></div>
-      <div class="info-item"><label>更新时间</label><span>{{ fmtTime(device.updatedAt) }}</span></div>
-    </div>
+    <LoadingSpinner :visible="loading" text="加载设备详情..." />
 
-    <!-- 统计卡片 -->
-    <div class="stats-row" v-if="stats">
-      <div class="stat-card"><span class="stat-val">{{ stats.count }}</span><span class="stat-label">数据条数</span></div>
-      <div class="stat-card"><span class="stat-val">{{ stats.avg?.toFixed(2) }}</span><span class="stat-label">平均值</span></div>
-      <div class="stat-card"><span class="stat-val">{{ stats.min?.toFixed(2) }}</span><span class="stat-label">最小值</span></div>
-      <div class="stat-card"><span class="stat-val">{{ stats.max?.toFixed(2) }}</span><span class="stat-label">最大值</span></div>
-    </div>
+    <template v-if="!loading && device.id">
+      <div class="info-grid">
+        <div class="info-item"><label>设备编码</label><code>{{ device.deviceCode }}</code></div>
+        <div class="info-item"><label>设备类型</label><span>{{ device.deviceType }}</span></div>
+        <div class="info-item"><label>IP 地址</label><span>{{ device.ipAddress || '-' }}</span></div>
+        <div class="info-item"><label>端口</label><span>{{ device.port || '-' }}</span></div>
+        <div class="info-item"><label>安装位置</label><span>{{ device.location || '-' }}</span></div>
+        <div class="info-item"><label>更新时间</label><span>{{ fmtTime(device.updatedAt) }}</span></div>
+      </div>
 
-    <!-- ECharts 温度趋势图 -->
-    <div class="chart-section">
-      <h3>温度趋势 (°C)</h3>
-      <v-chart :option="tempOption" autoresize style="height: 320px" v-if="tempOption" />
-      <p v-else class="empty">暂无温度数据</p>
-    </div>
+      <div class="stats-row" v-if="stats">
+        <div class="stat-card"><span class="stat-val">{{ stats.count }}</span><span class="stat-label">数据条数</span></div>
+        <div class="stat-card"><span class="stat-val">{{ stats.avg?.toFixed(2) }}</span><span class="stat-label">平均值</span></div>
+        <div class="stat-card"><span class="stat-val">{{ stats.min?.toFixed(2) }}</span><span class="stat-label">最小值</span></div>
+        <div class="stat-card"><span class="stat-val">{{ stats.max?.toFixed(2) }}</span><span class="stat-label">最大值</span></div>
+      </div>
 
-    <!-- ECharts 压力趋势图 -->
-    <div class="chart-section">
-      <h3>压力趋势 (kPa)</h3>
-      <v-chart :option="pressureOption" autoresize style="height: 320px" v-if="pressureOption" />
-      <p v-else class="empty">暂无压力数据</p>
-    </div>
+      <div class="chart-section">
+        <h3>温度趋势 (°C)</h3>
+        <LoadingSpinner :visible="chartLoading" text="加载图表..." />
+        <v-chart v-if="!chartLoading && tempOption" :option="tempOption" autoresize style="height: 320px" />
+        <p v-if="!chartLoading && !tempOption" class="empty">暂无温度数据</p>
+      </div>
 
-    <!-- 最近数据表格 -->
-    <div class="data-section" v-if="recentData.length">
-      <h3>最近采集数据</h3>
-      <table class="data-table">
-        <thead><tr><th>数据类型</th><th>数值</th><th>单位</th><th>采集时间</th></tr></thead>
-        <tbody>
-          <tr v-for="r in recentData" :key="r.id">
-            <td>{{ r.dataType }}</td><td>{{ r.dataValue }}</td><td>{{ r.unit || '-' }}</td><td>{{ fmtTime(r.recordedAt) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <div class="chart-section">
+        <h3>压力趋势 (kPa)</h3>
+        <v-chart v-if="pressureOption" :option="pressureOption" autoresize style="height: 320px" />
+        <p v-if="!chartLoading && !pressureOption" class="empty">暂无压力数据</p>
+      </div>
 
-    <div class="msg" v-if="msg">{{ msg }}</div>
+      <div class="data-section" v-if="recentData.length">
+        <h3>最近采集数据</h3>
+        <table class="data-table">
+          <thead><tr><th>数据类型</th><th>数值</th><th>单位</th><th>采集时间</th></tr></thead>
+          <tbody>
+            <tr v-for="r in recentData" :key="r.id">
+              <td>{{ r.dataType }}</td><td>{{ r.dataValue }}</td><td>{{ r.unit || '-' }}</td><td>{{ fmtTime(r.recordedAt) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
+
+    <p v-if="!loading && !device.id" class="empty">设备不存在或已被删除</p>
+
+    <ToastMessage ref="toastRef" />
   </div>
 </template>
 
@@ -63,6 +66,8 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { deviceApi, deviceDataApi } from '../api/index.js'
+import LoadingSpinner from '../components/LoadingSpinner.vue'
+import ToastMessage from '../components/ToastMessage.vue'
 
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -72,7 +77,10 @@ const device = ref({})
 const stats = ref(null)
 const allData = ref([])
 const recentData = ref([])
-const msg = ref('')
+const loading = ref(false)
+const chartLoading = ref(true)
+const toastRef = ref(null)
+const toast = (msg, type = 'error') => toastRef.value?.show(msg, type)
 
 const tempOption = computed(() => buildChartOption(allData.value, 'TEMPERATURE', '#3b82f6'))
 const pressureOption = computed(() => buildChartOption(allData.value, 'PRESSURE', '#ef4444'))
@@ -90,6 +98,8 @@ const buildChartOption = (data, type, color) => {
 }
 
 const fetchDetail = async () => {
+  loading.value = true
+  chartLoading.value = true
   try {
     const [dev, statsRes, dataRes] = await Promise.all([
       deviceApi.getById(deviceId),
@@ -101,7 +111,12 @@ const fetchDetail = async () => {
     const records = dataRes?.data?.records || dataRes?.data || []
     allData.value = records
     recentData.value = records.slice(-10).reverse()
-  } catch (e) { msg.value = e.message }
+    chartLoading.value = false
+  } catch (e) {
+    toast(e.message)
+  } finally {
+    loading.value = false
+  }
 }
 
 const statusClass = (s) => ({ 1: 'online', 0: 'offline', 2: 'maintenance' }[s] || '')
@@ -113,14 +128,14 @@ onMounted(fetchDetail)
 
 <style scoped>
 .device-detail { max-width: 1100px; margin: 0 auto; padding: 20px; }
-.header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
 .back-btn { background: none; border: 1px solid #d0d5dd; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; }
 .back-btn:hover { background: #f3f4f6; }
 .header h2 { margin: 0; font-size: 22px; }
 .online { color: #16a34a; font-weight: 600; }
 .offline { color: #9ca3af; }
 .maintenance { color: #f59e0b; font-weight: 600; }
-.info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
 .info-item { padding: 12px; background: #f9fafb; border-radius: 6px; }
 .info-item label { display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; }
 .info-item code { font-size: 14px; background: #e5e7eb; padding: 2px 6px; border-radius: 4px; }
@@ -135,5 +150,9 @@ onMounted(fetchDetail)
 .data-table th { text-align: left; padding: 8px; border-bottom: 2px solid #e5e7eb; color: #6b7280; }
 .data-table td { padding: 8px; border-bottom: 1px solid #f3f4f6; }
 .empty { text-align: center; color: #9ca3af; padding: 40px 0; }
-.msg { position: fixed; bottom: 24px; right: 24px; background: #1f2937; color: #fff; padding: 10px 20px; border-radius: 6px; font-size: 14px; z-index: 200; }
+
+@media (max-width: 768px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .info-grid { grid-template-columns: 1fr 1fr; }
+}
 </style>

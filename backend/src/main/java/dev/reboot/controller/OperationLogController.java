@@ -9,6 +9,9 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 import java.util.List;
 import java.util.Map;
@@ -22,6 +25,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/operation-logs")
 @Validated
+@Tag(name = "06-操作日志", description = "管理员专属 — 操作日志查询")
 public class OperationLogController {
 
     private final OperationLogService operationLogService;
@@ -33,6 +37,7 @@ public class OperationLogController {
     /** 分页查询操作日志。 */
     @GetMapping
     @RequireRole(RoleEnum.ADMIN)
+    @Operation(summary = "分页查询操作日志")
     public ApiResponse<Map<String, Object>> listPaged(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -42,6 +47,7 @@ public class OperationLogController {
     /** 按用户 ID 分页查询。 */
     @GetMapping("/user/{userId}")
     @RequireRole(RoleEnum.ADMIN)
+    @Operation(summary = "按用户 ID 查询日志")
     public ApiResponse<Map<String, Object>> listByUserId(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "1") int page,
@@ -52,6 +58,7 @@ public class OperationLogController {
     /** 查询最近 100 条（不分页，兼容旧调用）。 */
     @GetMapping("/recent")
     @RequireRole(RoleEnum.ADMIN)
+    @Operation(summary = "最近日志")
     public ApiResponse<List<OperationLog>> listRecent() {
         return ApiResponse.ok(operationLogService.listRecent());
     }

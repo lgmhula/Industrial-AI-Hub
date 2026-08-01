@@ -66,6 +66,13 @@
 
         <!-- ===== Security (JWT + BCrypt) ===== -->
 
+
+        <!-- API Docs (Day 39) -->
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+            <version>4.5.0</version>
+        </dependency>
         <!-- Rate Limiter (Day 37) -->
         <dependency>
             <groupId>com.google.guava</groupId>

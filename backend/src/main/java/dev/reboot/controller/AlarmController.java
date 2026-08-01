@@ -11,6 +11,9 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 import java.util.List;
 import java.util.Map;
@@ -24,6 +27,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/alarms")
 @Validated
+@Tag(name = "05-报警管理", description = "报警查询 + 确认/解决")
 public class AlarmController {
 
     private final AlarmService alarmService;
@@ -35,6 +39,7 @@ public class AlarmController {
     /** 分页查询所有告警。 */
     @GetMapping
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
+    @Operation(summary = "分页查询所有告警")
     public ApiResponse<Map<String, Object>> listAllPaged(
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
@@ -44,6 +49,7 @@ public class AlarmController {
     /** 按设备 ID 分页查询告警。 */
     @GetMapping("/device/{deviceId}")
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
+    @Operation(summary = "按设备 ID 分页查询告警")
     public ApiResponse<Map<String, Object>> listByDevicePaged(
             @PathVariable Long deviceId,
             @RequestParam(defaultValue = "1") @Min(1) int page,
@@ -54,6 +60,7 @@ public class AlarmController {
     /** 按状态分页查询告警（0=未处理, 1=已确认, 2=已解决）。 */
     @GetMapping("/status/{status}")
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
+    @Operation(summary = "按状态分页查询告警")
     public ApiResponse<Map<String, Object>> listByStatusPaged(
             @PathVariable Integer status,
             @RequestParam(defaultValue = "1") @Min(1) int page,
@@ -64,6 +71,7 @@ public class AlarmController {
     /** 查询所有告警（不分页，兼容旧调用）。 */
     @GetMapping("/all")
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
+    @Operation(summary = "查询所有告警（不分页）")
     public ApiResponse<List<AlarmVO>> listAll() {
         return ApiResponse.ok(alarmService.listAll());
     }
@@ -72,6 +80,7 @@ public class AlarmController {
     @OperationLog(operationType = "ACKNOWLEDGE", targetType = "ALARM", description = "确认告警 {0}")
     @PutMapping("/{id}/acknowledge")
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
+    @Operation(summary = "确认告警")
     public ApiResponse<Void> acknowledge(@PathVariable Long id) {
         if (alarmService.acknowledge(id)) {
             return ApiResponse.ok("告警已确认", null);
@@ -83,6 +92,7 @@ public class AlarmController {
     @OperationLog(operationType = "RESOLVE", targetType = "ALARM", description = "解决告警 {0}")
     @PutMapping("/{id}/resolve")
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
+    @Operation(summary = "解决告警")
     public ApiResponse<Void> resolve(@PathVariable Long id) {
         if (alarmService.resolve(id)) {
             return ApiResponse.ok("告警已解决", null);

@@ -9,6 +9,9 @@ import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 /**
  * 用户管理 REST 控制器 —— 管理员专属。
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/users")
 @RequireRole(RoleEnum.ADMIN)
+@Tag(name = "02-用户管理", description = "管理员专属 — 用户 CRUD + 状态切换")
 public class UserController {
 
     private final UserService userService;
@@ -31,6 +35,7 @@ public class UserController {
 
     /** 分页查询用户列表。 */
     @GetMapping
+    @Operation(summary = "分页查询用户")
     public ApiResponse<PageInfo<UserVO>> list(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -39,12 +44,14 @@ public class UserController {
 
     /** 按 ID 查询用户。 */
     @GetMapping("/{id}")
+    @Operation(summary = "按 ID 查询用户")
     public ApiResponse<UserVO> getById(@PathVariable Long id) {
         return ApiResponse.ok(userService.getById(id));
     }
 
     /** 编辑用户信息（email、phone）。 */
     @PutMapping("/{id}")
+    @Operation(summary = "编辑用户信息（email/phone）")
     public ApiResponse<UserVO> update(@PathVariable Long id, @Valid @RequestBody UserUpdateDTO dto) {
         return ApiResponse.ok("用户信息更新成功", userService.update(id, dto));
     }
@@ -55,12 +62,14 @@ public class UserController {
      * @return 新状态值（1=启用, 0=禁用）
      */
     @PutMapping("/{id}/status")
+    @Operation(summary = "切换用户启用/禁用")
     public ApiResponse<Integer> toggleStatus(@PathVariable Long id) {
         return ApiResponse.ok("状态更新成功", userService.toggleStatus(id));
     }
 
     /** 逻辑删除用户。 */
     @DeleteMapping("/{id}")
+    @Operation(summary = "逻辑删除用户")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         userService.delete(id);
         return ApiResponse.ok("用户已删除", null);

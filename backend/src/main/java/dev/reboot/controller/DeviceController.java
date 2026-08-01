@@ -10,6 +10,9 @@ import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.DeviceService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 
 /**
  * Device REST 控制器。
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/devices")
+@Tag(name = "03-设备管理", description = "设备 CRUD + 分页搜索")
 public class DeviceController {
 
     private final DeviceService deviceService;
@@ -36,6 +40,7 @@ public class DeviceController {
      */
     @GetMapping
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
+    @Operation(summary = "分页搜索设备（支持关键字/类型/状态）")
     public ApiResponse<PageInfo<DeviceVO>> list(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String deviceType,
@@ -47,6 +52,7 @@ public class DeviceController {
 
     @GetMapping("/{id}")
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
+    @Operation(summary = "按 ID 查询设备")
     public ApiResponse<DeviceVO> getById(@PathVariable Long id) {
         return ApiResponse.ok(deviceService.getById(id));
     }
@@ -54,6 +60,7 @@ public class DeviceController {
     @OperationLog(operationType = "CREATE", targetType = "DEVICE", description = "创建设备")
     @PostMapping
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
+    @Operation(summary = "创建设备")
     public ApiResponse<DeviceVO> create(@Valid @RequestBody DeviceDTO dto) {
         return ApiResponse.ok("设备创建成功", deviceService.create(dto));
     }
@@ -61,6 +68,7 @@ public class DeviceController {
     @OperationLog(operationType = "UPDATE", targetType = "DEVICE", description = "更新设备 {0}")
     @PutMapping("/{id}")
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
+    @Operation(summary = "更新设备")
     public ApiResponse<DeviceVO> update(@PathVariable Long id, @Valid @RequestBody DeviceDTO dto) {
         return ApiResponse.ok("设备更新成功", deviceService.update(id, dto));
     }
@@ -68,6 +76,7 @@ public class DeviceController {
     @OperationLog(operationType = "DELETE", targetType = "DEVICE", description = "删除设备 {0}")
     @DeleteMapping("/{id}")
     @RequireRole(RoleEnum.ADMIN)
+    @Operation(summary = "逻辑删除设备")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         deviceService.delete(id);
         return ApiResponse.ok("设备已删除", null);

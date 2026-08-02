@@ -124,11 +124,6 @@ public class UserService {
     }
 
     /**
-     * 修改密码（接入之前未使用的 updatePassword()）。
-     *
-     * @throws BusinessException 用户不存在 → 404
-     */
-    /**
      * 修改密码。
      *
      * @throws BusinessException 用户不存在 → 404；旧密码错误 → 401；新密码不合法 → 400

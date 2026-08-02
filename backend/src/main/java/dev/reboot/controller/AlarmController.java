@@ -15,8 +15,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 
+import com.github.pagehelper.PageInfo;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Alarm REST 控制器 —— 报警查询 + 确认/解决。
@@ -40,7 +40,7 @@ public class AlarmController {
     @GetMapping
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
     @Operation(summary = "分页查询所有告警")
-    public ApiResponse<Map<String, Object>> listAllPaged(
+    public ApiResponse<PageInfo<AlarmVO>> listAllPaged(
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         return ApiResponse.ok(alarmService.listAllPaged(page, size));
@@ -50,7 +50,7 @@ public class AlarmController {
     @GetMapping("/device/{deviceId}")
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
     @Operation(summary = "按设备 ID 分页查询告警")
-    public ApiResponse<Map<String, Object>> listByDevicePaged(
+    public ApiResponse<PageInfo<AlarmVO>> listByDevicePaged(
             @PathVariable Long deviceId,
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
@@ -61,20 +61,13 @@ public class AlarmController {
     @GetMapping("/status/{status}")
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
     @Operation(summary = "按状态分页查询告警")
-    public ApiResponse<Map<String, Object>> listByStatusPaged(
+    public ApiResponse<PageInfo<AlarmVO>> listByStatusPaged(
             @PathVariable Integer status,
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         return ApiResponse.ok(alarmService.listByStatusPaged(status, page, size));
     }
 
-    /** 查询所有告警（不分页，兼容旧调用）。 */
-    @GetMapping("/all")
-    @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
-    @Operation(summary = "查询所有告警（不分页）")
-    public ApiResponse<List<AlarmVO>> listAll() {
-        return ApiResponse.ok(alarmService.listAll());
-    }
 
     /** 确认告警。 */
     @OperationLog(operationType = "ACKNOWLEDGE", targetType = "ALARM", description = "确认告警 {0}")

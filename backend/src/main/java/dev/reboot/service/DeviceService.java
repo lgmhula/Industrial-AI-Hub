@@ -6,6 +6,8 @@ import dev.reboot.entity.Device;
 import dev.reboot.enums.ErrorCode;
 import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.DeviceMapper;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -103,9 +105,9 @@ public class DeviceService {
     }
 
     /** 按设备类型查询（接入之前未使用的 findByType()）。 */
-    public java.util.List<dev.reboot.dto.DeviceVO> listByType(String deviceType) {
+    public List<DeviceVO> listByType(String deviceType) {
         return deviceMapper.findByType(deviceType).stream()
-                .map(dev.reboot.dto.DeviceVO::from)
+                .map(DeviceVO::from)
                 .toList();
     }
 
@@ -119,15 +121,15 @@ public class DeviceService {
      * @param size      每页条数
      * @return PageInfo 分页结果
      */
-    public com.github.pagehelper.PageInfo<dev.reboot.dto.DeviceVO> searchDevices(
+    public PageInfo<DeviceVO> searchDevices(
             String keyword, String deviceType, Integer status, int page, int size) {
-        com.github.pagehelper.PageHelper.startPage(page, size);
-        java.util.List<dev.reboot.entity.Device> devices = deviceMapper.searchDevices(keyword, deviceType, status);
-        com.github.pagehelper.PageInfo<dev.reboot.entity.Device> raw = new com.github.pagehelper.PageInfo<>(devices);
-        java.util.List<dev.reboot.dto.DeviceVO> voList = devices.stream()
-                .map(dev.reboot.dto.DeviceVO::from)
+        PageHelper.startPage(page, size);
+        List<Device> devices = deviceMapper.searchDevices(keyword, deviceType, status);
+        PageInfo<Device> raw = new PageInfo<>(devices);
+        List<DeviceVO> voList = devices.stream()
+                .map(DeviceVO::from)
                 .toList();
-        com.github.pagehelper.PageInfo<dev.reboot.dto.DeviceVO> result = new com.github.pagehelper.PageInfo<>();
+        PageInfo<DeviceVO> result = new PageInfo<>();
         result.setList(voList);
         result.setTotal(raw.getTotal());
         result.setPageNum(raw.getPageNum());

@@ -15,8 +15,8 @@ public class AlarmRule {
     /** 匹配的数据类型，如 TEMPERATURE / PRESSURE / SPEED。 */
     private String dataType;
 
-    /** 比较运算符：GT（大于）/ LT（小于）。 */
-    private String operator;
+    /** 比较运算符。 */
+    private Operator operator;
 
     /** 阈值。 */
     private BigDecimal threshold;
@@ -32,7 +32,7 @@ public class AlarmRule {
 
     public AlarmRule() {}
 
-    public AlarmRule(String dataType, String operator, String threshold,
+    public AlarmRule(String dataType, Operator operator, String threshold,
                      Integer alarmLevel, String alarmType, String messageTemplate) {
         this.dataType = dataType;
         this.operator = operator;
@@ -47,8 +47,8 @@ public class AlarmRule {
 
     public String getDataType() { return dataType; }
     public void setDataType(String dataType) { this.dataType = dataType; }
-    public String getOperator() { return operator; }
-    public void setOperator(String operator) { this.operator = operator; }
+    public Operator getOperator() { return operator; }
+    public void setOperator(Operator operator) { this.operator = operator; }
     public BigDecimal getThreshold() { return threshold; }
     public void setThreshold(BigDecimal threshold) { this.threshold = threshold; }
     public Integer getAlarmLevel() { return alarmLevel; }

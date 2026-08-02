@@ -15,6 +15,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res.data,
   (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('token')
+      window.location.hash = '#/login'
+    }
     const msg = err.response?.data?.message || err.message || '请求失败'
     return Promise.reject(new Error(msg))
   }

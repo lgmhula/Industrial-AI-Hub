@@ -1,0 +1,149 @@
+{
+  "summary": {
+    "projectName": "Industrial AI Hub",
+    "locale": "zh-CN",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 25,
+    "overview": "项目拥有完善的 AGENTS.md 指导体系和清晰的架构决策记录，但测试覆盖率极低（2 个测试文件 / 112 个源文件），且缺少 Skills、Memory 等可复用学习资产，导致变更验证和学习捕获能力严重不足。",
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Rules",
+        "Workflows"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            "AGENTS.md"
+          ]
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            ".github/workflows/qodana_code_quality.yml"
+          ]
+        },
+        {
+          "surface": "Custom Agents",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        }
+      ]
+    },
+    "assignmentSummaries": [],
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "任务理解",
+        "score": 59,
+        "summary": "AGENTS.md 提供了清晰的任务边界和技术栈锁定，但无会话证据证明这些指导被实际消费和执行。",
+        "findingRefs": [
+          "no-memory-assets"
+        ]
+      },
+      {
+        "id": "controlled-execution",
+        "label": "可控执行",
+        "score": 55,
+        "summary": "Maven 和 npm 清单文件可见，compose.yml 统一编排基础设施，但无可观察的启动或操作会话。",
+        "findingRefs": []
+      },
+      {
+        "id": "change-validation",
+        "label": "改动验证",
+        "score": 40,
+        "summary": "112 个源文件仅 2 个测试文件，无可观察的验证会话；核心控制器和服务层缺乏行为覆盖检查。",
+        "findingRefs": [
+          "test-coverage-gap"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "可靠交付",
+        "score": 45,
+        "summary": "CI 工作流存在（Qodana 代码质量），但无测试执行或验收决策的会话证据。",
+        "findingRefs": []
+      },
+      {
+        "id": "learning-capture",
+        "label": "经验沉淀",
+        "score": 35,
+        "summary": "无 Skills、无 Memory、无可观察的任务片段；学习捕获机制完全缺失。",
+        "findingRefs": [
+          "no-project-skills",
+          "no-memory-assets",
+          "no-learning-loop-evidence"
+        ]
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "test-coverage-gap",
+      "title": "112 个源文件仅 2 个测试文件，核心变更无行为验证",
+      "severity": "High",
+      "reason": "后端 108 个 Java 源文件（含 DeviceController、AuthService、JwtUtils 等高频变更文件）仅有 2 个测试文件。变更验证检查无法覆盖核心业务逻辑，任何编辑的正确性只能依赖手动确认。",
+      "expectedOutput": [
+        "为核心控制器和服务添加聚焦测试，使变更验证拥有最小项目自有检查。"
+      ],
+      "expectedArtifact": "Test",
+      "aiFixPrompt": "为 DeviceController 和 DeviceService 添加最小聚焦单元测试，覆盖 CRUD 和分页查询路径。\n\n## 验证\n- 运行 mvn test 确认新测试通过\n- 确认测试覆盖了核心业务不变量",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    },
+    {
+      "id": "no-project-skills",
+      "title": "无可复用 Skill 资产，重复性操作无法固化",
+      "severity": "Medium",
+      "reason": "项目扫描到 0 个 Skill。每日开发流程（读 AGENTS.md → 确认 Day 任务 → 实现 → 更新日志）是典型的重复性过程，但没有 Skill 将其固化为可复用资产。",
+      "expectedOutput": [
+        "通过覆盖阶梯评估重复性流程，选择最小持久化所有者。"
+      ],
+      "expectedArtifact": "Skill",
+      "aiFixPrompt": "审查每日开发流程是否为重复性过程，如果是，通过 Loop Discovery 选择最小持久化所有者。\n\n## 验证\n- 确认流程是否匹配 Skill Discovery 覆盖阶梯\n- 如果确认为 Skill 形状，创建最小 Skill 并定义触发器、产物和验证器",
+      "dimensionRefs": [
+        "learning-capture"
+      ]
+    },
+    {
+      "id": "no-memory-assets",
+      "title": "无 Memory 资产，跨会话上下文无法持久化",
+      "severity": "Medium",
+      "reason": "项目 Memory 标题数为 0。AGENTS.md 包含丰富的技术栈、架构约定和端口规范，但每次会话都需要重新发现这些信息，无法通过检索机制自动加载。",
+      "expectedOutput": [
+        "将核心项目事实持久化为 Memory 资产，减少跨会话重复发现成本。"
+      ],
+      "expectedArtifact": "Memory",
+      "aiFixPrompt": "将 AGENTS.md 中的关键项目事实（技术栈版本锁定、端口规范、分层架构约定）提取为 Memory 资产。\n\n## 验证\n- 确认 Memory 标题可被检索\n- 确认跨会话上下文加载有效",
+      "dimensionRefs": [
+        "learning-capture",
+        "task-understanding"
+      ]
+    },
+    {
+      "id": "no-learning-loop-evidence",
+      "title": "无可观察的学习机会检测或可复用改进",
+      "severity": "Low",
+      "reason": "无可观察的任务片段、无重复候选、无干预历史。学习捕获的五个覆盖维度均为 not-evaluable。项目处于纯构建阶段，学习捕获机制尚无可比较的观察窗口。",
+      "expectedOutput": [
+        "建立可比观察窗口，使学习捕获从不可评估推进到可决策状态。"
+      ],
+      "expectedArtifact": "Review",
+      "aiFixPrompt": "在后续开发周期中建立可比观察窗口，检测重复性过程并路由到最小持久化所有者。\n\n## 验证\n- 确认至少两个可比的 Task Episode\n- 确认改进在后续窗口中仍然有效",
+      "dimensionRefs": [
+        "learning-capture"
+      ]
+    }
+  ]
+}

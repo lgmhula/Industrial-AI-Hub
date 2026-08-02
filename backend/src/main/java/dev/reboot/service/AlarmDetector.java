@@ -51,13 +51,8 @@ public class AlarmDetector {
                 continue;
             }
 
-            boolean matched = false;
             int cmp = value.compareTo(rule.getThreshold());
-            if ("GT".equalsIgnoreCase(rule.getOperator()) && cmp > 0) {
-                matched = true;
-            } else if ("LT".equalsIgnoreCase(rule.getOperator()) && cmp < 0) {
-                matched = true;
-            }
+            boolean matched = rule.getOperator().evaluate(cmp);
 
             if (matched) {
                 String message = rule.getMessageTemplate()

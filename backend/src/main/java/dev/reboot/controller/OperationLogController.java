@@ -13,8 +13,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 
+import com.github.pagehelper.PageInfo;
 import java.util.List;
-import java.util.Map;
 
 /**
  * OperationLog REST 控制器 —— 日志查询。
@@ -38,7 +38,7 @@ public class OperationLogController {
     @GetMapping
     @RequireRole(RoleEnum.ADMIN)
     @Operation(summary = "分页查询操作日志")
-    public ApiResponse<Map<String, Object>> listPaged(
+    public ApiResponse<PageInfo<OperationLog>> listPaged(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ApiResponse.ok(operationLogService.listPaged(page, size));
@@ -48,7 +48,7 @@ public class OperationLogController {
     @GetMapping("/user/{userId}")
     @RequireRole(RoleEnum.ADMIN)
     @Operation(summary = "按用户 ID 查询日志")
-    public ApiResponse<Map<String, Object>> listByUserId(
+    public ApiResponse<PageInfo<OperationLog>> listByUserId(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {

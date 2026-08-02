@@ -10,9 +10,12 @@ package dev.reboot.enums;
  */
 public enum RoleEnum {
 
-    ADMIN(1, "ROLE_ADMIN"),
-    OPERATOR(2, "ROLE_OPERATOR"),
-    VIEWER(3, "ROLE_VIEWER");
+    // ADMIN(1, "ROLE_ADMIN"),
+    // OPERATOR(2, "ROLE_OPERATOR"),
+    // VIEWER(3, "ROLE_VIEWER");
+    ADMIN(1, "ADMIN"),
+    OPERATOR(2, "OPERATOR"),
+    VIEWER(3, "VIEWER");
 
     private final int level;
     private final String roleCode;

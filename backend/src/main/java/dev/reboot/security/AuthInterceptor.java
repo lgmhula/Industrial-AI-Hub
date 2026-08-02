@@ -71,6 +71,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        log.debug("权限校验: userId={}, userRoles={}, requiredRoles={}",
+                userIdObj, roles, requiredRoles);
+
         for (String roleStr : roles) {
             RoleEnum userRole = RoleEnum.fromCode(roleStr);
             if (userRole == null) continue;

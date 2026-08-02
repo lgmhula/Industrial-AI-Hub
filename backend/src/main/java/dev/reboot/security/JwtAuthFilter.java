@@ -13,7 +13,8 @@ import java.io.IOException;
 /**
  * JWT 认证过滤器 —— 从 Authorization 头提取 Token，解析后注入 request attribute。
  *
- * <p>Token 只解析一次，Claims 结果复用（避免 4 次重复解析）。</p>
+ * <p>Token 只解析一次，roles 通过 {@link JwtUtils#getRoles(String)} 提取
+ * （内部做类型安全过滤，避免 JJWT 反序列化产生的非 String 元素导致权限校验失败）。
  *
  * @author hula0710
  * @since 2026-07-24
@@ -35,9 +36,8 @@ public class JwtAuthFilter implements Filter {
                 Claims claims = JwtUtils.parseToken(token);
                 request.setAttribute("userId", claims.get("userId", Long.class));
                 request.setAttribute("username", claims.getSubject());
-                @SuppressWarnings("unchecked")
-                java.util.List<String> roles = claims.get("roles", java.util.List.class);
-                request.setAttribute("roles", roles);
+                // 使用 JwtUtils.getRoles() 确保类型安全（filter + cast to String）
+                request.setAttribute("roles", JwtUtils.getRoles(token));
             } else {
                 log.debug("JWT 无效或过期: {}", request.getRequestURI());
             }

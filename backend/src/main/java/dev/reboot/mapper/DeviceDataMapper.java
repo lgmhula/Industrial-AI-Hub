@@ -4,6 +4,7 @@ import dev.reboot.entity.DeviceData;
 import org.apache.ibatis.annotations.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * DeviceData 表 Mapper。
@@ -33,8 +34,8 @@ public interface DeviceDataMapper {
                                      @Param("endTime") java.time.LocalDateTime endTime);
 
     /** 聚合统计 avg/min/max/count（XML 实现）。 */
-    java.util.Map<String, Object> aggregate(@Param("deviceId") Long deviceId,
-                                            @Param("dataType") String dataType,
-                                            @Param("startTime") java.time.LocalDateTime startTime,
-                                            @Param("endTime") java.time.LocalDateTime endTime);
+    Map<String, Object> aggregate(@Param("deviceId") Long deviceId,
+                                  @Param("dataType") String dataType,
+                                  @Param("startTime") java.time.LocalDateTime startTime,
+                                  @Param("endTime") java.time.LocalDateTime endTime);
 }

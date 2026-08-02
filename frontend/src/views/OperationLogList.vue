@@ -25,7 +25,8 @@
         </tr>
       </tbody>
     </table>
-    <p v-if="!loading && !logs.length" class="empty">暂无操作日志（需 ADMIN 权限）</p>
+    <EmptyState v-if="!loading && !logs.length"
+        icon="📋" title="暂无操作日志" desc="需 ADMIN 权限，操作后会自动记录" />
 
     <div class="pager" v-if="total > pageSize">
       <button :disabled="page <= 1" @click="page--; fetchLogs()">上一页</button>
@@ -41,6 +42,7 @@
 import { ref, onMounted } from 'vue'
 import { operationLogApi } from '../api/index.js'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
+import EmptyState from '../components/EmptyState.vue'
 import ToastMessage from '../components/ToastMessage.vue'
 
 const logs = ref([])

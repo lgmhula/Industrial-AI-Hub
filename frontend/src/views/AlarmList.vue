@@ -35,7 +35,8 @@
         </tr>
       </tbody>
     </table>
-    <p v-if="!loading && !alarms.length" class="empty">暂无报警记录</p>
+    <EmptyState v-if="!loading && !alarms.length"
+        icon="✅" title="暂无报警" desc="所有设备运行正常" />
 
     <div class="pager" v-if="total > pageSize">
       <button :disabled="page <= 1" @click="page--; fetchAlarms()">上一页</button>
@@ -51,6 +52,7 @@
 import { ref, onMounted } from 'vue'
 import { alarmApi } from '../api/index.js'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
+import EmptyState from '../components/EmptyState.vue'
 import ToastMessage from '../components/ToastMessage.vue'
 
 const alarms = ref([])

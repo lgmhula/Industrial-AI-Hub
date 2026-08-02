@@ -26,7 +26,7 @@
           <td>{{ d.deviceName }}</td>
           <td><code>{{ d.deviceCode }}</code></td>
           <td>{{ d.deviceType }}</td>
-          <td><span :class="statusClass(d.status)">{{ statusLabel(d.status) }}</span></td>
+          <td><span :class="[statusClass(d.status), { pulse: d.status === 1 }]">{{ statusLabel(d.status) }}</span></td>
           <td>{{ d.location || '-' }}</td>
           <td>{{ fmtTime(d.updatedAt) }}</td>
           <td @click.stop>
@@ -36,7 +36,8 @@
         </tr>
       </tbody>
     </table>
-    <p v-if="!loading && !devices.length" class="empty">暂无设备数据</p>
+    <EmptyState v-if="!loading && !devices.length"
+        icon="🖥️" title="暂无设备" desc="点击「+ 新增设备」开始添加" />
 
     <div class="pager" v-if="total > pageSize">
       <button :disabled="page <= 1" @click="page--; fetchDevices()">上一页</button>
@@ -45,7 +46,7 @@
     </div>
 
     <!-- 新增/编辑弹窗 -->
-    <div class="modal-overlay" v-if="showForm" @click.self="showForm = false">
+    <div class="modal-overlay" v-if="showForm" @click.self="showForm = false" @keydown.escape="showForm = false">
       <div class="modal">
         <h3>{{ isEdit ? '编辑设备' : '新增设备' }}</h3>
 
@@ -103,6 +104,7 @@
 import { ref, onMounted } from 'vue'
 import { deviceApi } from '../api/index.js'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
+import EmptyState from '../components/EmptyState.vue'
 import ToastMessage from '../components/ToastMessage.vue'
 
 const devices = ref([])

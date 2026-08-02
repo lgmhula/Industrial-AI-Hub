@@ -33,11 +33,11 @@
 
 ## 3. 当前状态
 
-- **阶段**：第二阶段 — Industrial AI Hub V1（第 4-6 周）
-- **进度**：Day 41 已完成，下一步 Day 42 (Phase 2 复盘)
-- **Day 41 任务：Bug 修复 + SQL XML 迁移 + 架构/ER/API 文档（已完成）**
+- **阶段**：第三阶段 — 中间件武装（第 7-9 周）
+- **进度**：Day 42 已完成，Phase 2 收官。下一步 Day 43 (Phase 3: Redis)
+- **Day 42 任务：Phase 2 复盘 + SQL 终审 + 技术债务清单（已完成）**
 - **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限、分页查询、全局异常处理、@Valid 校验、报警规则引擎、AOP 操作日志、Postman 测试集、Vue 3 前端（设备/报警/日志 3 页面）
-- **待实现**：前端页面、集成测试
+- **待实现**：Redis 缓存、RabbitMQ、Elasticsearch、Dockerfile
 
 ---
 

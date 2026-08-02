@@ -9,6 +9,9 @@ import dev.reboot.dto.DeviceVO;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.DeviceService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -45,8 +48,8 @@ public class DeviceController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String deviceType,
             @RequestParam(required = false) Integer status,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         return ApiResponse.ok(deviceService.searchDevices(keyword, deviceType, status, page, size));
     }
 

@@ -39,8 +39,8 @@ public class OperationLogController {
     @RequireRole(RoleEnum.ADMIN)
     @Operation(summary = "分页查询操作日志")
     public ApiResponse<PageInfo<OperationLog>> listPaged(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return ApiResponse.ok(operationLogService.listPaged(page, size));
     }
 
@@ -50,8 +50,8 @@ public class OperationLogController {
     @Operation(summary = "按用户 ID 查询日志")
     public ApiResponse<PageInfo<OperationLog>> listByUserId(
             @PathVariable Long userId,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return ApiResponse.ok(operationLogService.listByUserId(userId, page, size));
     }
 

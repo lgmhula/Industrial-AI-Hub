@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dev.reboot.mapper.DeviceDataMapper">
+
+    <!-- 按时间范围查询 -->
+    <select id="findByTimeRange" resultType="dev.reboot.entity.DeviceData">
+        SELECT * FROM device_data
+        WHERE device_id = #{deviceId}
+        <if test="dataType != null and dataType.length() > 0">
+            AND data_type = #{dataType}
+        </if>
+        <if test="startTime != null">
+            AND recorded_at &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND recorded_at &lt;= #{endTime}
+        </if>
+        ORDER BY recorded_at ASC
+    </select>
+
+    <!-- 聚合统计 -->
+    <select id="aggregate" resultType="map">
+        SELECT COALESCE(AVG(data_value), 0) AS avg,
+               COALESCE(MIN(data_value), 0) AS min,
+               COALESCE(MAX(data_value), 0) AS max,
+               COUNT(*) AS cnt
+        FROM device_data
+        WHERE device_id = #{deviceId}
+          AND data_type = #{dataType}
+        <if test="startTime != null">
+            AND recorded_at &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND recorded_at &lt;= #{endTime}
+        </if>
+    </select>
+
+</mapper>

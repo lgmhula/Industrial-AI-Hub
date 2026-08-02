@@ -8,6 +8,9 @@ import dev.reboot.dto.UserVO;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.UserService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,8 +40,8 @@ public class UserController {
     @GetMapping
     @Operation(summary = "分页查询用户")
     public ApiResponse<PageInfo<UserVO>> list(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         return ApiResponse.ok(userService.listPage(page, size));
     }
 

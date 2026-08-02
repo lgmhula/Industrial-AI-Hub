@@ -5,6 +5,7 @@ import dev.reboot.enums.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -47,6 +48,14 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining("; "));
         log.warn("参数校验失败: {}", detail);
         return ApiResponse.error(400, "参数校验失败: " + detail);
+    }
+
+    /** @Validated 参数校验失败（@Min/@Max 等）— 返回 400。 */
+    @ExceptionHandler(ConstraintViolationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleConstraintViolation(ConstraintViolationException e) {
+        log.warn("参数校验失败: {}", e.getMessage());
+        return ApiResponse.error(400, "参数校验失败: " + e.getMessage());
     }
 
     /** 兜底 — 所有未预期的异常。 */

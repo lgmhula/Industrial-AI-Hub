@@ -51,6 +51,19 @@
 
 > **关键差异**: V2.1 B2 修复通过 `git rm --cached` 解除了 ES/MinIO/Nacos 的 git 跟踪，磁盘上的残留文件被 `.gitignore` 阻止重新加入。RabbitMQ 的 38 个文件**仍在 git index 中**——`.gitignore` 只阻止新文件加入，不影响已跟踪文件。Phase 3-A 必须通过 `git rm --cached` 解除 RabbitMQ 的 git 跟踪。
 
+> **RabbitMQ .gitignore 分层规则设计**:
+> ```
+> # 配置文件 — 明确纳入版本控制（通过 ! 例外规则）
+> !rabbitmq/rabbitmq.conf
+> !rabbitmq/enabled_plugins
+> !rabbitmq/definitions.json
+> 
+> # 运行时数据 — 排除
+> rabbitmq/mnesia/
+> rabbitmq/.erlang.cookie
+> ```
+> 设计原则：配置文件 = Git 管理（`rabbitmq.conf` 等），运行时数据 = Git 忽略（`mnesia/`、`.erlang.cookie`）。Fresh clone 必须能直接获取 `rabbitmq.conf`，但不应携带任何历史实例的 mnesia 数据。
+
 ---
 
 ## 2. 已知延期问题（V2.1 审计遗留）
@@ -167,6 +180,19 @@
 
 **Step 1 — 解除 git 跟踪**（必须先于任何 compose 操作）:
 ```bash
+
+**前置检查 — 运行态隔离**（阻断条件 — 必须先执行）:
+```bash
+# 必须确保 RabbitMQ 容器已停止且已移除
+docker compose stop rabbitmq
+docker compose rm -f rabbitmq
+
+# 确认容器已不存在
+docker ps -a --filter name=rabbitmq --format "{{.Status}}" | grep -q . && \
+  echo "FAIL: RabbitMQ container still exists -- abort" && exit 1
+```
+> **阻断理由**: `git rm --cached` 配合磁盘删除在容器运行时有竞态风险——RMQ 可能正在写入 mnesia。必须在容器完全停止后执行。
+
 # 从 git index 移除 38 个运行时文件（保留磁盘副本）
 git rm --cached -r rabbitmq/.erlang.cookie rabbitmq/mnesia/
 # 提交解除跟踪
@@ -216,7 +242,8 @@ services:
    ```
 
 **验证方式**:
-- `git ls-files rabbitmq/ | wc -l` → `0`（G6 验收）
+- `git ls-files rabbitmq/ | grep -E "conf|plugins|definitions"` → 非空（配置文件受 Git 管理）
+- `git ls-files rabbitmq/ | grep -E "data|mnesia|cookie"` → 空（运行时数据已排除）（G6 验收）
 - `docker compose up -d rabbitmq && sleep 45 && docker compose ps rabbitmq` → `(healthy)`（G1 验收）
 - `docker compose down && docker compose up -d rabbitmq` → 第二次启动也 healthy（G3 验收）
 - `docker compose down -v && docker compose up -d rabbitmq` → named volume 重建后也 healthy
@@ -548,8 +575,8 @@ ADR-0013 ──→ T5 (API Docs) ──→ 独立执行
 ---
 
 > **Phase 3-A 目标声明**: 完成上述 T1-T6 后，项目达到"基础设施可重复启动"基线，可安全进入 Phase 3-B（中间件功能集成：Redis 缓存、RabbitMQ 消息、Elasticsearch 搜索）。
-| MinIO | minio:RELEASE.2025-09-07T16-13-09Z | 9000, 9001 | bind-mount `./minio` | health/live | healthy |
+| G6 | RabbitMQ Git 生命周期规则生效：配置文件受跟踪，运行时数据排除 | `git ls-files rabbitmq/ | grep -E "conf|plugins|definitions"` → 非空；`git ls-files rabbitmq/ | grep -E "data|mnesia|cookie"` → 空 |
 | G6 | `git ls-files` 确认 RabbitMQ 38 文件已解除跟踪（`git rm --cached` 生效） | `git ls-files rabbitmq/ | wc -l` → `0` |
 | G7 | V2.1 基线 tag 不被修改，Phase 3-A 所有工作在独立分支上 | `git tag -l 'v2.1.0'` 仍指向 `ec9a158` |
-| G8 | Phase 3-A 分支可干净合入 main，无冲突 | `git checkout main && git merge --no-ff codex/phase-3a-infra-stabilization --no-commit` → 无冲突 |
+| G9 | 外部依赖镜像标签均为固定版本（无 `:latest`），排除本地 build 镜像 | 扫描范围: `compose.yml` 外部镜像 + `Dockerfile` FROM 指令 + `deploy/` 脚本；`grep -E 'image:.*:latest' compose.yml | grep -v 'industrial-ai-hub'` → 0 匹配 |
 | G9 | `compose.yml` 中所有镜像标签均为固定版本（无 `:latest`） | `rg ':latest' compose.yml` → 0 匹配 |

@@ -10,9 +10,10 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * Web MVC 配置 —— 注册 JWT Filter + 权限拦截器 + 限流拦截器。
+ * Web MVC 配置 — JWT Filter + RateLimit + AuthInterceptor。
  *
- * <p>执行顺序：JWT Filter → RateLimit → AuthInterceptor → Controller。</p>
+ * <p>Filter 和 Interceptor 均为 Spring Bean（构造器注入），
+ * 无手动 new，支持完整依赖注入。</p>
  *
  * @author hula0710
  * @since 2026-07-24
@@ -22,28 +23,17 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final AuthInterceptor authInterceptor;
+    private final RateLimitInterceptor rateLimitInterceptor;
 
-    public WebMvcConfig(JwtAuthFilter jwtAuthFilter, AuthInterceptor authInterceptor) {
+    public WebMvcConfig(JwtAuthFilter jwtAuthFilter,
+                        AuthInterceptor authInterceptor,
+                        RateLimitInterceptor rateLimitInterceptor) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.authInterceptor = authInterceptor;
+        this.rateLimitInterceptor = rateLimitInterceptor;
     }
 
-    @Bean
-    public static JwtAuthFilter jwtAuthFilter() {
-        return new JwtAuthFilter();
-    }
-
-    @Bean
-    public static AuthInterceptor authInterceptor() {
-        return new AuthInterceptor();
-    }
-
-    /** 限流拦截器 Bean。 */
-    @Bean
-    public static RateLimitInterceptor rateLimitInterceptor() {
-        return new RateLimitInterceptor();
-    }
-
+    /** JWT Filter 注册 — 对所有 /api/* 生效。 */
     @Bean
     public FilterRegistrationBean<JwtAuthFilter> jwtAuthFilterRegistration() {
         FilterRegistrationBean<JwtAuthFilter> bean = new FilterRegistrationBean<>();
@@ -53,18 +43,14 @@ public class WebMvcConfig implements WebMvcConfigurer {
         return bean;
     }
 
-    /**
-     * 拦截器注册 —— 限流先于权限。
-     */
+    /** 拦截器注册 — RateLimit → Auth。 */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 限流最优先
-        registry.addInterceptor(new RateLimitInterceptor())
+        registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns("/api/auth/**")
                 .order(0);
 
-        // 权限校验
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns("/api/auth/**")

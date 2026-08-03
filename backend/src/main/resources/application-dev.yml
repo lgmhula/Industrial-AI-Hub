@@ -1,0 +1,17 @@
+# ========================
+# Industrial AI Hub — Dev Profile
+# ========================
+
+logging:
+  level:
+    dev.reboot: DEBUG
+
+mybatis:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true

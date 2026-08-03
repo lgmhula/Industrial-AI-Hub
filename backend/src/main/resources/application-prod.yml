@@ -1,0 +1,24 @@
+# ========================
+# Industrial AI Hub — Production Profile
+# ========================
+
+logging:
+  level:
+    dev.reboot: WARN
+    org.springframework: WARN
+
+mybatis:
+  configuration:
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
+server:
+  tomcat:
+    max-connections: 500
+    threads:
+      max: 200

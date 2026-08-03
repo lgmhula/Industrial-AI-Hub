@@ -23,7 +23,7 @@ mysql/data/
 mysql/ms-data/
 redis/data/
 nginx/logs/
-rabbitmq/
+rabbitmq/*
 elasticsearch/
 minio/
 nacos/

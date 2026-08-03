@@ -30,3 +30,8 @@ nacos/
 
 # Archives
 *.tar.gz
+
+# RabbitMQ: config tracked, runtime ignored
+!rabbitmq/rabbitmq.conf
+!rabbitmq/enabled_plugins
+!rabbitmq/definitions.json

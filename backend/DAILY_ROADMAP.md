@@ -434,6 +434,33 @@
 
 ---
 
+
+## Baseline V2.1 冻结点 (2026-08-03)
+
+- **Baseline V2.1 Release Gate 审计通过** — 三次审计（首次 → 二次 → 最终），B1 (Maven Wrapper) + B2 (运行时数据 Git 隔离) 均 **PASS**
+- **Git Tag `v2.1.0` 创建** — annotated tag，冻结 Commit `ec9a158`
+- **Release Note 归档** — `docs/reports/v2.1.0-release-note.md`
+- **Audit Report 归档** — `docs/reports/v2.1.0-audit-report.md`
+- **当前 Baseline 已冻结** — 代码、配置、依赖版本均已锁定
+
+---
+
+## 下一阶段：Phase 3-A — 基础设施稳定化 (Infrastructure Stabilization)
+
+> 在进入中间件集成前，先修复 V2.1 审计中发现的 7 项遗留风险。
+> 仅记录计划，不提前实现。
+
+| 优先级 | 遗留风险 | 说明 |
+|:------:|------|------|
+| P0 | JwtUtils prod fail-fast 不完整 | env 缺失 JWT_SECRET 时降级为硬编码测试密钥 |
+| P0 | application-test.yml JWT_SECRET 死配置 | YAML 属性不经过 System.getenv()，测试密钥隔离不完整 |
+| P1 | RabbitMQ mnesia 数据残留 | 38 文件需 `git rm --cached` |
+| P1 | RabbitMQ .erlang.cookie 权限 | bind-mount 破坏 600 权限，容器重启循环 |
+| P2 | API-Reference 幽灵端点 | 文档列出 `GET /api/alarms/all`，实际不存在 |
+| P2 | README badge 滞后 | 版本徽章 `v1.0-alpha`、状态行 "Hotfix 中" |
+| P2 | compose 无 profiles | README 的 `docker compose --profile core` 指令无效 |
+
+---
 # 第三阶段：中间件武装（第 7-9 周）
 
 > 目标：Redis 缓存、RabbitMQ 消息队列、Docker 容器化、Linux 部署。

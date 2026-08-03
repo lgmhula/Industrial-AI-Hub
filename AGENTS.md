@@ -33,11 +33,12 @@
 
 ## 3. 当前状态
 
-- **阶段**：第三阶段 — 中间件武装（第 7-9 周）
-- **进度**：Baseline V2.1 Hotfix 完成（2026-08-03）。下一步 Day 43 (Phase 3: Redis)
+- **Baseline V2.1**：已正式冻结（Release Tag: `v2.1.0`，Freeze Commit: `ec9a158`，Release Gate: **GO**）
+- **阶段**：Release Ready（发布就绪） — 下一阶段 Phase 3-A: 基础设施稳定化
+- **进度**：Baseline V2.1 冻结（2026-08-03）。Release Note 与 Audit Report 归档至 `docs/reports/`。下一阶段 Phase 3-A: 基础设施稳定化
 - **Baseline V2.1 内容**：JWT 生产环境要求通过 compose 注入密钥；测试环境通过 application-test.yml 提供隔离密钥、Spring Bean 清理、Profiles（dev/prod）、Actuator（仅 health）、Dockerfile（multi-stage + non-root）、compose backend 服务、启动冒烟测试（ApplicationContextLoadTest）、前端路由修复 + Dashboard 页面
 - **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限、分页查询、全局异常处理、@Valid 校验、报警规则引擎、AOP 操作日志、Postman 测试集、Vue 3 前端（登录/仪表盘/设备/报警/日志 6 页面）
-- **待实现**：Redis 缓存、RabbitMQ、Elasticsearch、前端工业化视觉升级（见 DESIGN.md）
+- **待实现**：Phase 3-A 基础设施稳定化（修复遗留风险），Phase 3-B Redis 缓存、RabbitMQ、Elasticsearch、前端工业化视觉升级（见 DESIGN.md）
 
 ---
 

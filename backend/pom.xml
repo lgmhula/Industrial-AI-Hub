@@ -77,6 +77,19 @@
             <version>5.2.0</version>
         </dependency>
 
+        <!-- Spring Data Redis (Day 44: caching integration) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- Redisson (Day 46: distributed lock) -->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+            <version>3.39.0</version>
+        </dependency>
+
         <!-- ===== Security (JWT + BCrypt) ===== -->
 
 

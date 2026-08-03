@@ -1,7 +1,6 @@
 # ========================
 # Industrial AI Hub — Spring Boot Config
-# Version: v2.0 | Updated: 2026-08-03
-# Active profile: dev (default), set SPRING_PROFILES_ACTIVE=prod for production
+# Version: v3.0 | Updated: 2026-08-04
 # ========================
 
 spring:
@@ -12,11 +11,21 @@ spring:
     username: ${MYSQL_USER:root}
     password: ${MYSQL_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
 
 server:
   port: 8080
 
-# Actuator 最小暴露：仅 health（Dockerfile HEALTHCHECK 依赖），不暴露细节
 management:
   endpoints:
     web:
@@ -36,12 +45,6 @@ logging:
   level:
     dev.reboot: INFO
 
-# ========================
-# JWT Configuration (Phase 3-A T4)
-# ========================
-# dev: WARN + fallback key if env var missing
-# prod: JWT_SECRET must be set via compose .env, refuses to start otherwise
-# test: application-test.yml provides test-secret
 jwt:
   secret: ${JWT_SECRET:}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}

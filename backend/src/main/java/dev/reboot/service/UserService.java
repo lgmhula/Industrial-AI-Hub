@@ -9,6 +9,9 @@ import dev.reboot.enums.ErrorCode;
 import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.UserMapper;
 import dev.reboot.mapper.UserRoleMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
+import org.springframework.lang.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -32,12 +35,18 @@ public class UserService {
     private final UserMapper userMapper;
     private final UserRoleMapper userRoleMapper;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final CacheService cacheService;
+    private final ObjectMapper objectMapper;
 
     public UserService(UserMapper userMapper, UserRoleMapper userRoleMapper,
-                       BCryptPasswordEncoder passwordEncoder) {
+                       BCryptPasswordEncoder passwordEncoder,
+                       CacheService cacheService,
+                       ObjectMapper objectMapper) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.passwordEncoder = passwordEncoder;
+        this.cacheService = cacheService;
+        this.objectMapper = objectMapper;
     }
 
     /** 分页查询用户列表。 */
@@ -57,16 +66,48 @@ public class UserService {
     }
 
     /**
-     * 按 ID 查询，返回 UserVO。
+     * 按 ID 查询（带 Redis 缓存降级），返回 UserVO。
+     *
+     * <p>优先读缓存，未命中或缓存异常时 fallback 到 DB 直接查询。</p>
      *
      * @throws BusinessException 用户不存在 → 404
      */
     public UserVO getById(Long id) {
+        String cacheKey = "user:id:" + id;
+        UserVO cached = getCachedUserVO(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
+        // Fallback: 直接查 DB
         User user = userMapper.findById(id);
         if (user == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
-        return UserVO.from(user);
+        UserVO vo = UserVO.from(user);
+        cacheUserVO(cacheKey, vo);
+        return vo;
+    }
+
+    private UserVO getCachedUserVO(String key) {
+        try {
+            String json = cacheService.getOrFetch(key, Duration.ofMinutes(30), () -> null);
+            if (json != null) {
+                return objectMapper.readValue(json, UserVO.class);
+            }
+        } catch (Exception e) {
+            log.warn("缓存读取失败 key={}, fallback to DB", key, e);
+        }
+        return null;
+    }
+
+    private void cacheUserVO(String key, UserVO vo) {
+        try {
+            String json = objectMapper.writeValueAsString(vo);
+            cacheService.put(key, json, Duration.ofMinutes(30));
+        } catch (Exception e) {
+            log.warn("缓存写入失败 key={}", key, e);
+        }
     }
 
     /** 按用户名查询原始实体（内部调用）。 */
@@ -87,6 +128,7 @@ public class UserService {
         user.setEmail(dto.getEmail());
         user.setPhone(dto.getPhone());
         userMapper.update(user);
+        cacheService.evict("user:id:" + id);
         log.info("用户信息更新 userId={}", id);
         return UserVO.from(user);
     }
@@ -118,6 +160,7 @@ public class UserService {
         userRoleMapper.deleteByUserId(id);
         int rows = userMapper.softDeleteById(id);
         if (rows > 0) {
+            cacheService.evict("user:id:" + id);
             log.info("用户已逻辑删除 userId={}", id);
         }
         return rows > 0;

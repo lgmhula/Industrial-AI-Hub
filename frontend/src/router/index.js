@@ -1,13 +1,19 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import DeviceList from '../views/DeviceList.vue'
-import DeviceDetail from '../views/DeviceDetail.vue'
-import AlarmList from '../views/AlarmList.vue'
-import OperationLogList from '../views/OperationLogList.vue'
 import Login from '../views/Login.vue'
+import Dashboard from '../views/Dashboard.vue'
+
+// 路由懒加载：按页面分包，首屏（登录页）不再加载 ECharts 等重型依赖
+const Dashboard = () => import('../views/Dashboard.vue')
+const DeviceList = () => import('../views/DeviceList.vue')
+const DeviceDetail = () => import('../views/DeviceDetail.vue')
+const AlarmList = () => import('../views/AlarmList.vue')
+const OperationLogList = () => import('../views/OperationLogList.vue')
 
 const routes = [
   { path: '/login', name: 'Login', component: Login, meta: { guest: true } },
-  { path: '/', redirect: '/devices' },
+  { path: '/dashboard', name: 'Dashboard', component: Dashboard },
+  { path: '/', redirect: '/dashboard' },
+  { path: '/dashboard', name: 'Dashboard', component: Dashboard },
   { path: '/devices', name: 'DeviceList', component: DeviceList },
   { path: '/devices/:id', name: 'DeviceDetail', component: DeviceDetail, props: true },
   { path: '/alarms', name: 'AlarmList', component: AlarmList },
@@ -25,7 +31,7 @@ router.beforeEach((to, from, next) => {
   if (!token && to.path !== '/login') {
     next('/login')
   } else if (token && to.path === '/login') {
-    next('/devices')
+    next('/dashboard')
   } else {
     next()
   }

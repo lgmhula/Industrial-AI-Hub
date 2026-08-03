@@ -38,8 +38,8 @@
 - **阶段**：Phase 3-A 基础设施稳定化（临时插入，非 Day 路线）
 - **分支**：`codex/phase-3a-infra-stabilization`
 - **计划文件**：`docs/plans/phase3-a-infrastructure-stabilization.md`
-- **已完成**：T1 RabbitMQ 生命周期治理（G1-G9 PASS，commit `cd5e6bf`）
-- **下一步**：T2 中间件数据生命周期治理
+- **已完成：T1 RabbitMQ (cd5e6bf), T2 数据生命周期+MinIO pin (ad66e7a), T3 健康检查完善 (11d3976)
+- **下一步：T4 JWT profile-aware 安全策略
 - **Phase 3-A 完成后**：返回 `DAILY_ROADMAP.md` Day 43（Redis）
 - **Baseline V2.1 内容**：JWT 生产环境要求通过 compose 注入密钥；测试环境通过 application-test.yml 提供隔离密钥、Spring Bean 清理、Profiles（dev/prod）、Actuator（仅 health）、Dockerfile（multi-stage + non-root）、compose backend 服务、启动冒烟测试（ApplicationContextLoadTest）、前端路由修复 + Dashboard 页面
 - **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限、分页查询、全局异常处理、@Valid 校验、报警规则引擎、AOP 操作日志、Postman 测试集、Vue 3 前端（登录/仪表盘/设备/报警/日志 6 页面）

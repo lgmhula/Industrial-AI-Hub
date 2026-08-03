@@ -90,6 +90,7 @@ services:
   # Nacos 2.4 — Service Registry & Config
   # ==========================================
   nacos:
+    profiles: ["full"]
     image: nacos/nacos-server:v2.4.3
     container_name: nacos
     restart: unless-stopped
@@ -117,6 +118,7 @@ services:
   # MinIO — Object Storage
   # ==========================================
   minio:
+    profiles: ["full"]
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: minio
     restart: unless-stopped
@@ -142,6 +144,7 @@ services:
   # Elasticsearch 8.x — Search Engine
   # ==========================================
   elasticsearch:
+    profiles: ["full"]
     image: elasticsearch:8.17.0
     container_name: elasticsearch
     restart: unless-stopped
@@ -166,6 +169,7 @@ services:
   # MySQL Master-Slave — Read/Write Splitting
   # ==========================================
   mysql-master:
+    profiles: ["full"]
     image: mysql:8.4
     container_name: mysql-master
     restart: unless-stopped
@@ -189,6 +193,7 @@ services:
       - industrial-network
 
   mysql-slave1:
+    profiles: ["full"]
     image: mysql:8.4
     container_name: mysql-slave1
     restart: unless-stopped
@@ -211,6 +216,7 @@ services:
       - industrial-network
 
   mysql-slave2:
+    profiles: ["full"]
     image: mysql:8.4
     container_name: mysql-slave2
     restart: unless-stopped
@@ -236,6 +242,7 @@ services:
   # Redis Sentinel — High Availability (x3)
   # ==========================================
   redis-sentinel1:
+    profiles: ["full"]
     image: redis/redis-stack:7.4.0-v1
     container_name: redis-sentinel1
     restart: unless-stopped
@@ -258,6 +265,7 @@ services:
       - industrial-network
 
   redis-sentinel2:
+    profiles: ["full"]
     image: redis/redis-stack:7.4.0-v1
     container_name: redis-sentinel2
     restart: unless-stopped
@@ -279,6 +287,7 @@ services:
       - industrial-network
 
   redis-sentinel3:
+    profiles: ["full"]
     image: redis/redis-stack:7.4.0-v1
     container_name: redis-sentinel3
     restart: unless-stopped

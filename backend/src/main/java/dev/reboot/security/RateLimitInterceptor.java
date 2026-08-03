@@ -8,21 +8,25 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.beans.factory.annotation.Value;
+
 /**
  * 接口限流拦截器 —— Guava RateLimiter 简单实现。
  *
  * <p>按 URI 路径独立限流，避免高频接口互相影响。</p>
- * <p>限流值通过 system properties 可配，默认 50 req/s。</p>
+ * <p>限流值通过 {@code rate.limit.permits} 属性可配，默认 50 req/s。</p>
  *
  * @author hula0710
  * @since 2026-07-30
  */
+@Component
 public class RateLimitInterceptor implements HandlerInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitInterceptor.class);
@@ -31,9 +35,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private final Map<String, RateLimiter> limiters = new ConcurrentHashMap<>();
     private final double defaultPermits;
 
-    public RateLimitInterceptor() {
-        this.defaultPermits = Double.parseDouble(
-                System.getProperty("rate.limit.permits", "50"));
+    public RateLimitInterceptor(@Value("${rate.limit.permits:50}") double defaultPermits) {
+        this.defaultPermits = defaultPermits;
     }
 
     @Override

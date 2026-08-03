@@ -1,6 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import Login from '../views/Login.vue'
-import Dashboard from '../views/Dashboard.vue'
 
 // 路由懒加载：按页面分包，首屏（登录页）不再加载 ECharts 等重型依赖
 const Dashboard = () => import('../views/Dashboard.vue')
@@ -11,7 +10,6 @@ const OperationLogList = () => import('../views/OperationLogList.vue')
 
 const routes = [
   { path: '/login', name: 'Login', component: Login, meta: { guest: true } },
-  { path: '/dashboard', name: 'Dashboard', component: Dashboard },
   { path: '/', redirect: '/dashboard' },
   { path: '/dashboard', name: 'Dashboard', component: Dashboard },
   { path: '/devices', name: 'DeviceList', component: DeviceList },

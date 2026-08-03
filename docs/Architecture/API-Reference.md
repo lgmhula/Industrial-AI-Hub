@@ -1,5 +1,9 @@
 # Industrial AI Hub — API 接口清单
 
+> **⚠️ 此文档已被 Knife4j / OpenAPI 自动生成文档替代（Phase 3-A T5）。**
+> **交互式文档**: 开发环境启动后访问 http://localhost:8080/doc.html
+> **本文件保留**: 作为快速索引和离线参考，不再作为 API 唯一真理来源。
+
 > Base URL: `http://localhost:8080/api` | Auth: `Bearer {token}` | Knife4j: `/doc.html`
 
 ## 接口总览

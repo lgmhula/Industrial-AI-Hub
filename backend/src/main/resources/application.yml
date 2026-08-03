@@ -35,3 +35,13 @@ mybatis:
 logging:
   level:
     dev.reboot: INFO
+
+# ========================
+# JWT Configuration (Phase 3-A T4)
+# ========================
+# dev: WARN + fallback key if env var missing
+# prod: JWT_SECRET must be set via compose .env, refuses to start otherwise
+# test: application-test.yml provides test-secret
+jwt:
+  secret: ${JWT_SECRET:}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}

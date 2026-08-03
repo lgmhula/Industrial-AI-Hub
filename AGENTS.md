@@ -22,6 +22,7 @@
 | ★★★ | 应用架构 | `docs/Architecture/Application-Architecture.md` | 技术栈 + 分层 + API |
 | ★★☆ | 基础设施基线 | `docs/Architecture/Infrastructure-Baseline.md` | Docker/网络/端口规范 |
 | ★★☆ | 架构决策记录 | `docs/decision-log/0001~0012` | 关键技术决策理由 |
+| ★★☆ | Phase 3-A 计划 | `docs/plans/phase3-a-infrastructure-stabilization.md` | 基础设施稳定化任务分解 + 验收标准 |
 | ★☆☆ | 每日日志 | `backend/DAILY/DayXXX.md` | 当天产出 + 明日计划 |
 | ★☆☆ | 周复盘 | `backend/REVIEW/WeekXX.md` | 阶段性总结 |
 | ★☆☆ | 审计报告 | `docs/reports/Architecture-Consistency-Report.md` | 文档-代码一致性检查 |
@@ -33,12 +34,16 @@
 
 ## 3. 当前状态
 
-- **Baseline V2.1**：已正式冻结（Release Tag: `v2.1.0`，Freeze Commit: `ec9a158`，Release Gate: **GO**）
-- **阶段**：Release Ready（发布就绪） — 下一阶段 Phase 3-A: 基础设施稳定化
-- **进度**：Baseline V2.1 冻结（2026-08-03）。Release Note 与 Audit Report 归档至 `docs/reports/`。下一阶段 Phase 3-A: 基础设施稳定化
+- **基线**：v2.1.0 已冻结（Tag: `v2.1.0`，Commit: `ec9a158`，Release Gate: **GO**）
+- **阶段**：Phase 3-A 基础设施稳定化（临时插入，非 Day 路线）
+- **分支**：`codex/phase-3a-infra-stabilization`
+- **计划文件**：`docs/plans/phase3-a-infrastructure-stabilization.md`
+- **已完成**：T1 RabbitMQ (cd5e6bf), T2 数据生命周期+MinIO pin (ad66e7a), T3 健康检查 (11d3976), T4 JWT 安全策略 (a05d167), T5 API 文档同步 (2fb99e7), T6 Compose profiles (32d90fd)
+- **下一步**：返回 DAILY_ROADMAP.md Day 43（Redis）
+- **Phase 3-A 完成后**：返回 `DAILY_ROADMAP.md` Day 43（Redis）
 - **Baseline V2.1 内容**：JWT 生产环境要求通过 compose 注入密钥；测试环境通过 application-test.yml 提供隔离密钥、Spring Bean 清理、Profiles（dev/prod）、Actuator（仅 health）、Dockerfile（multi-stage + non-root）、compose backend 服务、启动冒烟测试（ApplicationContextLoadTest）、前端路由修复 + Dashboard 页面
 - **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限、分页查询、全局异常处理、@Valid 校验、报警规则引擎、AOP 操作日志、Postman 测试集、Vue 3 前端（登录/仪表盘/设备/报警/日志 6 页面）
-- **待实现**：Phase 3-A 基础设施稳定化（修复遗留风险），Phase 3-B Redis 缓存、RabbitMQ、Elasticsearch、前端工业化视觉升级（见 DESIGN.md）
+- **待实现**：Phase 3-B Redis 缓存、RabbitMQ 消息、Elasticsearch 搜索、前端工业化视觉升级（见 DESIGN.md）
 
 ---
 
@@ -133,4 +138,4 @@ Industrial-AI-Hub/
 
 ---
 
-> 最后更新：2026-08-03 | 维护者：AI 助手 + hula0710
+> 最后更新：2026-08-04 | 维护者：AI 助手 + hula0710

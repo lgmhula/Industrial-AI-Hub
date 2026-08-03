@@ -7,6 +7,7 @@ import dev.reboot.entity.User;
 import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.UserMapper;
 import dev.reboot.mapper.UserRoleMapper;
+import dev.reboot.util.JwtUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,6 +20,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -33,6 +35,7 @@ class AuthServiceTest {
     @Mock private UserMapper userMapper;
     @Mock private UserRoleMapper userRoleMapper;
     @Mock private BCryptPasswordEncoder passwordEncoder;
+    @Mock private JwtUtils jwtUtils;
     @InjectMocks private AuthService authService;
 
     @Test
@@ -41,6 +44,7 @@ class AuthServiceTest {
         when(userMapper.findByUsername("admin")).thenReturn(u);
         when(passwordEncoder.matches("pass", "encoded")).thenReturn(true);
         when(userRoleMapper.findRoleCodesByUserId(1L)).thenReturn(List.of("ADMIN"));
+        when(jwtUtils.generateToken(eq(1L), eq("admin"), eq(List.of("ADMIN")))).thenReturn("eyJ.mocked.token");
 
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("pass");
         String token = authService.login(req);

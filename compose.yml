@@ -34,7 +34,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 45s
     networks:
       - industrial-network
 
@@ -57,6 +57,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - industrial-network
 
@@ -74,11 +75,13 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     volumes:
-      - ./rabbitmq:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
       interval: 10s
       timeout: 5s
+      start_period: 45s
       retries: 5
     networks:
       - industrial-network
@@ -87,6 +90,7 @@ services:
   # Nacos 2.4 — Service Registry & Config
   # ==========================================
   nacos:
+    profiles: ["full"]
     image: nacos/nacos-server:v2.4.3
     container_name: nacos
     restart: unless-stopped
@@ -114,7 +118,8 @@ services:
   # MinIO — Object Storage
   # ==========================================
   minio:
-    image: minio/minio:latest
+    profiles: ["full"]
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -131,6 +136,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - industrial-network
 
@@ -138,6 +144,7 @@ services:
   # Elasticsearch 8.x — Search Engine
   # ==========================================
   elasticsearch:
+    profiles: ["full"]
     image: elasticsearch:8.17.0
     container_name: elasticsearch
     restart: unless-stopped
@@ -162,6 +169,7 @@ services:
   # MySQL Master-Slave — Read/Write Splitting
   # ==========================================
   mysql-master:
+    profiles: ["full"]
     image: mysql:8.4
     container_name: mysql-master
     restart: unless-stopped
@@ -180,11 +188,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 45s
     networks:
       - industrial-network
 
   mysql-slave1:
+    profiles: ["full"]
     image: mysql:8.4
     container_name: mysql-slave1
     restart: unless-stopped
@@ -202,11 +211,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 45s
     networks:
       - industrial-network
 
   mysql-slave2:
+    profiles: ["full"]
     image: mysql:8.4
     container_name: mysql-slave2
     restart: unless-stopped
@@ -224,7 +234,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 45s
     networks:
       - industrial-network
 
@@ -232,6 +242,7 @@ services:
   # Redis Sentinel — High Availability (x3)
   # ==========================================
   redis-sentinel1:
+    profiles: ["full"]
     image: redis/redis-stack:7.4.0-v1
     container_name: redis-sentinel1
     restart: unless-stopped
@@ -244,10 +255,17 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - industrial-network
 
   redis-sentinel2:
+    profiles: ["full"]
     image: redis/redis-stack:7.4.0-v1
     container_name: redis-sentinel2
     restart: unless-stopped
@@ -259,10 +277,17 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - industrial-network
 
   redis-sentinel3:
+    profiles: ["full"]
     image: redis/redis-stack:7.4.0-v1
     container_name: redis-sentinel3
     restart: unless-stopped
@@ -274,6 +299,12 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - industrial-network
 
@@ -310,3 +341,7 @@ services:
       start_period: 40s
     networks:
       - industrial-network
+
+# Named volumes (managed by Docker, not bind-mounted)
+volumes:
+  rabbitmq-data:

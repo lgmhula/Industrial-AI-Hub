@@ -37,12 +37,15 @@ public class AuthService {
     private final UserMapper userMapper;
     private final UserRoleMapper userRoleMapper;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final JwtUtils jwtUtils;
 
     public AuthService(UserMapper userMapper, UserRoleMapper userRoleMapper,
-                       BCryptPasswordEncoder passwordEncoder) {
+                       BCryptPasswordEncoder passwordEncoder,
+                       JwtUtils jwtUtils) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.passwordEncoder = passwordEncoder;
+        this.jwtUtils = jwtUtils;
     }
 
     /**
@@ -67,7 +70,7 @@ public class AuthService {
 
         List<String> roles = userRoleMapper.findRoleCodesByUserId(user.getId());
         log.info("登录成功 username={} roles={}", dto.getUsername(), roles);
-        return JwtUtils.generateToken(user.getId(), user.getUsername(), roles);
+        return jwtUtils.generateToken(user.getId(), user.getUsername(), roles);
     }
 
     /**

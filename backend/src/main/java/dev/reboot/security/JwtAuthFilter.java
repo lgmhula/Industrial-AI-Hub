@@ -24,6 +24,12 @@ public class JwtAuthFilter implements Filter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthFilter.class);
 
+    private final JwtUtils jwtUtils;
+
+    public JwtAuthFilter(JwtUtils jwtUtils) {
+        this.jwtUtils = jwtUtils;
+    }
+
     @Override
     public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
             throws IOException, ServletException {
@@ -32,12 +38,12 @@ public class JwtAuthFilter implements Filter {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
-            if (JwtUtils.validateToken(token)) {
-                Claims claims = JwtUtils.parseToken(token);
+            if (jwtUtils.validateToken(token)) {
+                Claims claims = jwtUtils.parseToken(token);
                 request.setAttribute("userId", claims.get("userId", Long.class));
                 request.setAttribute("username", claims.getSubject());
-                // 使用 JwtUtils.getRoles() 确保类型安全（filter + cast to String）
-                request.setAttribute("roles", JwtUtils.getRoles(token));
+                // 使用 jwtUtils.getRoles() 确保类型安全（filter + cast to String）
+                request.setAttribute("roles", jwtUtils.getRoles(token));
             } else {
                 log.debug("JWT 无效或过期: {}", request.getRequestURI());
             }

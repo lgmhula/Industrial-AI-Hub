@@ -1,0 +1,26 @@
+# Build outputs
+target/
+out/
+
+# Learning code (not needed in image)
+**/code/
+
+# IDE / OS
+.idea/
+*.iml
+.DS_Store
+
+# Project docs (not needed in image context)
+DAILY/
+NOTES/
+REVIEW/
+PROMPTS/
+postman/
+DAILY_ROADMAP.md
+LICENSE
+
+# Logs
+*.log
+
+# Keep Maven wrapper jar
+!.mvn/wrapper/maven-wrapper.jar

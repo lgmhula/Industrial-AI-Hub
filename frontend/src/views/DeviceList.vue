@@ -1,111 +1,117 @@
 <template>
-  <div class="device-list">
-    <div class="toolbar">
-      <input v-model="keyword" placeholder="搜索设备名称/编码" @keyup.enter="fetchDevices" class="search-input" />
-      <select v-model="statusFilter" @change="fetchDevices" class="filter-select">
-        <option value="">全部状态</option>
-        <option value="1">在线</option>
-        <option value="0">离线</option>
-        <option value="2">维护中</option>
-      </select>
-      <button class="btn-primary" @click="openAdd">+ 新增设备</button>
-    </div>
-
-    <LoadingSpinner :visible="loading" text="加载设备列表..." />
-
-    <table class="data-table" v-if="!loading && devices.length">
-      <thead>
-        <tr>
-          <th>ID</th><th>设备名称</th><th>编码</th><th>类型</th><th>状态</th>
-          <th>位置</th><th>更新时间</th><th>操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="d in devices" :key="d.id" @click="$router.push(`/devices/${d.id}`)" class="clickable">
-          <td>{{ d.id }}</td>
-          <td>{{ d.deviceName }}</td>
-          <td><code>{{ d.deviceCode }}</code></td>
-          <td>{{ d.deviceType }}</td>
-          <td><span :class="[statusClass(d.status), { pulse: d.status === 1 }]">{{ statusLabel(d.status) }}</span></td>
-          <td>{{ d.location || '-' }}</td>
-          <td>{{ fmtTime(d.updatedAt) }}</td>
-          <td @click.stop>
-            <button class="btn-sm" @click="openEdit(d)">编辑</button>
-            <button class="btn-sm btn-danger" @click="handleDelete(d.id)">删除</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <EmptyState v-if="!loading && !devices.length"
-        icon="🖥️" title="暂无设备" desc="点击「+ 新增设备」开始添加" />
-
-    <div class="pager" v-if="total > pageSize">
-      <button :disabled="page <= 1" @click="page--; fetchDevices()">上一页</button>
-      <span>第 {{ page }} / {{ Math.ceil(total / pageSize) }} 页（共 {{ total }} 条）</span>
-      <button :disabled="page * pageSize >= total" @click="page++; fetchDevices()">下一页</button>
-    </div>
-
-    <!-- 新增/编辑弹窗 -->
-    <div class="modal-overlay" v-if="showForm" @click.self="showForm = false" @keydown.escape="showForm = false">
-      <div class="modal">
-        <h3>{{ isEdit ? '编辑设备' : '新增设备' }}</h3>
-
-        <div class="field">
-          <label>设备名称 <span class="req">*</span></label>
-          <input v-model="form.deviceName" :class="{ 'input-err': errors.deviceName }" />
-          <span class="err-msg" v-if="errors.deviceName">{{ errors.deviceName }}</span>
-        </div>
-        <div class="field">
-          <label>设备编码 <span class="req">*</span></label>
-          <input v-model="form.deviceCode" :class="{ 'input-err': errors.deviceCode }" />
-          <span class="err-msg" v-if="errors.deviceCode">{{ errors.deviceCode }}</span>
-        </div>
-        <div class="field">
-          <label>设备类型 <span class="req">*</span></label>
-          <select v-model="form.deviceType" :class="{ 'input-err': errors.deviceType }">
-            <option value="">请选择</option>
-            <option>PLC</option><option>SENSOR</option><option>CAMERA</option><option>ROBOT</option><option>OTHER</option>
-          </select>
-          <span class="err-msg" v-if="errors.deviceType">{{ errors.deviceType }}</span>
-        </div>
-        <div class="field">
-          <label>状态</label>
-          <select v-model.number="form.status">
-            <option :value="1">在线</option><option :value="0">离线</option><option :value="2">维护中</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>IP 地址</label>
-          <input v-model="form.ipAddress" />
-        </div>
-        <div class="field">
-          <label>端口</label>
-          <input v-model.number="form.port" type="number" placeholder="1-65535" />
-        </div>
-        <div class="field">
-          <label>安装位置</label>
-          <input v-model="form.location" />
-        </div>
-
-        <div class="modal-actions">
-          <button class="btn-primary" :disabled="submitting" @click="submitForm">
-            {{ submitting ? '提交中...' : (isEdit ? '保存' : '创建') }}
-          </button>
-          <button @click="showForm = false" :disabled="submitting">取消</button>
-        </div>
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title"><el-icon><Cpu /></el-icon>设备管理</div>
+        <div class="page-subtitle">共 {{ total }} 台设备</div>
       </div>
+      <el-button type="primary" :icon="Plus" @click="openAdd">新增设备</el-button>
     </div>
 
-    <ToastMessage ref="toastRef" />
+    <!-- 筛选工具条 -->
+    <div class="card filter-bar">
+      <el-input v-model="keyword" placeholder="搜索设备名称 / 编码" :prefix-icon="Search"
+        clearable style="width: 260px" @keyup.enter="handleSearch" @clear="handleSearch" />
+      <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 140px"
+        @change="handleSearch">
+        <el-option label="在线" :value="1" />
+        <el-option label="离线" :value="0" />
+        <el-option label="维护中" :value="2" />
+      </el-select>
+      <el-button :icon="Search" type="primary" plain @click="handleSearch">查询</el-button>
+      <el-button :icon="Refresh" @click="handleReset">重置</el-button>
+    </div>
+
+    <!-- 数据表格 -->
+    <div class="card">
+      <el-table :data="devices" v-loading="loading" stripe row-key="id"
+        @row-click="(row) => $router.push(`/devices/${row.id}`)" style="width: 100%">
+        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column prop="deviceName" label="设备名称" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="deviceCode" label="编码" width="140">
+          <template #default="{ row }"><el-tag size="small" effect="plain">{{ row.deviceCode }}</el-tag></template>
+        </el-table-column>
+        <el-table-column prop="deviceType" label="类型" width="110" />
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag size="small" :type="statusType(row.status)" effect="light">
+              <span class="dot" :class="`dot-${row.status}`"></span>{{ statusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="location" label="位置" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.location || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="更新时间" width="170">
+          <template #default="{ row }">{{ fmtTime(row.updatedAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" @click.stop="openEdit(row)">编辑</el-button>
+            <el-button link type="danger" size="small" @click.stop="handleDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <EmptyState icon="🖥️" title="暂无设备" desc="点击「新增设备」开始添加" />
+        </template>
+      </el-table>
+
+      <el-pagination v-if="total > 0" class="pager" background
+        layout="total, prev, pager, next, jumper"
+        :total="total" :page-size="pageSize" :current-page="page"
+        @current-change="handlePageChange" />
+    </div>
+
+    <!-- 新增 / 编辑弹窗 -->
+    <el-dialog v-model="showForm" :title="isEdit ? '编辑设备' : '新增设备'" width="480px" destroy-on-close>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+        <el-form-item label="设备名称" prop="deviceName">
+          <el-input v-model="form.deviceName" placeholder="请输入设备名称" />
+        </el-form-item>
+        <el-form-item label="设备编码" prop="deviceCode">
+          <el-input v-model="form.deviceCode" placeholder="请输入设备编码" />
+        </el-form-item>
+        <el-form-item label="设备类型" prop="deviceType">
+          <el-select v-model="form.deviceType" placeholder="请选择" style="width: 100%">
+            <el-option v-for="t in deviceTypes" :key="t" :label="t" :value="t" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态" prop="status">
+          <el-radio-group v-model="form.status">
+            <el-radio :value="1">在线</el-radio>
+            <el-radio :value="0">离线</el-radio>
+            <el-radio :value="2">维护中</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="IP 地址">
+          <el-input v-model="form.ipAddress" placeholder="例如 192.168.1.10" />
+        </el-form-item>
+        <el-form-item label="端口">
+          <el-input-number v-model="form.port" :min="1" :max="65535" controls-position="right" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="安装位置">
+          <el-input v-model="form.location" placeholder="请输入安装位置" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showForm = false" :disabled="submitting">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitForm">
+          {{ isEdit ? '保存' : '创建' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { Plus, Search, Refresh } from '@element-plus/icons-vue'
 import { deviceApi } from '../api/index.js'
-import LoadingSpinner from '../components/LoadingSpinner.vue'
 import EmptyState from '../components/EmptyState.vue'
-import ToastMessage from '../components/ToastMessage.vue'
+
+const router = useRouter()
+const deviceTypes = ['PLC', 'SENSOR', 'CAMERA', 'ROBOT', 'OTHER']
 
 const devices = ref([])
 const keyword = ref('')
@@ -119,79 +125,94 @@ const showForm = ref(false)
 const isEdit = ref(false)
 const editingId = ref(null)
 const submitting = ref(false)
-const form = ref({ deviceName: '', deviceCode: '', deviceType: '', status: 1, ipAddress: '', port: null, location: '' })
-const errors = ref({})
-const toastRef = ref(null)
+const formRef = ref(null)
+const form = reactive({ deviceName: '', deviceCode: '', deviceType: '', status: 1, ipAddress: '', port: null, location: '' })
 
-const toast = (msg, type = 'info') => toastRef.value?.show(msg, type)
-
-/* ---- 表单校验 ---- */
-const validate = () => {
-  const e = {}
-  if (!form.value.deviceName?.trim()) e.deviceName = '设备名称不能为空'
-  if (!form.value.deviceCode?.trim()) e.deviceCode = '设备编码不能为空'
-  if (!form.value.deviceType) e.deviceType = '请选择设备类型'
-  errors.value = e
-  return Object.keys(e).length === 0
+const rules = {
+  deviceName: [{ required: true, message: '设备名称不能为空', trigger: 'blur' }],
+  deviceCode: [{ required: true, message: '设备编码不能为空', trigger: 'blur' }],
+  deviceType: [{ required: true, message: '请选择设备类型', trigger: 'change' }],
 }
 
-/* ---- 数据加载 ---- */
 const fetchDevices = async () => {
   loading.value = true
   try {
-    const res = await deviceApi.list({ keyword: keyword.value, status: statusFilter.value, page: page.value, pageSize })
-    devices.value = res.data?.records || res.data || []
-    total.value = res.data?.total || devices.value.length
+    const params = { page: page.value, size: pageSize }
+    if (keyword.value) params.keyword = keyword.value
+    if (statusFilter.value !== '' && statusFilter.value !== null) params.status = statusFilter.value
+    const res = await deviceApi.list(params)
+    devices.value = res.data?.list || []
+    total.value = res.data?.total || 0
   } catch (e) {
-    toast(e.message, 'error')
+    ElMessage.error(e.message)
   } finally {
     loading.value = false
   }
 }
 
+const handleSearch = () => { page.value = 1; fetchDevices() }
+const handleReset = () => { keyword.value = ''; statusFilter.value = ''; page.value = 1; fetchDevices() }
+const handlePageChange = (p) => { page.value = p; fetchDevices() }
+
+const resetForm = () => {
+  Object.assign(form, { deviceName: '', deviceCode: '', deviceType: '', status: 1, ipAddress: '', port: null, location: '' })
+}
+
 const openAdd = () => {
-  isEdit.value = false; editingId.value = null; errors.value = {}
-  form.value = { deviceName: '', deviceCode: '', deviceType: '', status: 1, ipAddress: '', port: null, location: '' }
+  isEdit.value = false; editingId.value = null
+  resetForm()
   showForm.value = true
 }
 
 const openEdit = (d) => {
-  isEdit.value = true; editingId.value = d.id; errors.value = {}
-  form.value = { ...d }
+  isEdit.value = true; editingId.value = d.id
+  Object.assign(form, {
+    deviceName: d.deviceName, deviceCode: d.deviceCode, deviceType: d.deviceType,
+    status: d.status, ipAddress: d.ipAddress, port: d.port, location: d.location,
+  })
   showForm.value = true
 }
 
 const submitForm = async () => {
-  if (!validate()) return
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) return
   submitting.value = true
   try {
     if (isEdit.value) {
-      await deviceApi.update(editingId.value, form.value)
+      await deviceApi.update(editingId.value, { ...form })
+      ElMessage.success('设备更新成功')
     } else {
-      await deviceApi.create(form.value)
+      await deviceApi.create({ ...form })
+      ElMessage.success('设备创建成功')
     }
     showForm.value = false
     await fetchDevices()
-    toast(isEdit.value ? '设备更新成功' : '设备创建成功', 'success')
   } catch (e) {
-    toast(e.message, 'error')
+    ElMessage.error(e.message)
   } finally {
     submitting.value = false
   }
 }
 
-const handleDelete = async (id) => {
-  if (!confirm('确认删除该设备？')) return
-  try {
-    await deviceApi.delete(id)
-    await fetchDevices()
-    toast('设备已删除', 'success')
-  } catch (e) {
-    toast(e.message, 'error')
-  }
+const handleDelete = (row) => {
+  ElMessageBox.confirm(`确认删除设备「${row.deviceName}」？该操作不可恢复。`, '删除确认', {
+    type: 'warning',
+    confirmButtonText: '删除',
+    cancelButtonText: '取消',
+    confirmButtonClass: 'el-button--danger',
+  }).then(async () => {
+    try {
+      await deviceApi.delete(row.id)
+      ElMessage.success('设备已删除')
+      if (devices.value.length === 1 && page.value > 1) page.value--
+      await fetchDevices()
+    } catch (e) {
+      ElMessage.error(e.message)
+    }
+  }).catch(() => {})
 }
 
-const statusClass = (s) => ({ 1: 'online', 0: 'offline', 2: 'maintenance' }[s] || '')
+const statusType = (s) => ({ 1: 'success', 0: 'info', 2: 'warning' }[s] || 'info')
 const statusLabel = (s) => ({ 1: '在线', 0: '离线', 2: '维护中' }[s] || '未知')
 const fmtTime = (t) => t ? new Date(t).toLocaleString('zh-CN') : '-'
 
@@ -199,41 +220,27 @@ onMounted(fetchDevices)
 </script>
 
 <style scoped>
-.device-list { max-width: 1100px; margin: 0 auto; padding: 20px; }
-.toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-.search-input { flex: 1; min-width: 180px; padding: 8px 12px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 14px; }
-.filter-select { padding: 8px 12px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 14px; }
-.btn-primary { background: #1d4ed8; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; white-space: nowrap; }
-.btn-primary:hover:not(:disabled) { background: #1e40af; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-sm { padding: 4px 12px; border: 1px solid #d0d5dd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; margin-right: 6px; }
-.btn-sm:hover { background: #f3f4f6; }
-.btn-danger { color: #dc2626; border-color: #fca5a5; }
-.btn-danger:hover { background: #fef2f2; }
-.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.data-table th { text-align: left; padding: 10px 8px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-weight: 600; white-space: nowrap; }
-.data-table td { padding: 10px 8px; border-bottom: 1px solid #f3f4f6; }
-.clickable { cursor: pointer; }
-.clickable:hover { background: #f9fafb; }
-.online { color: #16a34a; font-weight: 600; }
-.offline { color: #9ca3af; }
-.maintenance { color: #f59e0b; font-weight: 600; }
-.empty { text-align: center; color: #9ca3af; padding: 40px 0; }
-.pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; font-size: 14px; flex-wrap: wrap; }
-.pager button { padding: 6px 14px; border: 1px solid #d0d5dd; border-radius: 4px; background: #fff; cursor: pointer; }
-.pager button:disabled { opacity: 0.4; cursor: default; }
-
-/* modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal { background: #fff; border-radius: 8px; padding: 24px; width: 440px; max-width: 92vw; max-height: 90vh; overflow-y: auto; }
-.modal h3 { margin: 0 0 16px; font-size: 18px; }
-.field { margin-bottom: 12px; }
-.field label { display: block; font-size: 14px; color: #374151; margin-bottom: 4px; }
-.field .req { color: #dc2626; }
-.field input, .field select { width: 100%; padding: 8px 10px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
-.input-err { border-color: #dc2626 !important; }
-.err-msg { font-size: 12px; color: #dc2626; margin-top: 2px; display: block; }
-.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
-.modal-actions button { padding: 8px 18px; border-radius: 6px; font-size: 14px; cursor: pointer; border: 1px solid #d0d5dd; background: #fff; }
-.modal-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.pager {
+  margin-top: 18px;
+  justify-content: flex-end;
+}
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.dot-1 { background: #16a34a; }
+.dot-0 { background: #9ca3af; }
+.dot-2 { background: #f59e0b; }
+:deep(.el-table__row) { cursor: pointer; }
 </style>

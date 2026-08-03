@@ -3,6 +3,7 @@ package dev.reboot;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.context.ApplicationContext;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -16,13 +17,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  *   <li>Bean 缺失或依赖注入失败（如构造器注入的组件无 Bean 定义导致 UnsatisfiedDependencyException）</li>
  * </ul>
  *
- * <p>注意：本测试加载完整上下文（含 DataSource），需要环境变量
- * {@code JWT_SECRET}（≥256bit）及可达的 MySQL（默认 127.0.0.1:3307）。</p>
+ * <p>JWT_SECRET 由 {@code application-test.yml} 提供默认值；
+ * DataSource 仍需可达的 MySQL（H2 隔离留待 Phase 3）。</p>
  *
  * @author AI 助手
  * @since 2026-08-03
  */
 @SpringBootTest
+@ActiveProfiles("test")
 class ApplicationContextLoadTest {
 
     @Autowired

@@ -46,7 +46,7 @@ import { User, Lock } from '@element-plus/icons-vue'
 const router = useRouter()
 const loading = ref(false)
 const error = ref('')
-const form = reactive({ username: 'admin', password: 'admin123' })
+const form = reactive({ username: '', password: '' })
 
 async function handleLogin() {
   if (!form.username || !form.password) { error.value = '请输入用户名和密码'; return }
@@ -54,6 +54,7 @@ async function handleLogin() {
   try {
     const res = await authApi.login({ username: form.username, password: form.password })
     localStorage.setItem('token', res.data)
+    localStorage.setItem('username', form.username)
     router.push('/dashboard')
   } catch (e) {
     error.value = e.message || '登录失败'

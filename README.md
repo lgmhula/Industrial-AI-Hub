@@ -11,7 +11,7 @@
 
 ## 项目简介
 
-Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台。支持设备 CRUD、传感器数据采集、报警规则引擎、RBAC 权限控制、操作日志审计等功能。前端 Vue3 + ECharts 可视化，后端 Spring Boot 3.5 + MyBatis，基础设施 Docker Compose 统一编排（MySQL 主从、Redis Stack、RabbitMQ、Nacos、Elasticsearch 等 12 个服务）。
+Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台。支持设备 CRUD、传感器数据采集、报警规则引擎、RBAC 权限控制、操作日志审计等功能。前端 Vue3 + ECharts 可视化，后端 Spring Boot 3.5 + MyBatis，基础设施 Docker Compose 统一编排（MySQL 主从、Redis Stack、RabbitMQ、Nacos、Elasticsearch 等 13 个服务）。
 
 ---
 
@@ -51,10 +51,7 @@ Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台�
 ### 1. 启动基础设施
 
 ```bash
-# 启动 MySQL(主从) + Redis
-docker compose --profile core up -d
-
-# 启动全部服务（12 个）
+# 启动全部基础设施 + 后端应用（13 个服务）
 docker compose up -d
 ```
 
@@ -97,7 +94,7 @@ npm run dev
 http://localhost:8080/doc.html
 ```
 
-Knife4j 提供交互式 Swagger UI，含所有 26 个 API 端点的请求/响应示例。
+Knife4j 提供交互式 Swagger UI，含所有 25 个 API 端点的请求/响应示例。
 
 ---
 
@@ -134,7 +131,7 @@ Industrial-AI-Hub/
 │   ├── postman/               # Postman 测试集合
 │   └── src/
 │       ├── main/java/dev/reboot/
-│       │   ├── controller/    # REST API (6 controllers, 26 endpoints)
+│       │   ├── controller/    # REST API (6 controllers, 25 endpoints)
 │       │   ├── service/       # 业务逻辑
 │       │   ├── mapper/        # MyBatis Mapper
 │       │   ├── entity/        # 实体类
@@ -147,11 +144,11 @@ Industrial-AI-Hub/
 │       ├── main/resources/
 │       │   ├── application.yml
 │       │   └── sql/init.sql   # 数据库初始化
-│       └── test/              # 35 单元测试
+│       └── test/              # 76 单元测试
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── views/             # 4 页面 (DeviceList/Detail/AlarmList/OperationLogList)
+│   │   ├── views/             # 6 页面 (登录/仪表盘/设备列表/设备详情/报警/日志)
 │   │   ├── components/        # Toast / LoadingSpinner
 │   │   ├── router/            # Vue Router
 │   │   └── api/               # Axios 封装
@@ -201,7 +198,7 @@ Industrial-AI-Hub/
 | Phase 4 | Week 10-13 | AI 集成 (Day 64-91) |
 | Phase 5 | Week 14-16 | PLC + 完整系统 (Day 92-112) |
 
-> 当前进度：Day 39 (第二阶段 — V1 打磨 + 测试)
+> 当前进度：Day 42 完成，Baseline V2.1 Hotfix 中
 
 ---
 

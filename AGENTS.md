@@ -21,12 +21,12 @@
 | ★★★ | 每日路线图 | `backend/DAILY_ROADMAP.md` | 总计划 + 每日任务 |
 | ★★★ | 应用架构 | `docs/Architecture/Application-Architecture.md` | 技术栈 + 分层 + API |
 | ★★☆ | 基础设施基线 | `docs/Architecture/Infrastructure-Baseline.md` | Docker/网络/端口规范 |
-| ★★☆ | 架构决策记录 | `docs/decision-log/0001~0010` | 关键技术决策理由 |
+| ★★☆ | 架构决策记录 | `docs/decision-log/0001~0012` | 关键技术决策理由 |
 | ★☆☆ | 每日日志 | `backend/DAILY/DayXXX.md` | 当天产出 + 明日计划 |
 | ★☆☆ | 周复盘 | `backend/REVIEW/WeekXX.md` | 阶段性总结 |
 | ★☆☆ | 审计报告 | `docs/reports/Architecture-Consistency-Report.md` | 文档-代码一致性检查 |
 | ★☆☆ | SQL 审计 | `docs/reports/SQL-Audit-Report.md` | SQL 文件一致性审计 |
-| ★☆☆ | DB Changelog | `docs/decision-log/0011-database-changelog.md` | 数据库变更记录 |
+| ★☆☆ | DB Changelog | `docs/decision-log/0012-database-changelog.md` | 数据库变更记录 |
 | ★☆☆ | SQL README | `backend/src/main/resources/sql/README.md` | SQL 初始化说明 |
 
 ---
@@ -34,10 +34,10 @@
 ## 3. 当前状态
 
 - **阶段**：第三阶段 — 中间件武装（第 7-9 周）
-- **进度**：Day 42 已完成，Phase 2 收官。下一步 Day 43 (Phase 3: Redis)
-- **Day 42 任务：Phase 2 复盘 + SQL 终审 + 技术债务清单（已完成）**
-- **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限、分页查询、全局异常处理、@Valid 校验、报警规则引擎、AOP 操作日志、Postman 测试集、Vue 3 前端（设备/报警/日志 3 页面）
-- **待实现**：Redis 缓存、RabbitMQ、Elasticsearch、Dockerfile
+- **进度**：Baseline V2.1 Hotfix 完成（2026-08-03）。下一步 Day 43 (Phase 3: Redis)
+- **Baseline V2.1 内容**：JWT 生产环境要求通过 compose 注入密钥；测试环境通过 application-test.yml 提供隔离密钥、Spring Bean 清理、Profiles（dev/prod）、Actuator（仅 health）、Dockerfile（multi-stage + non-root）、compose backend 服务、启动冒烟测试（ApplicationContextLoadTest）、前端路由修复 + Dashboard 页面
+- **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限、分页查询、全局异常处理、@Valid 校验、报警规则引擎、AOP 操作日志、Postman 测试集、Vue 3 前端（登录/仪表盘/设备/报警/日志 6 页面）
+- **待实现**：Redis 缓存、RabbitMQ、Elasticsearch、前端工业化视觉升级（见 DESIGN.md）
 
 ---
 
@@ -91,7 +91,7 @@
 ```
 Industrial-AI-Hub/
 ├── AGENTS.md                  ← 你正在读的文件
-├── compose.yml                # Docker 基础设施（12 服务）
+├── compose.yml                # Docker 基础设施（13 服务，含 backend）
 ├── .env / .env.example        # 环境变量
 ├── backend/
 │   ├── pom.xml                # Maven POM（Spring Boot 3.5 parent）
@@ -132,4 +132,4 @@ Industrial-AI-Hub/
 
 ---
 
-> 最后更新：2026-08-02 | 维护者：AI 助手 + hula0710
+> 最后更新：2026-08-03 | 维护者：AI 助手 + hula0710

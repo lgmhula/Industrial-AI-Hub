@@ -1,59 +1,68 @@
 <template>
-  <div class="alarm-list">
-    <div class="toolbar">
-      <select v-model="statusFilter" @change="fetchAlarms" class="filter-select">
-        <option value="">全部状态</option>
-        <option value="0">未处理</option>
-        <option value="1">已确认</option>
-        <option value="2">已解决</option>
-      </select>
-      <button class="btn-sm" @click="fetchAlarms">刷新</button>
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title"><el-icon><Bell /></el-icon>报警管理</div>
+        <div class="page-subtitle">共 {{ total }} 条报警记录</div>
+      </div>
+      <el-button :icon="Refresh" @click="fetchAlarms" :loading="loading">刷新</el-button>
     </div>
 
-    <LoadingSpinner :visible="loading" text="加载报警列表..." />
-
-    <table class="data-table" v-if="!loading && alarms.length">
-      <thead>
-        <tr>
-          <th>ID</th><th>设备</th><th>告警类型</th><th>等级</th><th>描述</th>
-          <th>状态</th><th>触发时间</th><th>操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="a in alarms" :key="a.id">
-          <td>{{ a.id }}</td>
-          <td>{{ a.deviceId }}</td>
-          <td><code>{{ a.alarmType }}</code></td>
-          <td><span :class="levelClass(a.alarmLevel)">{{ levelLabel(a.alarmLevel) }}</span></td>
-          <td class="msg-cell">{{ a.alarmMessage }}</td>
-          <td><span :class="statusClass(a.status)">{{ statusLabel(a.status) }}</span></td>
-          <td>{{ fmtTime(a.triggeredAt) }}</td>
-          <td>
-            <button v-if="a.status === 0" class="btn-sm" @click="handleAck(a.id)">确认</button>
-            <button v-if="a.status !== 2" class="btn-sm btn-primary" @click="handleResolve(a.id)">解决</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <EmptyState v-if="!loading && !alarms.length"
-        icon="✅" title="暂无报警" desc="所有设备运行正常" />
-
-    <div class="pager" v-if="total > pageSize">
-      <button :disabled="page <= 1" @click="page--; fetchAlarms()">上一页</button>
-      <span>第 {{ page }} / {{ Math.ceil(total / pageSize) }} 页（共 {{ total }} 条）</span>
-      <button :disabled="page * pageSize >= total" @click="page++; fetchAlarms()">下一页</button>
+    <div class="card filter-bar">
+      <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 160px"
+        @change="handleFilterChange">
+        <el-option label="未处理" :value="0" />
+        <el-option label="已确认" :value="1" />
+        <el-option label="已解决" :value="2" />
+      </el-select>
     </div>
 
-    <ToastMessage ref="toastRef" />
+    <div class="card">
+      <el-table :data="alarms" v-loading="loading" stripe style="width: 100%">
+        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column prop="deviceId" label="设备ID" width="90" />
+        <el-table-column prop="alarmType" label="告警类型" width="140">
+          <template #default="{ row }"><el-tag size="small" effect="plain">{{ row.alarmType }}</el-tag></template>
+        </el-table-column>
+        <el-table-column label="等级" width="90">
+          <template #default="{ row }">
+            <el-tag size="small" :type="levelType(row.alarmLevel)">{{ levelLabel(row.alarmLevel) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="alarmMessage" label="描述" min-width="200" show-overflow-tooltip />
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag size="small" :type="statusType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="触发时间" width="170">
+          <template #default="{ row }">{{ fmtTime(row.triggeredAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button v-if="row.status === 0" link type="primary" size="small" @click="handleAck(row.id)">确认</el-button>
+            <el-button v-if="row.status !== 2" link type="success" size="small" @click="handleResolve(row.id)">解决</el-button>
+            <span v-if="row.status === 2" class="done-text">已完成</span>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <EmptyState icon="✅" title="暂无报警" desc="所有设备运行正常" />
+        </template>
+      </el-table>
+
+      <el-pagination v-if="total > 0" class="pager" background
+        layout="total, prev, pager, next, jumper"
+        :total="total" :page-size="pageSize" :current-page="page"
+        @current-change="handlePageChange" />
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { Refresh } from '@element-plus/icons-vue'
 import { alarmApi } from '../api/index.js'
-import LoadingSpinner from '../components/LoadingSpinner.vue'
 import EmptyState from '../components/EmptyState.vue'
-import ToastMessage from '../components/ToastMessage.vue'
 
 const alarms = ref([])
 const statusFilter = ref('')
@@ -61,38 +70,39 @@ const page = ref(1)
 const pageSize = 10
 const total = ref(0)
 const loading = ref(false)
-const toastRef = ref(null)
-const toast = (msg, type = 'info') => toastRef.value?.show(msg, type)
 
 const fetchAlarms = async () => {
   loading.value = true
   try {
-    const api = statusFilter.value !== ''
+    const api = statusFilter.value !== '' && statusFilter.value !== null
       ? alarmApi.listByStatus(statusFilter.value, { page: page.value, size: pageSize })
       : alarmApi.list({ page: page.value, size: pageSize })
     const res = await api
-    alarms.value = res.data?.records || []
+    alarms.value = res.data?.list || []
     total.value = res.data?.total || 0
   } catch (e) {
-    toast(e.message, 'error')
+    ElMessage.error(e.message)
   } finally {
     loading.value = false
   }
 }
 
+const handleFilterChange = () => { page.value = 1; fetchAlarms() }
+const handlePageChange = (p) => { page.value = p; fetchAlarms() }
+
 const handleAck = async (id) => {
-  try { await alarmApi.acknowledge(id); await fetchAlarms(); toast('告警已确认', 'success') }
-  catch (e) { toast(e.message, 'error') }
+  try { await alarmApi.acknowledge(id); await fetchAlarms(); ElMessage.success('告警已确认') }
+  catch (e) { ElMessage.error(e.message) }
 }
 
 const handleResolve = async (id) => {
-  try { await alarmApi.resolve(id); await fetchAlarms(); toast('告警已解决', 'success') }
-  catch (e) { toast(e.message, 'error') }
+  try { await alarmApi.resolve(id); await fetchAlarms(); ElMessage.success('告警已解决') }
+  catch (e) { ElMessage.error(e.message) }
 }
 
-const levelClass = (l) => ({ 1: 'level-info', 2: 'level-warn', 3: 'level-urgent' }[l] || '')
+const levelType = (l) => ({ 1: 'info', 2: 'warning', 3: 'danger' }[l] || 'info')
 const levelLabel = (l) => ({ 1: '一般', 2: '重要', 3: '紧急' }[l] || '-')
-const statusClass = (s) => ({ 0: 'st-pending', 1: 'st-acked', 2: 'st-resolved' }[s] || '')
+const statusType = (s) => ({ 0: 'danger', 1: 'primary', 2: 'success' }[s] || 'info')
 const statusLabel = (s) => ({ 0: '未处理', 1: '已确认', 2: '已解决' }[s] || '-')
 const fmtTime = (t) => t ? new Date(t).toLocaleString('zh-CN') : '-'
 
@@ -100,25 +110,17 @@ onMounted(fetchAlarms)
 </script>
 
 <style scoped>
-.alarm-list { max-width: 1100px; margin: 0 auto; padding: 20px; }
-.toolbar { display: flex; gap: 10px; margin-bottom: 16px; }
-.filter-select { padding: 8px 12px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 14px; }
-.btn-sm { padding: 4px 12px; border: 1px solid #d0d5dd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; margin-right: 6px; }
-.btn-sm:hover { background: #f3f4f6; }
-.btn-primary { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
-.btn-primary:hover { background: #1e40af; }
-.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.data-table th { text-align: left; padding: 10px 8px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-weight: 600; white-space: nowrap; }
-.data-table td { padding: 10px 8px; border-bottom: 1px solid #f3f4f6; }
-.msg-cell { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.level-info { color: #6b7280; }
-.level-warn { color: #f59e0b; font-weight: 600; }
-.level-urgent { color: #dc2626; font-weight: 700; }
-.st-pending { color: #dc2626; font-weight: 600; }
-.st-acked { color: #2563eb; }
-.st-resolved { color: #16a34a; }
-.empty { text-align: center; color: #9ca3af; padding: 40px 0; }
-.pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; font-size: 14px; flex-wrap: wrap; }
-.pager button { padding: 6px 14px; border: 1px solid #d0d5dd; border-radius: 4px; background: #fff; cursor: pointer; }
-.pager button:disabled { opacity: 0.4; cursor: default; }
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.pager {
+  margin-top: 18px;
+  justify-content: flex-end;
+}
+.done-text {
+  font-size: 13px;
+  color: var(--iah-text-muted);
+}
 </style>

@@ -5,6 +5,7 @@ import dev.reboot.enums.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -31,12 +32,16 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    /** 业务异常 — 携带明确的 ErrorCode。 */
+    /** 业务异常 — 根据 ErrorCode 返回对应的 HTTP 状态码，ApiResponse body 结构不变。 */
     @ExceptionHandler(BusinessException.class)
-    @ResponseStatus(HttpStatus.OK) // 业务异常本身不是 HTTP 异常，status 由 response body 的 code 决定
-    public ApiResponse<Void> handleBusinessException(BusinessException e) {
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
         log.warn("业务异常 [{}] : {}", e.getErrorCode().getCode(), e.getMessage());
-        return ApiResponse.error(e.getErrorCode().getCode(), e.getMessage());
+        HttpStatus httpStatus = HttpStatus.resolve(e.getErrorCode().getCode());
+        if (httpStatus == null) {
+            httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        return ResponseEntity.status(httpStatus)
+                .body(ApiResponse.error(e.getErrorCode().getCode(), e.getMessage()));
     }
 
     /** @Valid 校验失败 — 返回 400 并列出所有字段错误。 */

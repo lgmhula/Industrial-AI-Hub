@@ -1,0 +1,19 @@
+# ========================
+# Industrial AI Hub — Test Profile
+# ========================
+# 用于 @ActiveProfiles("test") 的测试环境。
+# 提供 JWT_SECRET 默认值，使 mvn test 不依赖外部环境变量。
+# MySQL DataSource 仍需可达（完整上下文加载），H2 隔离留待 Phase 3。
+
+# JWT — 测试用固定密钥，消除环境变量依赖
+JWT_SECRET: test-secret-for-context-load-at-least-256-bits
+
+spring:
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    dev.reboot: WARN
+    org.springframework: WARN

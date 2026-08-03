@@ -1,4 +1,4 @@
-# ADR-0011: Database Schema Changelog
+# ADR-0012: Database Schema Changelog
 
 > 状态：活跃 | 创建：2026-07-27 | 关联：[SQL 审计报告](../reports/SQL-Audit-Report.md)
 

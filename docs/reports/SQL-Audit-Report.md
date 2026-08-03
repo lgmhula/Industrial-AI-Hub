@@ -191,7 +191,7 @@ sql/
 
 ### 6.2 Changelog 内容模板
 
-建议新建 `docs/decision-log/0011-database-changelog.md`：
+建议新建 `docs/decision-log/0012-database-changelog.md`：
 
 ```markdown
 # ADR-0011: Database Schema Changelog
@@ -228,7 +228,7 @@ sql/
 | migrate_v1.1.sql | ❌ 完全冗余 + 冲突 | **删除** 或移入 archive |
 | mock_device_data.sql | ⚠️ 缺少 USE 语句 | 重命名为 seed_test_data.sql + 补 USE |
 | 文件组织 | ⚠️ 存在版本混淆风险 | 采用 SSOT 策略（方案 A） |
-| Changelog | ❌ 不存在 | 新建 `docs/decision-log/0011-database-changelog.md` |
+| Changelog | ❌ 不存在 | 新建 `docs/decision-log/0012-database-changelog.md` |
 | 本机 MySQL | ⚠️ 8.2.0（非项目标准 8.4） | 迁移脚本在 Docker 8.4 上测试 |
 
 ---

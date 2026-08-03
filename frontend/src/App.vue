@@ -1,59 +1,204 @@
 <template>
-  <div id="app-shell">
-    <div class="menu-toggle" @click="sidebarOpen = !sidebarOpen">
-      <span></span><span></span><span></span>
-    </div>
-    <nav :class="['sidebar', { open: sidebarOpen }]">
-      <div class="logo">Industrial AI Hub</div>
-      <router-link to="/devices" class="nav-item" @click="sidebarOpen = false">设备管理</router-link>
-      <router-link to="/alarms" class="nav-item" @click="sidebarOpen = false">报警管理</router-link>
-      <router-link to="/logs" class="nav-item" @click="sidebarOpen = false">操作日志</router-link>
-    </nav>
-    <div class="sidebar-overlay" v-if="sidebarOpen" @click="sidebarOpen = false"></div>
-    <main class="content">
-      <router-view />
-    </main>
-  </div>
+  <el-config-provider :locale="zhCn">
+    <!-- 登录页：全屏独立布局 -->
+    <router-view v-if="isLogin" />
+
+    <!-- 主布局：侧边栏 + 内容区 -->
+    <el-container v-else class="layout">
+    <el-aside :width="collapse ? '64px' : '220px'" class="aside">
+      <div class="logo">
+        <el-icon :size="22" color="#3b82f6"><Monitor /></el-icon>
+        <span v-show="!collapse" class="logo-text">Industrial AI Hub</span>
+      </div>
+      <el-menu
+        :default-active="activeMenu"
+        :collapse="collapse"
+        router
+        class="menu"
+        background-color="#1e293b"
+        text-color="#94a3b8"
+        active-text-color="#ffffff"
+      >
+        <el-menu-item index="/dashboard">
+          <el-icon><Odometer /></el-icon>
+          <template #title>仪表盘</template>
+        </el-menu-item>
+        <el-menu-item index="/devices">
+          <el-icon><Cpu /></el-icon>
+          <template #title>设备管理</template>
+        </el-menu-item>
+        <el-menu-item index="/alarms">
+          <el-icon><Bell /></el-icon>
+          <template #title>报警管理</template>
+        </el-menu-item>
+        <el-menu-item index="/logs">
+          <el-icon><Document /></el-icon>
+          <template #title>操作日志</template>
+        </el-menu-item>
+      </el-menu>
+    </el-aside>
+
+    <el-container>
+      <el-header class="header">
+        <div class="header-left">
+          <el-icon class="collapse-btn" :size="20" @click="collapse = !collapse">
+            <Fold v-if="!collapse" />
+            <Expand v-else />
+          </el-icon>
+          <el-breadcrumb separator="/">
+            <el-breadcrumb-item :to="{ path: '/dashboard' }">首页</el-breadcrumb-item>
+            <el-breadcrumb-item>{{ currentTitle }}</el-breadcrumb-item>
+          </el-breadcrumb>
+        </div>
+        <div class="header-right">
+          <el-dropdown @command="handleCommand">
+            <span class="user">
+              <el-avatar :size="30" class="avatar">
+                {{ username.slice(0, 1).toUpperCase() }}
+              </el-avatar>
+              <span class="username">{{ username }}</span>
+              <el-icon><ArrowDown /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="logout">
+                  <el-icon><SwitchButton /></el-icon>退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </el-header>
+
+      <el-main class="main">
+        <router-view v-slot="{ Component, route }">
+          <div :key="route.path" class="page-fade">
+            <component :is="Component" />
+          </div>
+        </router-view>
+      </el-main>
+    </el-container>
+    </el-container>
+  </el-config-provider>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-const sidebarOpen = ref(false)
+import { ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
+
+const route = useRoute()
+const router = useRouter()
+const collapse = ref(false)
+
+const isLogin = computed(() => route.path === '/login')
+const activeMenu = computed(() => '/' + (route.path.split('/')[1] || 'dashboard'))
+const username = computed(() => localStorage.getItem('username') || '管理员')
+
+const titleMap = {
+  '/dashboard': '仪表盘',
+  '/devices': '设备管理',
+  '/alarms': '报警管理',
+  '/logs': '操作日志',
+}
+const currentTitle = computed(() => titleMap[activeMenu.value] || '详情')
+
+const handleCommand = (cmd) => {
+  if (cmd === 'logout') {
+    ElMessageBox.confirm('确认退出登录？', '提示', {
+      type: 'warning',
+      confirmButtonText: '退出',
+      cancelButtonText: '取消',
+    }).then(() => {
+      localStorage.removeItem('token')
+      localStorage.removeItem('username')
+      router.push('/login')
+    }).catch(() => {})
+  }
+}
 </script>
 
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f6fa; color: #1f2937; }
-#app-shell { display: flex; min-height: 100vh; }
+<style scoped>
+.layout { height: 100vh; }
 
-/* ---- sidebar ---- */
-.sidebar {
-  width: 200px; background: #1e293b; color: #e2e8f0; padding: 20px 0;
-  flex-shrink: 0; transition: transform 0.25s ease; z-index: 50;
+.aside {
+  background: #1e293b;
+  transition: width 0.25s ease;
+  overflow: hidden;
 }
-.logo { padding: 0 20px 24px; font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
-.nav-item { display: block; padding: 10px 20px; color: #94a3b8; text-decoration: none; font-size: 14px; border-left: 3px solid transparent; }
-.nav-item:hover, .router-link-active { color: #fff; background: #334155; border-left-color: #3b82f6; }
-.content { flex: 1; overflow-x: auto; min-width: 0; }
-
-/* ---- hamburger (hidden on desktop) ---- */
-.menu-toggle {
-  display: none; position: fixed; top: 12px; left: 12px; z-index: 60;
-  width: 36px; height: 36px; padding: 8px; cursor: pointer;
-  background: #1e293b; border-radius: 6px;
+.logo {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
-.menu-toggle span { display: block; height: 2px; background: #fff; margin: 5px 0; border-radius: 1px; }
-.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 40; }
+.logo-text {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.menu {
+  border-right: none;
+}
+.menu:not(.el-menu--collapse) {
+  width: 220px;
+}
+:deep(.el-menu-item.is-active) {
+  background: #334155 !important;
+  border-left: 3px solid #3b82f6;
+}
+:deep(.el-menu-item) {
+  border-left: 3px solid transparent;
+}
 
-/* ---- responsive ---- */
-@media (max-width: 1024px) {
-  .sidebar {
-    position: fixed; top: 0; left: 0; height: 100vh;
-    transform: translateX(-100%); width: 200px;
-  }
-  .sidebar.open { transform: translateX(0); box-shadow: 4px 0 16px rgba(0,0,0,0.15); }
-  .sidebar-overlay { display: block; }
-  .menu-toggle { display: block; }
-  .content { margin-left: 0; }
+.header {
+  height: 60px;
+  background: #fff;
+  border-bottom: 1px solid var(--iah-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.collapse-btn {
+  cursor: pointer;
+  color: var(--iah-text-secondary);
+}
+.collapse-btn:hover {
+  color: var(--iah-primary);
+}
+.header-right {
+  display: flex;
+  align-items: center;
+}
+.user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--iah-text);
+}
+.avatar {
+  background: var(--iah-primary);
+  color: #fff;
+  font-weight: 600;
+}
+.username {
+  font-size: 14px;
+}
+
+.main {
+  background: var(--iah-bg);
+  overflow-y: auto;
+  padding: 0;
 }
 </style>

@@ -1,7 +1,7 @@
 # ========================
 # industrial ai hub — unified docker compose
-# Version: v1.1 | Updated: 2026-07-20
-# Infrastructure Baseline V1
+# Version: v1.2 | Updated: 2026-08-03
+# Infrastructure Baseline V2 (backend app service added)
 # ========================
 
 networks:
@@ -274,5 +274,39 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # Backend — Spring Boot Application (Baseline V2.1)
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: industrial-ai-hub-backend:latest
+    container_name: iah-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # 容器网络内使用服务名 mysql + 容器内端口 3306
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     networks:
       - industrial-network

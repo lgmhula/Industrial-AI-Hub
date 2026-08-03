@@ -13,7 +13,20 @@ api.interceptors.request.use((config) => {
 })
 
 api.interceptors.response.use(
-  (res) => res.data,
+  (res) => {
+    const body = res.data
+    // 后端统一响应 ApiResponse<T>：{ code, message, data }。
+    // HTTP 200 不代表业务成功（如密码错误返回 HTTP 200 + code 401），
+    // 必须校验业务状态码，否则业务失败会被误判为成功。
+    if (body && typeof body.code === 'number' && body.code !== 200) {
+      if (body.code === 401) {
+        localStorage.removeItem('token')
+        window.location.hash = '#/login'
+      }
+      return Promise.reject(new Error(body.message || '请求失败'))
+    }
+    return body
+  },
   (err) => {
     if (err.response?.status === 401) {
       localStorage.removeItem('token')

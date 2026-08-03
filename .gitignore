@@ -17,17 +17,16 @@ backend/**/*.class
 frontend/node_modules/
 frontend/dist/
 
-# Infrastructure data (persistent volumes)
+# Infrastructure runtime data (Docker persistent volumes)
+# Entire directories excluded — Git tracks only config, not data
 mysql/data/
 mysql/ms-data/
 redis/data/
 nginx/logs/
-rabbitmq/mnesia/
-rabbitmq/data/
-nacos/data/
-nacos/logs/
-minio/data/
-elasticsearch/data/
+rabbitmq/
+elasticsearch/
+minio/
+nacos/
 
 # Archives
 *.tar.gz

@@ -468,7 +468,7 @@
 ### 第 7 周：Redis
 | 天 | 任务 |
 |----|------|
-| Day 43 | Redis 安装 + 五种基本数据类型练习（string/hash/list/set/zset） |
+| Day 43 | Redis 安装 + 五种基本数据类型练习（string/hash/list/set/zset） ✅ |
 | Day 44 | Redis 缓存实战：用户信息缓存、设备数据缓存、缓存预热 |
 | Day 45 | 缓存穿透/击穿/雪崩解决方案：布隆过滤器、互斥锁、随机过期 |
 | Day 46 | Redis 分布式锁（Redisson）：设备数据上报防重 |

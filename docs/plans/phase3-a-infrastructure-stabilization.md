@@ -1,9 +1,10 @@
 # Phase 3-A — 基础设施稳定化规划
 
-> **Baseline**: v2.1.0 (commit `ec9a158`, tag `v2.1.0`)  
-> **创建日期**: 2026-08-03  
-> **状态**: 规划中 — 冻结期间，仅文档，不改代码/配置  
-> **前置**: Baseline V2.1 Release Gate GO  
+> **Baseline**: v2.1.0 (commit `ec9a158`, tag `v2.1.0`)
+> **创建日期**: 2026-08-03 | **审计修订**: 2026-08-03
+> **状态**: 规划中 — 冻结期间，仅文档，不改代码/配置
+> **前置**: Baseline V2.1 Release Gate GO
+> **分支**: `codex/phase-3a-infra-stabilization`（从 `v2.1.0` tag 切出）
 
 ---
 
@@ -39,16 +40,16 @@
 
 ### 1.3 数据目录生命周期现状
 
-| 中间件 | 宿主机目录 | .gitignore 覆盖 | 运行时残留 |
-|--------|-----------|:---:|:---:|
-| MySQL | `mysql/data/` | 是 | data/ 正确被忽略 |
-| Redis | `redis/data/` | 是 | data/ 正确被忽略 |
-| RabbitMQ | `rabbitmq/` | 是 | `.erlang.cookie`(0644) + `mnesia/`(38文件) 残留 |
-| Nacos | `nacos/` | 是 | `derby-data/` + `protocol/raft/` 残留 |
-| MinIO | `minio/` | 是 | `.minio.sys/` 残留 |
-| Elasticsearch | `elasticsearch/` | 是 | `_state/` + `nodes` + `node.lock` 残留 |
+| 中间件 | 宿主机目录 | .gitignore 覆盖 | git 跟踪文件数 | 运行时残留 |
+|--------|-----------|:---:|:---:|:---:|
+| MySQL | `mysql/data/` | 是 | 0 | data/ 正确被忽略 |
+| Redis | `redis/data/` | 是 | 0 | data/ 正确被忽略 |
+| RabbitMQ | `rabbitmq/` | 是 | **38** | `.erlang.cookie`(0644) + `mnesia/` 全部被跟踪 |
+| Nacos | `nacos/` | 是 | 0 | `derby-data/` + `protocol/raft/` 已解除跟踪(磁盘残留) |
+| MinIO | `minio/` | 是 | 0 | `.minio.sys/` 已解除跟踪(磁盘残留) |
+| Elasticsearch | `elasticsearch/` | 是 | 0 | `_state/` + `nodes` + `node.lock` 已解除跟踪(磁盘残留) |
 
-> **规则**: `.gitignore` 已阻止新增文件进入 Git 跟踪，但已在 V2.1 前产生的残留文件 `git rm --cached` 仅完成了 ES/MinIO/Nacos（B2 修复），RabbitMQ mnesia 遗留至 Phase 3-A。
+> **关键差异**: V2.1 B2 修复通过 `git rm --cached` 解除了 ES/MinIO/Nacos 的 git 跟踪，磁盘上的残留文件被 `.gitignore` 阻止重新加入。RabbitMQ 的 38 个文件**仍在 git index 中**——`.gitignore` 只阻止新文件加入，不影响已跟踪文件。Phase 3-A 必须通过 `git rm --cached` 解除 RabbitMQ 的 git 跟踪。
 
 ---
 
@@ -58,17 +59,24 @@
 
 ### 2.1 RabbitMQ cookie/mnesia 治理 [P0]
 
-**现象**:
-- 宿主机 `rabbitmq/.erlang.cookie` 权限为 `0644`，RabbitMQ 4.0 要求 `0600`
-- bind-mount 下容器内 `chmod` 被宿主机 FS 权限覆盖，Erlang 分布式协议拒绝启动
-- 容器进入重启循环，healthcheck 永不通过
+**双重问题 — git 跟踪 + 运行时权限**:
 
-**mnesia 数据残留**:
-- 路径: `rabbitmq/mnesia/rabbit@12166dfce31d/` — 38 个文件
-- 来源: 历史容器实例，节点名 `rabbit@12166dfce31d`
-- `.gitignore` 已添加 `rabbitmq/` 阻止新增，但残留文件仍未清理
+1. **git 跟踪层**: 38 个 mnesia 运行时文件 + `.erlang.cookie` 仍在 git index 中。V2.1 B2 修复遗漏了 RabbitMQ（仅处理了 ES/MinIO/Nacos），因为当时认为 `.gitignore` 的 `rabbitmq/` 规则已足够。实际上 `.gitignore` 只阻止**新文件**被跟踪，已跟踪文件不受影响。
 
-**影响**: RabbitMQ 在干净 checkout 后 `docker compose up` 无法自行变为 healthy
+2. **运行时权限层**: 宿主机 `rabbitmq/.erlang.cookie` 权限为 `0644`，RabbitMQ 4.0 要求 `0600`。bind-mount 下容器内 `chmod` 被宿主机 FS 权限覆盖，Erlang 分布式协议拒绝启动，容器进入重启循环。
+
+**修复必须同时处理两层** — 先解 git 跟踪，再修运行时权限：
+
+```
+层1 (git):  git rm --cached rabbitmq/.erlang.cookie rabbitmq/mnesia/
+            → 38 文件从 git index 移除，.gitignore 阻止重新加入
+层2 (disk): rm -rf rabbitmq/.erlang.cookie rabbitmq/mnesia/
+            → 清理残留，让 RMQ 在干净目录自举
+层3 (perm): compose.yml 切换为 named volume
+            → cookie 权限由容器管理，不再受宿主机 FS 约束
+```
+
+**影响**: 干净 checkout 后 `docker compose up rabbitmq` 无法变为 healthy，且 `git status` 在 compose up/down 周期内不干净。
 
 ### 2.2 Redis / ES / MinIO / Nacos 生命周期管理 [P1]
 
@@ -82,7 +90,7 @@
 - `node.lock` 可能在非正常关闭后阻止重启
 
 **MinIO**:
-- 使用 `minio:latest` 标签（非固定版本），未来拉取可能引入 breaking changes
+- 使用 `minio:latest` 标签（非固定版本）→ 需锁定为 `minio:RELEASE.2025-09-07T16-13-09Z`
 - `.minio.sys/` 元数据在 bind-mount 下跨实例可能冲突
 
 **Nacos**:
@@ -101,7 +109,6 @@
 | 服务 | 问题 | 建议 |
 |------|------|------|
 | redis | 无 `start_period` | 加 `start_period: 10s` |
-| minio | `curl` 未安装于官方镜像 | 官方镜像基于 scratch/minimal，无 curl。当前 healthcheck 实际依赖容器内 curl — 需验证 |
 | mysql-master/slave | `start_period: 30s` 对首次 init 偏短 | 首次初始化（含 `docker-entrypoint-initdb.d` 脚本执行）可能超过 30s |
 
 ### 2.4 JWT 生产策略复核 [P0]
@@ -151,27 +158,69 @@
 
 | 属性 | 值 |
 |------|-----|
-| **风险等级** | P0 — 阻断 compose up |
-| **修改范围** | `compose.yml` (1 处), `rabbitmq/rabbitmq.conf` (新增), `rabbitmq/.erlang.cookie` (删除), `rabbitmq/mnesia/` (删除) |
+| **风险等级** | P0 — 阻断 compose up + git 跟踪污染 |
+| **修改范围** | `compose.yml` (1 处), `rabbitmq/rabbitmq.conf` (新增), `rabbitmq/.erlang.cookie` + `rabbitmq/mnesia/` (git rm --cached + 磁盘删除) |
 | **依赖** | 无 |
-| **预计影响文件** | 3 文件 (1 修改, 1 新增, 2 删除) |
+| **预计影响文件** | compose.yml (修改), rabbitmq/rabbitmq.conf (新增), git index 38 entries 移除, 磁盘残留清理 |
 
 **方案**:
-1. 删除宿主机残留的 `rabbitmq/mnesia/` 和 `rabbitmq/.erlang.cookie`
-2. 创建 `rabbitmq/rabbitmq.conf`，显式锁定节点名: `nodename = rabbit@localhost`
-3. `compose.yml` 中 RabbitMQ volumes 改为:
+
+**Step 1 — 解除 git 跟踪**（必须先于任何 compose 操作）:
+```bash
+# 从 git index 移除 38 个运行时文件（保留磁盘副本）
+git rm --cached -r rabbitmq/.erlang.cookie rabbitmq/mnesia/
+# 提交解除跟踪
+git commit -m "Chore: untrack RabbitMQ runtime data from Git"
+```
+`.gitignore` 中 `rabbitmq/` 规则已在 V2.1 添加，此步确保已跟踪文件也被移除。
+
+**Step 2 — 清理磁盘残留**:
+```bash
+rm -rf rabbitmq/.erlang.cookie rabbitmq/mnesia/
+```
+
+**Step 3 — 创建 RabbitMQ 配置文件**:
+`rabbitmq/rabbitmq.conf`:
+```ini
+## RabbitMQ 4.0 — Phase 3-A 启动配置
+cluster_formation.random_node_name = false
+nodename = rabbit@localhost
+```
+
+**Step 4 — compose.yml 切换为 named volume**:
+仅 RabbitMQ 数据目录从 bind-mount 切换为 named volume。其他服务（MySQL, Redis, ES 等）保持 bind-mount——开发环境需要直接访问数据文件。
+
+```yaml
+# compose.yml 顶级 volumes 新增声明
+volumes:
+  rabbitmq-data:
+
+# services.rabbitmq.volumes
+services:
+  rabbitmq:
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - rabbitmq-data:/var/lib/rabbitmq
+```
+
+> **设计原则**: RabbitMQ 是唯一需要 named volume 的中间件。cookie 权限问题本质是 macOS bind-mount 的 POSIX 权限缺陷——容器的 `chmod 600` 被宿主机 FS 忽略。named volume 由 Docker daemon 管理，权限在容器侧生效。MySQL/Redis/ES/MinIO/Nacos 无此类敏感权限文件，保留 bind-mount。
+
+**Step 5 — healthcheck 添加 start_period**:
    ```yaml
-   volumes:
-     - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
-     - rabbitmq-data:/var/lib/rabbitmq       # named volume，非 bind-mount
+   healthcheck:
+     test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+     interval: 10s
+     timeout: 5s
+     retries: 5
+     start_period: 30s
    ```
-4. 顶级 volumes 声明 `rabbitmq-data:`
-5. healthcheck 添加 `start_period: 30s`
 
 **验证方式**:
-- `docker compose up -d rabbitmq && sleep 45 && docker compose ps rabbitmq` → `(healthy)`
-- `docker compose down -v && docker compose up -d rabbitmq` → 第二次启动也 healthy
-- `ls -la rabbitmq/` → 无 mnesia/ 目录，无 .erlang.cookie
+- `git ls-files rabbitmq/ | wc -l` → `0`（G6 验收）
+- `docker compose up -d rabbitmq && sleep 45 && docker compose ps rabbitmq` → `(healthy)`（G1 验收）
+- `docker compose down && docker compose up -d rabbitmq` → 第二次启动也 healthy（G3 验收）
+- `docker compose down -v && docker compose up -d rabbitmq` → named volume 重建后也 healthy
+- `ls rabbitmq/` → 仅有 `rabbitmq.conf`，无 `mnesia/`、无 `.erlang.cookie`
 
 ---
 
@@ -179,14 +228,14 @@
 
 | 属性 | 值 |
 |------|-----|
-| **风险等级** | P1 — 不影响当前运行，但 clone 者会遇到脏状态 |
-| **修改范围** | `.gitignore` (复核), 残留运行时数据 (删除), `compose.yml` (可选 named volume 迁移) |
+| **风险等级** | P1 — 不影响当前运行，但开发体验差（clone 后 compose up 可能遇残留数据冲突） |
+| **修改范围** | `.gitignore` (复核), 残留运行时数据 (磁盘删除), MinIO 镜像版本固定 |
 | **依赖** | 无 |
-| **预计影响文件** | 0-4 文件 (取决于迁移策略) |
+| **预计影响文件** | compose.yml (1 行 MinIO 版本), 磁盘清理 (无 git 变更) |
 
 **方案**:
 
-**T2.1 — 清理残留运行时数据**:
+**T2.1 — 清理磁盘残留**（无 git 变更——这些文件已在 V2.1 B2 通过 `git rm --cached` 解除跟踪）:
 ```bash
 # Elasticsearch
 rm -rf elasticsearch/_state elasticsearch/nodes elasticsearch/node.lock elasticsearch/snapshot_cache
@@ -196,18 +245,36 @@ rm -rf minio/.minio.sys
 rm -rf nacos/derby-data nacos/protocol/raft nacos/naming nacos/connection nacos/tps
 # Redis (保留配置，仅清理 data)
 rm -rf redis/data/*
+# RabbitMQ — 见 T1 Step 2（需同时 git rm --cached）
 ```
 
 **T2.2 — .gitignore 复核**:
-当前 `.gitignore` 已包含 `elasticsearch/`, `minio/`, `nacos/`, `rabbitmq/`, `redis/data/`, `mysql/data/`，规则正确。复核后确认无遗漏。
+当前 `.gitignore` 已包含 `elasticsearch/`, `minio/`, `nacos/`, `rabbitmq/`, `redis/data/`, `mysql/data/`。复核确认：`mysql/ms-data/` 也在列表中。无遗漏。
 
-**T2.3 — named volume 迁移（可选，Phase 3-B）**:
-绑定挂载适合开发环境（可直接查看数据文件），named volume 适合 CI/生产（权限隔离）。Phase 3-A 保持 bind-mount，Phase 3-B 评估是否切换。
+**T2.3 — MinIO 镜像版本固定**（compose.yml）:
+```yaml
+# 从
+image: minio/minio:latest
+# 改为
+image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+```
+当前 `latest` 解析为此版本。固定后避免未来拉取引入 breaking changes。
+
+**T2.4 — 卷策略决策表**（Phase 3-A 终态）:
+| 服务 | 卷类型 | 理由 |
+|------|:---:|------|
+| MySQL (主 + 3 从) | bind-mount | 开发时需直接查看数据文件；权限无冲突 |
+| Redis + Sentinels | bind-mount | 同上 |
+| RabbitMQ | **named volume** | cookie 权限需容器侧管理（T1 修复） |
+| Nacos | bind-mount | 权限无冲突 |
+| MinIO | bind-mount | 权限无冲突 |
+| Elasticsearch | bind-mount | 权限无冲突 |
 
 **验证方式**:
-- 清理后 `git status` clean
+- 清理后 `git status` clean（G4 验收）
 - `docker compose down && docker compose up -d` → 全部 healthy
-- 各中间件数据目录在 compose up 后重新生成，compose down 后保留（符合开发预期）
+- `docker compose config` 确认 MinIO 版本为非 `latest`
+- 各中间件数据目录在 compose up 后自动重建
 
 ---
 
@@ -241,7 +308,7 @@ healthcheck:
 | redis | 无 start_period | `start_period: 10s` | Redis 启动快，10s 充裕 |
 | mysql-master | `start_period: 30s` | `start_period: 45s` | 首次 init 含 initdb 脚本 |
 | mysql-slave1/2 | `start_period: 30s` | `start_period: 45s` | 同上 |
-| minio | `curl` 依赖未验证 | `test: ["CMD", "mc", "ready", "local"]` 或保留 curl | 需先验证 minio 镜像是否内置 curl/wget |
+| minio | 无 start_period | `start_period: 10s` | MinIO 启动快，10s 充裕 |
 
 **T3.3 — depends_on 条件强化**:
 ```yaml
@@ -307,10 +374,21 @@ jwt:
 | **风险等级** | P2 — 不影响功能，文档滞后 |
 | **修改范围** | `pom.xml` (1 行), `OpenApiConfig.java` (新增), `API-Reference.md` (添加废弃声明) |
 | **依赖** | 无 |
+| **前置条件** | 需先创建 ADR 0013 — 记录 springdoc 选型决策 |
 | **预计影响文件** | 4 文件 |
 
 **方案**:
 
+**前置: ADR 0013 — API 文档工具选型**:
+新建 `docs/decision-log/0013-springdoc-openapi.md`，记录:
+- 候选方案: (A) springdoc-openapi, (B) Knife4j, (C) Spring REST Docs, (D) 手工维护
+- 选型理由: springdoc 为 Spring Boot 3.x 官方推荐，零侵入注解，自动生成 OpenAPI 3.0 规范，dev 可见/prod 关闭
+- 版本锁定: `2.7.0`（Spring Boot 3.5 兼容）
+- Profile 策略: dev 启用 Swagger UI + api-docs，prod 全部关闭
+
+ADR 批准后方可执行以下实施步骤。
+
+**Step 1 — pom.xml 添加依赖**:
 1. `pom.xml` 添加:
    ```xml
    <dependency>
@@ -320,14 +398,17 @@ jwt:
    </dependency>
    ```
 
+**Step 2 — 新增 OpenApiConfig.java**:
 2. 新增 `OpenApiConfig.java` — 定制 API 文档标题/版本信息
 
+**Step 3 — 标记废弃人工文档**:
 3. `API-Reference.md` 顶部添加废弃声明:
    ```markdown
    > **⚠️ 此文档已被 Springdoc OpenAPI 替代（Phase 3-A）。**
    > 开发环境: http://localhost:8080/swagger-ui.html
    ```
 
+**Step 4 — Controller 渐进添加注解**:
 4. Controller 渐进式添加 `@Tag` / `@Operation` 注解（Phase 3-A 仅做示范）
 
 **验证方式**:
@@ -374,54 +455,101 @@ services:
 
 ---
 
-## 5. 执行顺序与依赖关系
+## 5. Phase 3-A 分支策略
+
+> **原则**: V2.1 基线 tag (`v2.1.0`) 不可变。所有 Phase 3-A 工作在新分支上进行。
+
+### 5.1 分支创建
+
+```bash
+# 从冻结 tag 创建功能分支
+git checkout -b codex/phase-3a-infra-stabilization v2.1.0
+```
+
+### 5.2 分支规则
+
+| 规则 | 说明 |
+|------|------|
+| **基底** | 必须从 `v2.1.0` tag 切出，不基于 `main` HEAD |
+| **命名** | `codex/phase-3a-infra-stabilization` |
+| **提交粒度** | 每个 T 任务独立 commit，commit message 格式: `Phase-3A/T{n}: {简述}` |
+| **合入方式** | `git merge --no-ff` 保留分支拓扑 |
+| **合入前检查** | G1-G9 全部通过 |
+| **禁止** | force push、rebase、修改 `v2.1.0` tag |
+
+### 5.3 提交序列
+
+```
+v2.1.0 (ec9a158)  ← 基线 tag，不可变
+  │
+  ├── Phase-3A/T1: RabbitMQ git untrack + named volume
+  ├── Phase-3A/T2: Clean runtime residues + pin MinIO version
+  ├── Phase-3A/T3: Docker Compose healthcheck hardening
+  ├── Phase-3A/T4: JWT profile-aware security policy
+  ├── Phase-3A/ADR-0013: Springdoc OpenAPI decision record
+  ├── Phase-3A/T5: Springdoc OpenAPI integration
+  └── Phase-3A/T6: Compose profiles for service tiers
+```
+
+---
+
+## 6. 执行顺序与依赖关系
 
 ```
 Phase 3-A 执行拓扑:
 
-T1 (RabbitMQ) ─────────────────────┐
-                                    ├──→ T3 (Healthcheck) ──→ T6 (Profiles)
-T2 (Data Lifecycle) ───────────────┘
-                                    
+T0 (git rm --cached rabbitmq) ──→ T1 (RabbitMQ named vol) ──┐
+                                                               ├──→ T3 (Healthcheck) ──→ T6 (Profiles)
+T2 (Data Lifecycle + MinIO pin) ──────────────────────────────┘
+                                                               
 T4 (JWT Security) ──→ 独立执行
 
-T5 (API Docs)     ──→ 独立执行
+ADR-0013 ──→ T5 (API Docs) ──→ 独立执行
 ```
 
 | 轮次 | 任务 | 理由 |
 |:---:|------|------|
-| Round 1 | T1 + T2 并行 | 两者都只涉及 compose 和数据目录，无代码变更 |
-| Round 2 | T3 | 依赖 T1 的 RabbitMQ cookie 修复（healthcheck 才能通过） |
-| Round 3 | T4 | 独立执行，涉及 Java 代码重构，需要单独验证 |
-| Round 4 | T5 | 独立执行 |
+| Round 0 | T1 Step 1 (git rm --cached) | 必须先于任何 compose 操作，解除 38 文件跟踪 |
+| Round 1 | T1 Steps 2-5 + T2 并行 | 基础设施层，无代码变更 |
+| Round 2 | T3 | 依赖 T1 named volume 修复（RMQ healthcheck 才能通过） |
+| Round 3 | T4 | 独立执行，涉及 Java 代码重构 |
+| Round 4 | ADR-0013 → T5 | ADR 先审批，T5 后实施 |
 | Round 5 | T6 | 依赖 T3 完成后 compose 状态稳定 |
 
 ---
 
-## 6. 影响范围总览
+## 7. 影响范围总览
 
-| 任务 | compose.yml | .gitignore | Java 代码 | YAML 配置 | 配置文件(conf/cnf) | 新增文件 | 删除(残留数据) |
+| 任务 | compose.yml | git index | Java 代码 | YAML 配置 | 配置文件 | 新增文件 | 删除(残留) |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| T1 | ✓ | — | — | — | `rabbitmq.conf` | 1 | mnesia + cookie |
-| T2 | — | 复核 | — | — | — | 0 | ES/Nacos/MinIO 残留 |
+| T1 | ✓ | ✓ (git rm --cached 38 files) | — | — | `rabbitmq.conf` | 1 | mnesia + cookie |
+| T2 | ✓ (MinIO pin) | — | — | — | — | 0 | ES/Nacos/MinIO/RabbitMQ 残留 |
 | T3 | ✓ | — | — | — | — | 0 | — |
 | T4 | — | — | JwtUtils, JwtConfig, AuthService, JwtAuthFilter | application*.yml × 3 | — | 1 (JwtConfig) | — |
+| ADR-0013 | — | — | — | — | — | 1 (ADR doc) | — |
 | T5 | — | — | OpenApiConfig | — | — | 1 (OpenApiConfig) | — |
 | T6 | ✓ | — | — | — | — | 0 | — |
 
 ---
 
-## 7. 风险与回滚
+## 8. 风险与回滚
 
 | 任务 | 最大风险 | 回滚方式 |
 |:---:|------|------|
-| T1 | named volume 在 macOS Docker Desktop 下行为异常 | 回退为 bind-mount + cookie 权限预置 0600 |
-| T2 | 误删 redis/data 导致持久化数据丢失 | data/ 仅测试数据，重建成本低；可先 `tar czf` 备份 |
+| T1 | named volume 在 macOS Docker Desktop 下行为异常 | 回退为 bind-mount + 预置 `chmod 600 rabbitmq/.erlang.cookie` |
+| T1 | `git rm --cached` 误删配置文件 | `git ls-files rabbitmq/` 确认仅 `.erlang.cookie` + `mnesia/` 被跟踪；`rabbitmq.conf` 为新建文件不受影响 |
+| T2 | 误删 redis/data 导致持久化数据丢失 | data/ 仅测试数据；可先 `tar czf redis/data.tar.gz redis/data/` 备份 |
 | T3 | Sentinels healthcheck 命令错误导致 healthy 假阳性 | healthcheck 失败反而暴露真实问题，优于无检测 |
 | T4 | JwtUtils static→instance 链式影响超出预期 | `git revert`，回退至 static 版本，仅 2 处调用方 |
+| ADR-0013 | ADR 未批准即实施 T5 | 严格门禁：ADR merge 到 main 后方可开始 T5 编码 |
 | T5 | springdoc 版本与 Spring Boot 3.5 不兼容 | 降级 springdoc 版本或回退至纯文档维护 |
 | T6 | profiles 分离后发现 compose 启动顺序依赖跨 profile | profiles 是纯标记，不改变启动顺序 |
 
 ---
 
 > **Phase 3-A 目标声明**: 完成上述 T1-T6 后，项目达到"基础设施可重复启动"基线，可安全进入 Phase 3-B（中间件功能集成：Redis 缓存、RabbitMQ 消息、Elasticsearch 搜索）。
+| MinIO | minio:RELEASE.2025-09-07T16-13-09Z | 9000, 9001 | bind-mount `./minio` | health/live | healthy |
+| G6 | `git ls-files` 确认 RabbitMQ 38 文件已解除跟踪（`git rm --cached` 生效） | `git ls-files rabbitmq/ | wc -l` → `0` |
+| G7 | V2.1 基线 tag 不被修改，Phase 3-A 所有工作在独立分支上 | `git tag -l 'v2.1.0'` 仍指向 `ec9a158` |
+| G8 | Phase 3-A 分支可干净合入 main，无冲突 | `git checkout main && git merge --no-ff codex/phase-3a-infra-stabilization --no-commit` → 无冲突 |
+| G9 | `compose.yml` 中所有镜像标签均为固定版本（无 `:latest`） | `rg ':latest' compose.yml` → 0 匹配 |

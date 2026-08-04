@@ -21,9 +21,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import org.mockito.stubbing.Answer;
-import java.time.Duration;
-import java.util.function.Supplier;
 
 /**
  * DeviceService 单元测试。
@@ -39,10 +36,6 @@ class DeviceServiceTest {
     @Mock
     private DeviceMapper deviceMapper;
 
-    @Mock
-    private CacheService cacheService;
-
-    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
     @InjectMocks
     private DeviceService deviceService;

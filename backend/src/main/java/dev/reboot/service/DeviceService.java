@@ -6,8 +6,9 @@ import dev.reboot.entity.Device;
 import dev.reboot.enums.ErrorCode;
 import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.DeviceMapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.time.Duration;
+import dev.reboot.config.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.springframework.stereotype.Service;
@@ -30,13 +31,9 @@ public class DeviceService {
     private static final Logger log = LoggerFactory.getLogger(DeviceService.class);
 
     private final DeviceMapper deviceMapper;
-    private final CacheService cacheService;
-    private final ObjectMapper objectMapper;
 
-    public DeviceService(DeviceMapper deviceMapper, CacheService cacheService, ObjectMapper objectMapper) {
+    public DeviceService(DeviceMapper deviceMapper) {
         this.deviceMapper = deviceMapper;
-        this.cacheService = cacheService;
-        this.objectMapper = objectMapper;
     }
 
     /** 查询所有设备，返回 DeviceVO（不含内部标记字段）。 */
@@ -47,44 +44,17 @@ public class DeviceService {
     }
 
     /**
-     * 按 ID 查询（带 Redis 缓存降级），返回 DeviceVO。
+     * 按 ID 查询（Spring Cache 注解缓存），返回 DeviceVO。
      */
+    @Cacheable(cacheNames = CacheConfig.CACHE_DEVICE_DETAIL, key = "#id")
     public DeviceVO getById(Long id) {
-        String cacheKey = "device:id:" + id;
-        DeviceVO cached = getCachedDeviceVO(cacheKey);
-        if (cached != null) {
-            return cached;
-        }
-
         Device device = deviceMapper.findById(id);
         if (device == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "设备不存在");
         }
-        DeviceVO vo = DeviceVO.from(device);
-        cacheDeviceVO(cacheKey, vo);
-        return vo;
+        return DeviceVO.from(device);
     }
 
-    private DeviceVO getCachedDeviceVO(String key) {
-        try {
-            String json = cacheService.getOrFetch(key, Duration.ofMinutes(30), () -> null);
-            if (json != null) {
-                return objectMapper.readValue(json, DeviceVO.class);
-            }
-        } catch (Exception e) {
-            log.warn("缓存读取失败 key={}, fallback to DB", key, e);
-        }
-        return null;
-    }
-
-    private void cacheDeviceVO(String key, DeviceVO vo) {
-        try {
-            String json = objectMapper.writeValueAsString(vo);
-            cacheService.put(key, json, Duration.ofMinutes(30));
-        } catch (Exception e) {
-            log.warn("缓存写入失败 key={}", key, e);
-        }
-    }
 
     /**
      * 创建设备。
@@ -112,6 +82,7 @@ public class DeviceService {
      *
      * @throws BusinessException 设备不存在 → 404
      */
+    @CacheEvict(cacheNames = CacheConfig.CACHE_DEVICE_DETAIL, key = "#id")
     public DeviceVO update(Long id, DeviceDTO dto) {
         Device device = deviceMapper.findById(id);
         if (device == null) {
@@ -126,7 +97,6 @@ public class DeviceService {
         device.setPort(dto.getPort());
         device.setLocation(dto.getLocation());
         deviceMapper.update(device);
-        cacheService.evict("device:id:" + id);
         return DeviceVO.from(device);
     }
 
@@ -135,14 +105,12 @@ public class DeviceService {
      *
      * @throws BusinessException 设备不存在 → 404
      */
+    @CacheEvict(cacheNames = CacheConfig.CACHE_DEVICE_DETAIL, key = "#id")
     public boolean delete(Long id) {
         if (deviceMapper.findById(id) == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "设备不存在");
         }
         boolean deleted = deviceMapper.softDeleteById(id) > 0;
-        if (deleted) {
-            cacheService.evict("device:id:" + id);
-        }
         return deleted;
     }
 

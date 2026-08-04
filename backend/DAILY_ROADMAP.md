@@ -472,7 +472,7 @@
 | Day 44 | Redis 缓存实战 ✅：用户信息缓存、设备数据缓存、缓存预热 |
 | Day 45 | 缓存穿透/击穿/雪崩 ✅解决方案：布隆过滤器、互斥锁、随机过期 |
 | Day 46 | Redis 分布式锁 ✅（Redisson）：设备数据上报防重 |
-| Day 47 | Spring Cache 注解集成（@Cacheable/@CacheEvict） |
+| Day 47 | Spring Cache 注解集成 ✅（@Cacheable/@CacheEvict） |
 | Day 48 | Redis 实战整合：重构项目中所有可缓存的地方 |
 | Day 49 | 周复盘 + Redis 笔记整理 |
 

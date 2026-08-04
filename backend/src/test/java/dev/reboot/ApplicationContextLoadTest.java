@@ -1,13 +1,15 @@
 package dev.reboot;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.context.ApplicationContext;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import dev.reboot.service.CacheService;
 
 /**
  * Spring 上下文加载冒烟测试。
@@ -31,8 +33,14 @@ class ApplicationContextLoadTest {
     @Autowired
     private ApplicationContext applicationContext;
 
+    /**
+     * CacheService 仅存在于非 test Profile。
+     * 测试 Profile 下通过 MockBean 补全依赖，确保上下文可加载。
+     */
+    @MockBean
+    private CacheService cacheService;
+
     @Test
-    @Disabled("Requires Redis + MySQL Docker; unit tests cover logic")
     void contextLoads() {
         assertNotNull(applicationContext, "Spring 上下文应成功加载");
     }

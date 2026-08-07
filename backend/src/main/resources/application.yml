@@ -22,6 +22,16 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 2
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_DEFAULT_USER:admin}
+    password: ${RABBITMQ_DEFAULT_PASS:admin123}
+    virtual-host: /
+    listener:
+      simple:
+        acknowledge-mode: auto
+        prefetch: 10
 
 server:
   port: 8080

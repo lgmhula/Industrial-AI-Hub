@@ -38,8 +38,8 @@
 - **阶段**：Phase 3 学习路线 — Redis（Phase 3-A 基础设施稳定化已完成，已合并回 main）
 - **分支**：`main`（codex/phase-3a 已合并，归档保留）
 - **Phase 3-A 归档**：`docs/plans/phase3-a-infrastructure-stabilization.md` + `docs/reports/phase3-a-plan-audit*.md`
-- **已完成**：Phase 3-A T1-T6 + Day 43-48 Redis 缓存体系 + Day 49 周复盘 + Day 50 RabbitMQ 核心概念（89/89 测试全绿）
-- **下一步**：Day 51 — 工作队列模式：报警消息异步处理
+- **已完成**：Phase 3-A T1-T6 + Day 43-48 Redis 缓存体系 + Day 49 周复盘 + Day 50 RabbitMQ 核心概念 + Day 51 工作队列报警异步处理（89/89 测试全绿）
+- **下一步**：Day 52 — 发布/订阅模式：设备数据同步到多个消费者
 - **Baseline V2.1 内容**：JWT 生产环境要求通过 compose 注入密钥；测试环境通过 application-test.yml 提供隔离密钥、Spring Bean 清理、Profiles（dev/prod）、Actuator（仅 health）、Dockerfile（multi-stage + non-root）、compose backend 服务、启动冒烟测试（ApplicationContextLoadTest）、前端路由修复 + Dashboard 页面
 - **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限、分页查询、全局异常处理、@Valid 校验、报警规则引擎、AOP 操作日志、Postman 测试集、Vue 3 前端（登录/仪表盘/设备/报警/日志 6 页面）
 - **待实现**：Phase 3-B Redis 缓存、RabbitMQ 消息、Elasticsearch 搜索、前端工业化视觉升级（见 DESIGN.md）

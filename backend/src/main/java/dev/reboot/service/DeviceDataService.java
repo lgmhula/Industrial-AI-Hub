@@ -6,6 +6,9 @@ import dev.reboot.dto.DeviceDataStats;
 import dev.reboot.config.CacheConfig;
 import dev.reboot.entity.DeviceData;
 import dev.reboot.mapper.DeviceDataMapper;
+import dev.reboot.mq.AlarmMessage;
+import dev.reboot.mq.AlarmProducer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -31,6 +34,9 @@ public class DeviceDataService {
     private final DeviceDataMapper deviceDataMapper;
 
     private final AlarmDetector alarmDetector;
+
+    @Autowired(required = false)
+    private AlarmProducer alarmProducer;
 
     public DeviceDataService(DeviceDataMapper deviceDataMapper, AlarmDetector alarmDetector) {
         this.deviceDataMapper = deviceDataMapper;
@@ -68,8 +74,21 @@ public class DeviceDataService {
         // ── 报警检测 ──
         List<AlarmVO> alarms = alarmDetector.check(deviceId, req.getDataType(), req.getDataValue());
         if (!alarms.isEmpty()) {
-            // 报警已由 detector 内部持久化，此处仅作日志
             log.warn("报警触发 device={} alarms={}", deviceId, alarms.size());
+
+            // ── 异步发送报警消息到 RabbitMQ（工作队列） ──
+            if (alarmProducer != null) {
+                for (AlarmVO alarm : alarms) {
+                    AlarmMessage msg = new AlarmMessage(
+                            deviceId,
+                            alarm.getAlarmType(),
+                            alarm.getAlarmLevel(),
+                            alarm.getAlarmMessage(),
+                            req.getDataValue(),
+                            data.getRecordedAt());
+                    alarmProducer.send(msg);
+                }
+            }
         }
 
         return data;

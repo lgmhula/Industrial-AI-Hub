@@ -41,6 +41,13 @@ public class MQConfig {
     public static final String ALARM_DLX = "alarm.dlx";
     public static final String ALARM_DLQ = "alarm.dlq";
 
+    // ── Day 54: 延迟队列 — 报警 30s 未处理则升级 ──
+    public static final String ALARM_DELAY_EXCHANGE = "alarm.delay.exchange";
+    public static final String ALARM_DELAY_QUEUE = "alarm.delay.queue";
+    public static final String ALARM_DELAY_DLX = "alarm.delay.dlx";
+    public static final String ALARM_ESCALATION_QUEUE = "alarm.escalation.queue";
+    public static final String ALARM_ESCALATION_KEY = "alarm.escalation";
+
     // ── Day 52: 发布/订阅 — 设备数据 Fanout Exchange ──
     public static final String DEVICE_DATA_FANOUT = "device-data.fanout";
     public static final String DEVICE_DATA_LOG_QUEUE = "device-data.log.queue";
@@ -80,6 +87,51 @@ public class MQConfig {
         return BindingBuilder.bind(alarmDlq())
                 .to(alarmDlxExchange())
                 .with(ALARM_ROUTING_KEY);
+    }
+
+    // ── Day 54: 延迟队列（TTL 30s → DLX → escalation queue） ──
+
+    @Bean
+    public DirectExchange alarmDelayExchange() {
+        return new DirectExchange(ALARM_DELAY_EXCHANGE, true, false);
+    }
+
+    /** 延迟 DLX — 接收 delay.queue 过期的消息。 */
+    @Bean
+    public DirectExchange alarmDelayDlx() {
+        return new DirectExchange(ALARM_DELAY_DLX, true, false);
+    }
+
+    /** 升级队列 — 延迟消息过期后到达此处。 */
+    @Bean
+    public Queue alarmEscalationQueue() {
+        return QueueBuilder.durable(ALARM_ESCALATION_QUEUE).build();
+    }
+
+    @Bean
+    public Binding alarmEscalationBinding() {
+        return BindingBuilder.bind(alarmEscalationQueue())
+                .to(alarmDelayDlx())
+                .with(ALARM_ESCALATION_KEY);
+    }
+
+    /**
+     * 延迟队列 — 无消费者，消息在 TTL 过期后自动转入 DLX。
+     * <p>per-message TTL 由 Producer 设置，此队列仅定义 DLX 路由。</p>
+     */
+    @Bean
+    public Queue alarmDelayQueue() {
+        return QueueBuilder.durable(ALARM_DELAY_QUEUE)
+                .deadLetterExchange(ALARM_DELAY_DLX)
+                .deadLetterRoutingKey(ALARM_ESCALATION_KEY)
+                .build();
+    }
+
+    @Bean
+    public Binding alarmDelayBinding() {
+        return BindingBuilder.bind(alarmDelayQueue())
+                .to(alarmDelayExchange())
+                .with(ALARM_ESCALATION_KEY);
     }
 
     /** Exchange → Queue 绑定。 */

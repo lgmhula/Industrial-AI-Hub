@@ -87,6 +87,9 @@ public class DeviceDataService {
                             req.getDataValue(),
                             data.getRecordedAt());
                     alarmProducer.send(msg);
+
+                    // ── Day 54: 同时发送延迟检查（30s 后未处理则升级） ──
+                    alarmProducer.sendDelayCheck(msg);
                 }
             }
         }

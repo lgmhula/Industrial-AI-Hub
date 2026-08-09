@@ -9,25 +9,36 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 /**
- * RabbitMQ 配置 —— Exchange / Queue / Binding 声明 + JSON 消息转换。
+ * RabbitMQ 配置 —— 全架构 Exchange / Queue / Binding 声明。
  *
- * <h3>架构</h3>
+ * <h3>完整架构（Day 50-55）</h3>
  * <pre>
- * Producer → [Direct Exchange "alarm.exchange"]
- *                │  routingKey = "alarm.new"
- *                ↓
- *           [Queue "alarm.queue"]
- *                │  (work-queue: 多 Consumer 竞争消费)
- *                ↓
- *           Consumer(s)
+ * DeviceDataService.report()
+ *  │
+ *  ├─ [Fanout "device-data.fanout"]  ← Day 52 发布/订阅
+ *  │    ├→ device-data.log.queue      → DeviceDataSyncConsumer (归档)
+ *  │    └→ device-data.analytics.queue → DeviceDataSyncConsumer (分析)
+ *  │
+ *  ├─ [Direct "alarm.exchange"]       ← Day 51 工作队列
+ *  │    └→ alarm.queue (DLX→alarm.dlq) → AlarmConsumer (手动ACK+重试)
+ *  │
+ *  └─ [Direct "alarm.delay.exchange"] ← Day 54 延迟队列
+ *       └→ alarm.delay.queue (TTL 30s, 无消费者)
+ *            → alarm.delay.dlx
+ *              └→ alarm.escalation.queue → AlarmEscalationConsumer
  * </pre>
  *
- * <h3>工作队列模式</h3>
- * <p>多个 Consumer 监听同一 Queue，RabbitMQ 默认 round-robin 分发。
- * 每个 Consumer 设置 prefetch=1，公平调度（能者多劳）。</p>
+ * <h3>模式总结</h3>
+ * <table>
+ *   <tr><th>模式</th><th>Exchange</th><th>Day</th><th>场景</th></tr>
+ *   <tr><td>工作队列</td><td>Direct</td><td>51</td><td>报警处理（竞争消费）</td></tr>
+ *   <tr><td>发布/订阅</td><td>Fanout</td><td>52</td><td>数据同步（广播）</td></tr>
+ *   <tr><td>死信队列</td><td>DLX</td><td>53</td><td>失败消息不丢失</td></tr>
+ *   <tr><td>延迟队列</td><td>TTL+DLX</td><td>54</td><td>报警超时升级</td></tr>
+ * </table>
  *
  * @author hula0710
- * @since 2026-08-07 (Day 51)
+ * @since 2026-08-07 (Day 51), 全景审查 2026-08-09 (Day 55)
  */
 @Configuration
 @Profile("!test")

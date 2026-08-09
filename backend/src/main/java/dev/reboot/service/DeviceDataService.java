@@ -8,6 +8,8 @@ import dev.reboot.entity.DeviceData;
 import dev.reboot.mapper.DeviceDataMapper;
 import dev.reboot.mq.AlarmMessage;
 import dev.reboot.mq.AlarmProducer;
+import dev.reboot.mq.DeviceDataMessage;
+import dev.reboot.mq.DeviceDataProducer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -37,6 +39,9 @@ public class DeviceDataService {
 
     @Autowired(required = false)
     private AlarmProducer alarmProducer;
+
+    @Autowired(required = false)
+    private DeviceDataProducer deviceDataProducer;
 
     public DeviceDataService(DeviceDataMapper deviceDataMapper, AlarmDetector alarmDetector) {
         this.deviceDataMapper = deviceDataMapper;
@@ -70,6 +75,14 @@ public class DeviceDataService {
         data.setUnit(req.getUnit());
         data.setRecordedAt(LocalDateTime.now());
         deviceDataMapper.insert(data);
+
+        // ── 发布/订阅：广播设备数据到下游（日志归档 + 实时分析） ──
+        if (deviceDataProducer != null) {
+            DeviceDataMessage dataMsg = new DeviceDataMessage(
+                    deviceId, req.getDataType(), req.getDataValue(),
+                    req.getUnit(), data.getRecordedAt());
+            deviceDataProducer.publish(dataMsg);
+        }
 
         // ── 报警检测 ──
         List<AlarmVO> alarms = alarmDetector.check(deviceId, req.getDataType(), req.getDataValue());

@@ -10,9 +10,9 @@ COPY pom.xml ./
 COPY .mvn .mvn
 COPY mvnw ./
 # Download dependencies first (layer caching)
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
+RUN chmod +x mvnw && ./mvnw -s .mvn/settings.xml dependency:go-offline -B
 COPY src ./src
-RUN ./mvnw package -DskipTests -B
+RUN ./mvnw -s .mvn/settings.xml package -DskipTests -B
 
 # Stage 2: Runtime
 FROM eclipse-temurin:25-jre-alpine

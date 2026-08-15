@@ -1,0 +1,23 @@
+[Unit]
+Description=Industrial AI Hub Backend
+After=network.target
+
+[Service]
+Type=simple
+User=app
+Group=app
+WorkingDirectory=/opt/industrial-ai-hub
+ExecStart=/usr/bin/java -jar /opt/industrial-ai-hub/app.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=10
+# 环境变量从 /etc/industrial-ai-hub/env 读取
+EnvironmentFile=/etc/industrial-ai-hub/env
+# 安全加固
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

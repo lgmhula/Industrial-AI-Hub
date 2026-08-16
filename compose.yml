@@ -27,7 +27,8 @@ services:
       TZ: Asia/Shanghai
     volumes:
       - ./mysql/conf/my.cnf:/etc/mysql/conf.d/my.cnf:ro
-      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./backend/src/main/resources/sql/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./backend/src/main/resources/sql/seed_test_data.sql:/docker-entrypoint-initdb.d/02_seed_test_data.sql:ro
       - ./mysql/data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]

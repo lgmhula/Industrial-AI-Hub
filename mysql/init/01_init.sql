@@ -1,1 +1,0 @@
-../../backend/src/main/resources/sql/init.sql

@@ -7,10 +7,11 @@
 ```
 sql/
 ├── README.md              ← 本文件
-├── init.sql               ← 数据库全量初始化（SSOT）
-├── seed_test_data.sql     ← 测试种子数据（可重复执行）
-└── archive/               ← 历史迁移脚本存档
-    └── migrate_v1.1.sql   ← 已合入 init.sql，不再执行
+├── init.sql               ← Schema + 必需初始化（SSOT：默认角色 + admin）
+├── seed_test_data.sql     ← 可选演示数据（SSOT：20用户/50设备/12告警/采集数据）
+└── archive/               ← 历史存档
+    ├── migrate_v1.1.sql   ← 已合入 init.sql，不再执行
+    └── seed_test_data_v1_device1_legacy.sql  ← 旧 seed 存档（设备1 的 24h 序列）
 ```
 
 ## 数据库初始化
@@ -23,7 +24,7 @@ sql/
 docker compose up -d mysql
 ```
 
-数据库 `reboot` 和 root 密码由 `compose.yml` + `.env` 统一管理，容器首次启动会自动执行 `mysql/init/` 下的脚本。
+数据库 `reboot` 和 root 密码由 `compose.yml` + `.env` 统一管理。容器首次启动时，`compose.yml` 将本目录的 `init.sql` + `seed_test_data.sql` 直接挂载到 `/docker-entrypoint-initdb.d/` 自动执行。
 
 ### 方式二：手动执行
 
@@ -55,20 +56,20 @@ mysql -u root -p reboot < backend/src/main/resources/sql/seed_test_data.sql
 
 **v1.1** — 7 张表，8 个 CHECK 约束，逻辑删除 + 工业精度 DECIMAL(18,6)
 
-详见 [Database Changelog](../../../docs/decision-log/0011-database-changelog.md)
+详见 [Database Changelog](../../../../../docs/decision-log/0012-database-changelog.md)
 
 ## 注意事项
 
 - **不要手动执行** `archive/migrate_v1.1.sql` — 已完全合入 init.sql，重复执行会报 Error 3822（Duplicate constraint）
-- Schema 变更后，同步更新 `docs/decision-log/0011-database-changelog.md`
+- Schema 变更后，同步更新 `docs/decision-log/0012-database-changelog.md`
 - 禁止在 SQL 中硬编码数据库名，统一由 compose.yml 管理
 
 ## Docker 初始化说明
 
-`mysql/init/01_init.sql` 是 `backend/src/main/resources/sql/init.sql` 的符号链接。
-Docker MySQL 容器首次启动时，`/docker-entrypoint-initdb.d/` 下的 `.sql` 文件按文件名排序执行：
+`compose.yml` 将本目录两个 SQL 文件**直接挂载**到 `/docker-entrypoint-initdb.d/`（无符号链接，跨平台 Windows/Linux/macOS 均可用），按文件名排序执行：
 
-1. `01_init.sql` — Schema 初始化（7 张表 + 约束 + 默认角色/管理员）
-2. `02_test_data.sql` — 测试数据填充（20 用户 + 设备 + 角色关联）
+1. `01_init.sql` — Schema + 必需初始化（7 张表 + 约束 + 默认角色/管理员）
+2. `02_seed_test_data.sql` — 可选演示数据（20 用户 + 50 设备 + 12 告警 + 采集数据）
 
-> 已注释掉 `CREATE DATABASE` 和 `USE reboot`，Docker MySQL 通过 `MYSQL_DATABASE` 环境变量自动创建数据库。
+> 两个文件均已注释 `CREATE DATABASE` 和 `USE reboot`，Docker MySQL 通过 `MYSQL_DATABASE` 环境变量自动创建并选中数据库。
+> `init.sql` 含 `ON DUPLICATE KEY` 幂等保护；`seed_test_data.sql` 为一次性演示数据，仅在**空数据卷首次初始化**时执行。

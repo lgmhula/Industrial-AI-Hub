@@ -20,6 +20,7 @@
 | ★★★ | 本文件 | `AGENTS.md` | AI 入口 + 行为约束 |
 | ★★★ | 每日路线图 | `backend/DAILY_ROADMAP.md` | 总计划 + 每日任务 |
 | ★★★ | 应用架构 | `docs/Architecture/Application-Architecture.md` | 技术栈 + 分层 + API |
+| ★★☆ | 从零复刻指南 | `docs/SETUP.md` | 克隆 → 配置 → 运行 → 验证 全流程 |
 | ★★☆ | 基础设施基线 | `docs/Architecture/Infrastructure-Baseline.md` | Docker/网络/端口规范 |
 | ★★☆ | 架构决策记录 | `docs/decision-log/0001~0014` | 关键技术决策理由 |
 | ★★☆ | Phase 3-A 计划 | `docs/plans/phase3-a-infrastructure-stabilization.md` | 基础设施稳定化任务分解 + 验收标准 |
@@ -27,6 +28,7 @@
 | ★☆☆ | 周复盘 | `backend/REVIEW/WeekXX.md` | 阶段性总结 |
 | ★☆☆ | 审计报告 | `docs/reports/Architecture-Consistency-Report-v1.2.md` | 文档-代码一致性检查 |
 | ★☆☆ | SQL 审计 | `docs/reports/SQL-Audit-Report.md` | SQL 文件一致性审计 |
+| ★☆☆ | 技术债务 | `docs/TECH-DEBT.md` | 技术债务 SSOT 清单 |
 | ★☆☆ | DB Changelog | `docs/decision-log/0012-database-changelog.md` | 数据库变更记录 |
 | ★☆☆ | SQL README | `backend/src/main/resources/sql/README.md` | SQL 初始化说明 |
 
@@ -85,7 +87,7 @@
 | MySQL (Docker) | 8.4 | compose.yml 锁定 |
 | Redis Stack | 7.4.0-v1 | compose.yml 锁定 |
 | RabbitMQ | 4.0-management | compose.yml 锁定 |
-| Nacos | 2.4.3 | compose.yml 锁定 |
+| Nacos | 2.4.3 | 预留基础设施（不纳入当前路线，不启动） |
 | Elasticsearch | 8.17.0 | compose.yml 锁定 |
 | Jedis | 5.2.0 | Redis 客户端（Day 43） |
 | Redisson | 3.39.0 | 分布式锁（Day 46） |

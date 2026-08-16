@@ -2,7 +2,7 @@
 
 > 工业 AI 设备管理平台 — 从 Java 基础到 AI 集成的完整技术栈闭环
 
-[![v1.0-alpha](https://img.shields.io/badge/version-v1.0--alpha-blue)](https://github.com/lgmhula/Industrial-AI-Hub)
+[![v2.1.0](https://img.shields.io/badge/version-v2.1.0-blue)](https://github.com/lgmhula/Industrial-AI-Hub)
 [![JDK](https://img.shields.io/badge/JDK-25_LTS-orange)](https://adoptium.net/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.0-green)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
@@ -144,7 +144,7 @@ Industrial-AI-Hub/
 │       ├── main/resources/
 │       │   ├── application.yml
 │       │   └── sql/init.sql   # 数据库初始化
-│       └── test/              # 76 单元测试
+│       └── test/              # 89 单元测试
 │
 ├── frontend/
 │   ├── src/
@@ -198,7 +198,7 @@ Industrial-AI-Hub/
 | Phase 4 | Week 10-13 | AI 集成 (Day 64-91) |
 | Phase 5 | Week 14-16 | PLC + 完整系统 (Day 92-112) |
 
-> 当前进度：Day 42 完成，Baseline V2.1 Hotfix 中
+> 当前进度：Day 63 完成，Phase 3 收官（Redis/RabbitMQ/Docker/Linux），下一步 Phase 4 AI 集成
 
 ---
 
@@ -219,4 +219,4 @@ MIT
 
 ---
 
-> 最后更新：2026-08-01 | 维护者：[hula0710](https://github.com/lgmhula)
+> 最后更新：2026-08-16 | 维护者：[hula0710](https://github.com/lgmhula)

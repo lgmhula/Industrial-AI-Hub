@@ -56,7 +56,7 @@
 | Redis Sentinel ×3 | 7.4.0 | 26379-81 | Configured |
 | RabbitMQ | 4.0 | 5672, 15672 | Configured |
 | Nacos | 2.4.3 | 8848, 9848 | Configured |
-| MinIO | latest | 9000, 9001 | Configured |
+| MinIO | RELEASE.2025-09-07 | 9000, 9001 | Configured |
 | Elasticsearch | 8.17 | 9200, 9300 | Configured |
 | Backend (Spring Boot) | JDK 25 | 8080 | Active (compose build) |
 
@@ -86,7 +86,7 @@ HTTP Request
 
 ---
 
-## 3. 模块清单（Day 42）
+## 3. 模块清单
 
 ### Controllers (6)
 
@@ -103,6 +103,14 @@ HTTP Request
 
 DeviceService / UserService / AuthService / AlarmService / DeviceDataService /
 OperationLogService / AlarmDetector
+
+### 中间件整合（Phase 3 新增）
+
+| 包 | 内容 |
+|----|------|
+| `mq/` | RabbitMQ 管线：`AlarmProducer`/`AlarmConsumer`（工作队列）、`DeviceDataProducer`/`DeviceDataSyncConsumer`（发布/订阅）、`AlarmEscalationConsumer`（延迟队列 30s 升级） |
+| `rule/` | 报警规则引擎：`AlarmRule` / `AlarmRuleConfig` / `Operator` |
+| 缓存 | Spring Cache（`@Cacheable`/`@CacheEvict`）+ Redisson 分布式锁（设备数据上报防重） |
 
 ### 横切关注点
 
@@ -139,11 +147,12 @@ OperationLogService / AlarmDetector
 
 ## 6. 演进路线
 
-| 阶段 | 内容 | 状态 |
-|------|------|:--:|
-| Phase 1 (Day 1-14) | Java 基础 | ✅ |
-| Phase 2 (Day 15-42) | Spring Boot + MyBatis + RBAC + 告警 + 前端 | ✅ v1.0 完成 |
-| Baseline V2.1 | Profiles + Actuator + Dockerfile + compose backend + JWT (compose 注入) + 启动冒烟测试 | ✅ 2026-08-03 |
-| Phase 3 (Day 43-56) | Redis / RabbitMQ / ES 中间件 | 📅 待启动 |
-| Phase 4 (Day 57-70) | 微服务 Spring Cloud | 📅 计划 |
-| Phase 5 (Day 71-84) | AI 集成 | 📅 计划 |
+> 唯一路线权威源：`backend/DAILY_ROADMAP.md`（本表与其严格对齐）。
+
+| 阶段 | 周期 | Day | 内容 | 状态 |
+|------|------|-----|------|:--:|
+| Phase 1 | 第 1-3 周 | Day 1-21 | Java 复苏 | ✅ |
+| Phase 2 | 第 4-6 周 | Day 22-42 | 项目 V1：CRUD / JWT / RBAC / 告警 / 前端 | ✅ v1.0 + Baseline V2.1 |
+| Phase 3 | 第 7-9 周 | Day 43-63 | 中间件武装：Redis + RabbitMQ + Docker + Linux | ✅ 2026-08-16 |
+| Phase 4 | 第 10-13 周 | Day 64-91 | AI 集成：OpenAI → RAG → Agent/MCP | 📅 待启动 |
+| Phase 5 | 第 14-16 周 | Day 92-112 | PLC + MQTT + 完整系统 | 📅 计划 |

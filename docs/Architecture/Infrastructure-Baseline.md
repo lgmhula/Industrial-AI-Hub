@@ -23,15 +23,15 @@
 | Service | Version | Port(s) | Config Status | Notes |
 |---------|---------|---------|:---:|------|
 | MySQL | 8.4 | 3307 | Active | 主开发数据库 |
-| MySQL Master | 8.4 | 13306 | Configured | 主从-写库 |
-| MySQL Slave1 | 8.4 | 13307 | Configured | 主从-只读1 |
-| MySQL Slave2 | 8.4 | 13308 | Configured | 主从-只读2 |
-| Redis Stack | 7.4.0 | 6379, 8001 | Configured | Phase 3 激活 |
-| Redis Sentinel (×3) | 7.4.0 | 26379-81 | Configured | Phase 3 激活 |
-| RabbitMQ | 4.0 | 5672, 15672 | Configured | Phase 3 激活 |
-| Nacos | 2.4.3 | 8848, 9848 | Configured | Phase 4 激活 |
-| MinIO | latest | 9000, 9001 | Configured | Phase 4 激活 |
-| Elasticsearch | 8.17 | 9200, 9300 | Configured | Phase 3 激活 |
+| MySQL Master | 8.4 | 13306 | Configured | 主从-写库（full profile） |
+| MySQL Slave1 | 8.4 | 13307 | Configured | 主从-只读1（full profile） |
+| MySQL Slave2 | 8.4 | 13308 | Configured | 主从-只读2（full profile） |
+| Redis Stack | 7.4.0 | 6379, 8001 | Active | Phase 3 已集成 |
+| Redis Sentinel (×3) | 7.4.0 | 26379-81 | Configured | 高可用预留（full profile） |
+| RabbitMQ | 4.0 | 5672, 15672 | Active | Phase 3 已集成 |
+| Nacos | 2.4.3 | 8848, 9848 | Configured | 预留（未纳入 16 周路线） |
+| MinIO | RELEASE.2025-09-07 | 9000, 9001 | Configured | 预留（未纳入 16 周路线） |
+| Elasticsearch | 8.17 | 9200, 9300 | Configured | ELK 日志（Day 101，可选） |
 
 ---
 

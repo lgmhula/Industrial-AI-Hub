@@ -289,146 +289,146 @@
 - [x] Git commit：项目初始化
 
 ### Day 23（周二）
-- [ ] 实现 JWT 工具类（生成 token、验证 token、解析 token）
-- [ ] 实现登录接口 POST /api/auth/login
-- [ ] 实现注册接口 POST /api/auth/register
-- [ ] 密码 BCrypt 加密
-- [ ] 用 Postman 测试完整登录流程
-- [ ] Git commit
+- [x] 实现 JWT 工具类（生成 token、验证 token、解析 token）
+- [x] 实现登录接口 POST /api/auth/login
+- [x] 实现注册接口 POST /api/auth/register
+- [x] 密码 BCrypt 加密
+- [x] 用 Postman 测试完整登录流程
+- [x] Git commit
 
 ### Day 24（周三）
-- [ ] 实现 RBAC 权限模型：user_role 表 + 角色枚举
-- [ ] 实现认证拦截器/JWT Filter
-- [ ] 实现 @RequireRole 自定义注解
-- [ ] 测试：不同角色访问不同接口的权限控制
-- [ ] Git commit
+- [x] 实现 RBAC 权限模型：user_role 表 + 角色枚举
+- [x] 实现认证拦截器/JWT Filter
+- [x] 实现 @RequireRole 自定义注解
+- [x] 测试：不同角色访问不同接口的权限控制
+- [x] Git commit
 
 ### Day 25（周四）
-- [ ] 实现用户管理模块：用户列表、查询、编辑、删除
-- [ ] 分页查询（PageHelper）
-- [ ] 用户状态启用/禁用
-- [ ] Git commit
+- [x] 实现用户管理模块：用户列表、查询、编辑、删除
+- [x] 分页查询（PageHelper）
+- [x] 用户状态启用/禁用
+- [x] Git commit
 
 ### Day 26（周五）
-- [ ] 实现统一响应格式 Result<T>（code, message, data）
-- [ ] 实现全局异常处理 @ControllerAdvice
-- [ ] 实现参数校验（@Valid + BindingResult）
-- [ ] 重构已有接口，统一使用 Result 返回
-- [ ] Git commit
+- [x] 实现统一响应格式 Result<T>（code, message, data）
+- [x] 实现全局异常处理 @ControllerAdvice
+- [x] 实现参数校验（@Valid + BindingResult）
+- [x] 重构已有接口，统一使用 Result 返回
+- [x] Git commit
 
 ### Day 27（周六）
-- [ ] 前端页面（使用 Vue3 + Element Plus，简单版）：
+- [x] 前端页面（使用 Vue3 + Element Plus，简单版）：
   - 登录页面
   - 主布局（侧边栏 + 顶部栏）
   - 用户管理列表页
-- [ ] 前后端联调
-- [ ] Git commit
+- [x] 前后端联调
+- [x] Git commit
 
 ### Day 28（周日）—— 每周复盘
-- [ ] 上午：检查已有代码，重构不合理的设计
-- [ ] 下午：写 REVIEW/Week04.md
-- [ ] 补充遗漏的单元测试
-- [ ] Git commit + push
+- [x] 上午：检查已有代码，重构不合理的设计
+- [x] 下午：写 REVIEW/Week04.md
+- [x] 补充遗漏的单元测试
+- [x] Git commit + push
 
 ---
 
 ## 第 5 周：设备管理 + 设备数据模块
 
 ### Day 29（周一）
-- [ ] 实现设备管理模块：
+- [x] 实现设备管理模块：
   - 设备列表（分页 + 搜索 + 筛选）
   - 设备新增（名称、类型、位置、状态）
   - 设备编辑
   - 设备删除（逻辑删除）
-- [ ] MyBatis 复杂查询：多条件动态 SQL
-- [ ] Git commit
+- [x] MyBatis 复杂查询：多条件动态 SQL
+- [x] Git commit
 
 ### Day 30（周二）
-- [ ] 实现设备数据模块：
+- [x] 实现设备数据模块：
   - 设备数据上报接口 POST /api/device/{id}/data
   - 设备数据列表查询（按时间范围）
   - 设备最新数据查询
-- [ ] 造一批模拟数据（编写数据生成脚本）
-- [ ] Git commit
+- [x] 造一批模拟数据（编写数据生成脚本）
+- [x] Git commit
 
 ### Day 31（周三）
-- [ ] 前端：设备管理页面（列表 + 新增/编辑弹窗）
-- [ ] 前端：设备详情页（含数据图表）
-- [ ] 使用 ECharts 展示设备数据趋势
-- [ ] Git commit
+- [x] 前端：设备管理页面（列表 + 新增/编辑弹窗）
+- [x] 前端：设备详情页（含数据图表）
+- [x] 使用 ECharts 展示设备数据趋势
+- [x] Git commit
 
 ### Day 32（周四）
-- [ ] 实现报警模块：
+- [x] 实现报警模块：
   - 报警规则定义（温度上限、压力上限等）
   - 数据上报时自动检测是否触发报警
   - 报警记录生成
-- [ ] 实现报警列表 + 报警处理（确认/解决）
-- [ ] Git commit
+- [x] 实现报警列表 + 报警处理（确认/解决）
+- [x] Git commit
 
 ### Day 33（周五）
-- [ ] 实现操作日志模块：
+- [x] 实现操作日志模块：
   - AOP 切面自动记录操作日志
   - 记录：操作人、操作时间、操作类型、IP、请求参数
   - 日志查询页面
-- [ ] Git commit
+- [x] Git commit
 
 ### Day 34（周六）
-- [ ] 前端补全：报警页面 + 日志页面
-- [ ] 全局联调：登录 → 设备管理 → 数据上报 → 报警触发 → 日志记录
-- [ ] 修复发现的 Bug
-- [ ] Git commit
+- [x] 前端补全：报警页面 + 日志页面
+- [x] 全局联调：登录 → 设备管理 → 数据上报 → 报警触发 → 日志记录
+- [x] 修复发现的 Bug
+- [x] Git commit
 
 ### Day 35（周日）—— 每周复盘 + 里程碑
-- [ ] 上午：完整的业务流程测试（录屏）
-- [ ] 下午：写 REVIEW/Week05.md
-- [ ] 代码 review：命名、异常处理、日志打印
-- [ ] Git tag: v1.0-alpha
+- [x] 上午：完整的业务流程测试（录屏）
+- [x] 下午：写 REVIEW/Week05.md
+- [x] 代码 review：命名、异常处理、日志打印
+- [x] Git tag: v1.0-alpha
 
 ---
 
 ## 第 6 周：V1 打磨 + 测试
 
 ### Day 36（周一）
-- [ ] 编写单元测试：UserService、DeviceService
-- [ ] 编写集成测试：登录→设备 CRUD→数据上报 全链路
-- [ ] 使用 JUnit5 + Mockito
-- [ ] Git commit
+- [x] 编写单元测试：UserService、DeviceService
+- [x] 编写集成测试：登录→设备 CRUD→数据上报 全链路
+- [x] 使用 JUnit5 + Mockito
+- [x] Git commit
 
 ### Day 37（周二）
-- [ ] 性能优化：
+- [x] 性能优化：
   - SQL 慢查询排查
   - 设备数据查询加索引
   - 分页查询优化
-- [ ] 接口限流（Guava RateLimiter 简单实现）
-- [ ] Git commit
+- [x] 接口限流（Guava RateLimiter 简单实现）
+- [x] Git commit
 
 ### Day 38（周三）
-- [ ] 完善前端：表单校验、loading 状态、错误提示
-- [ ] 响应式布局适配（至少保证 1920×1080 和 1366×768）
-- [ ] Git commit
+- [x] 完善前端：表单校验、loading 状态、错误提示
+- [x] 响应式布局适配（至少保证 1920×1080 和 1366×768）
+- [x] Git commit
 
 ### Day 39（周四）
-- [ ] Swagger/Knife4j 接口文档集成
-- [ ] 编写 README.md（项目介绍、技术栈、如何运行）
-- [ ] Git commit
+- [x] Swagger/Knife4j 接口文档集成
+- [x] 编写 README.md（项目介绍、技术栈、如何运行）
+- [x] Git commit
 
 ### Day 40（周五）
-- [ ] 整体测试 + Bug 修复
-- [ ] 前端交互体验优化
-- [ ] 代码清理（删除无用 import、注释掉的代码）
-- [ ] Git commit
+- [x] 整体测试 + Bug 修复
+- [x] 前端交互体验优化
+- [x] 代码清理（删除无用 import、注释掉的代码）
+- [x] Git commit
 
 ### Day 41（周六）
-- [ ] 总结文档：项目架构图（draw.io 或 Mermaid）
-- [ ] 总结文档：数据库 ER 图
-- [ ] 总结文档：API 接口清单
-- [ ] 准备 V1 演示（作为一个完整的可演示系统）
+- [x] 总结文档：项目架构图（draw.io 或 Mermaid）
+- [x] 总结文档：数据库 ER 图
+- [x] 总结文档：API 接口清单
+- [x] 准备 V1 演示（作为一个完整的可演示系统）
 
 ### Day 42（周日）—— 第二阶段复盘
-- [ ] 完整演示：从登录到设备数据报警的全流程
-- [ ] 写 REVIEW/Phase2-Summary.md
-- [ ] 列出 V1 的技术债务清单
-- [ ] Git tag: v1.0-release
+- [x] 完整演示：从登录到设备数据报警的全流程
+- [x] 写 REVIEW/Phase2-Summary.md
+- [x] 列出 V1 的技术债务清单
+- [x] Git tag: v1.0-release
 
 > **第二阶段检查点**：拥有一个完整可用的设备管理平台，含登录、RBAC、设备 CRUD、数据上报、报警、日志。这是你简历上第一个真实项目。
 

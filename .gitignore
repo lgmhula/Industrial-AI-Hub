@@ -3,6 +3,7 @@
 # ========================
 .env
 .idea/
+.workbuddy/
 *.iml
 out/
 *.log

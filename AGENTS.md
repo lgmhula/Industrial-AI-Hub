@@ -21,11 +21,11 @@
 | ★★★ | 每日路线图 | `backend/DAILY_ROADMAP.md` | 总计划 + 每日任务 |
 | ★★★ | 应用架构 | `docs/Architecture/Application-Architecture.md` | 技术栈 + 分层 + API |
 | ★★☆ | 基础设施基线 | `docs/Architecture/Infrastructure-Baseline.md` | Docker/网络/端口规范 |
-| ★★☆ | 架构决策记录 | `docs/decision-log/0001~0012` | 关键技术决策理由 |
+| ★★☆ | 架构决策记录 | `docs/decision-log/0001~0014` | 关键技术决策理由 |
 | ★★☆ | Phase 3-A 计划 | `docs/plans/phase3-a-infrastructure-stabilization.md` | 基础设施稳定化任务分解 + 验收标准 |
 | ★☆☆ | 每日日志 | `backend/DAILY/DayXXX.md` | 当天产出 + 明日计划 |
 | ★☆☆ | 周复盘 | `backend/REVIEW/WeekXX.md` | 阶段性总结 |
-| ★☆☆ | 审计报告 | `docs/reports/Architecture-Consistency-Report.md` | 文档-代码一致性检查 |
+| ★☆☆ | 审计报告 | `docs/reports/Architecture-Consistency-Report-v1.2.md` | 文档-代码一致性检查 |
 | ★☆☆ | SQL 审计 | `docs/reports/SQL-Audit-Report.md` | SQL 文件一致性审计 |
 | ★☆☆ | DB Changelog | `docs/decision-log/0012-database-changelog.md` | 数据库变更记录 |
 | ★☆☆ | SQL README | `backend/src/main/resources/sql/README.md` | SQL 初始化说明 |
@@ -41,8 +41,8 @@
 - **已完成**：Phase 3 中间件武装全部收官（Redis + RabbitMQ + Docker + Linux 部署，89/89 测试全绿，第三阶段检查点达成）
 - **下一步**：Day 64 — OpenAI API 基础（进入第四阶段 AI 集成）
 - **Baseline V2.1 内容**：JWT 生产环境要求通过 compose 注入密钥；测试环境通过 application-test.yml 提供隔离密钥、Spring Bean 清理、Profiles（dev/prod）、Actuator（仅 health）、Dockerfile（multi-stage + non-root）、compose backend 服务、启动冒烟测试（ApplicationContextLoadTest）、前端路由修复 + Dashboard 页面
-- **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限、分页查询、全局异常处理、@Valid 校验、报警规则引擎、AOP 操作日志、Postman 测试集、Vue 3 前端（登录/仪表盘/设备/报警/日志 6 页面）
-- **待实现**：Phase 3-B Redis 缓存、RabbitMQ 消息、Elasticsearch 搜索、前端工业化视觉升级（见 DESIGN.md）
+- **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限、分页查询、全局异常处理、@Valid 校验、报警规则引擎、AOP 操作日志、Postman 测试集、Vue 3 前端（登录/仪表盘/设备/报警/日志 6 页面）、Redis 缓存（Spring Cache + Redisson 分布式锁）、RabbitMQ 消息（工作队列/发布订阅/DLQ/延迟队列）、Docker 容器化 + Nginx 反代、Linux 部署
+- **待实现**：前端工业化视觉升级（见 DESIGN.md）、ELK 日志（Day 101，可选）
 
 ---
 
@@ -86,6 +86,12 @@
 | RabbitMQ | 4.0-management | compose.yml 锁定 |
 | Nacos | 2.4.3 | compose.yml 锁定 |
 | Elasticsearch | 8.17.0 | compose.yml 锁定 |
+| Jedis | 5.2.0 | Redis 客户端（Day 43） |
+| Redisson | 3.39.0 | 分布式锁（Day 46） |
+| Guava | 33.4.0-jre | RateLimiter 限流（Day 37） |
+| PageHelper | 2.1.0 | 分页（Day 25） |
+| Knife4j | 4.5.0 | API 文档（ADR 0013） |
+| JJWT | 0.12.6 | JWT 认证（Day 23） |
 
 > **规则**：未经讨论，不得升级任何依赖版本。新增依赖必须在 ADR 中记录理由。
 
@@ -112,7 +118,15 @@ Industrial-AI-Hub/
 │       │   ├── mapper/        # MyBatis Mapper
 │       │   ├── entity/        # 实体类
 │       │   ├── dto/           # DTO + ApiResponse
-│       │   └── config/        # 配置类
+│       │   ├── config/        # 配置类
+│       │   ├── security/      # JWT Filter + Auth/RateLimit 拦截器
+│       │   ├── aop/           # 操作日志切面
+│       │   ├── annotation/    # @RequireRole / @OperationLog
+│       │   ├── enums/         # ErrorCode / RoleEnum
+│       │   ├── exception/     # BusinessException + 全局异常处理
+│       │   ├── mq/            # RabbitMQ 生产者/消费者
+│       │   ├── rule/          # 报警规则引擎
+│       │   └── util/          # JwtUtils 等工具类
 │       └── code/day01~22/     # 学习代码（不修改）
 ├── docs/
 │   ├── Architecture/          # 架构文档
@@ -137,4 +151,4 @@ Industrial-AI-Hub/
 
 ---
 
-> 最后更新：2026-08-04 | 维护者：AI 助手 + hula0710
+> 最后更新：2026-08-16 | 维护者：AI 助手 + hula0710

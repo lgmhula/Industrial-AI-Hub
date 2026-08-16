@@ -35,11 +35,11 @@
 ## 3. 当前状态
 
 - **基线**：v2.1.0 已冻结（Tag: `v2.1.0`，Commit: `ec9a158`，Release Gate: **GO**）
-- **阶段**：Phase 3 学习路线 — Redis（Phase 3-A 基础设施稳定化已完成，已合并回 main）
+- **阶段**：Phase 3 学习路线已收官（Redis/RabbitMQ/Docker/Linux 全部完成），下一步 Phase 4 AI 集成
 - **分支**：`main`（codex/phase-3a 已合并，归档保留）
 - **Phase 3-A 归档**：`docs/plans/phase3-a-infrastructure-stabilization.md` + `docs/reports/phase3-a-plan-audit*.md`
-- **已完成**：Phase 3-A T1-T6 + Day 43-48 Redis + Day 49-56 RabbitMQ + Day 57-59 Docker + Day 60-61 Linux 基础/部署资产（89/89 测试全绿）
-- **下一步**：Day 62 — Nginx 配置：静态资源、负载均衡、HTTPS
+- **已完成**：Phase 3 中间件武装全部收官（Redis + RabbitMQ + Docker + Linux 部署，89/89 测试全绿，第三阶段检查点达成）
+- **下一步**：Day 64 — OpenAI API 基础（进入第四阶段 AI 集成）
 - **Baseline V2.1 内容**：JWT 生产环境要求通过 compose 注入密钥；测试环境通过 application-test.yml 提供隔离密钥、Spring Bean 清理、Profiles（dev/prod）、Actuator（仅 health）、Dockerfile（multi-stage + non-root）、compose backend 服务、启动冒烟测试（ApplicationContextLoadTest）、前端路由修复 + Dashboard 页面
 - **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限、分页查询、全局异常处理、@Valid 校验、报警规则引擎、AOP 操作日志、Postman 测试集、Vue 3 前端（登录/仪表盘/设备/报警/日志 6 页面）
 - **待实现**：Phase 3-B Redis 缓存、RabbitMQ 消息、Elasticsearch 搜索、前端工业化视觉升级（见 DESIGN.md）

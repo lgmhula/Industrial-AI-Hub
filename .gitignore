@@ -2,12 +2,30 @@
 # Industrial AI Hub — .gitignore
 # ========================
 .env
-.idea/
-.workbuddy/
-*.iml
 out/
 *.log
+
+# macOS
 .DS_Store
+
+# ========================
+# IDE & AI 代理产物（多 AI 协作卫生，避免藏污纳垢）
+# Codex / DeepSeek / Qoder / Workbuddy / Cursor / Claude / Aider 等
+# ========================
+.idea/
+.vscode/
+*.iml
+.qodana/
+.qoder/
+.workbuddy/
+.codex/
+.cursor/
+.claude/
+.aider/
+.copilot/
+.amazonq/
+.windsurf/
+.trae/
 
 # Java
 backend/target/

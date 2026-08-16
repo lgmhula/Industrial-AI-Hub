@@ -62,6 +62,7 @@
 - **代码风格** — 遵循 `.editorconfig`（4 空格缩进、UTF-8、LF 换行）
 - **构造器注入** — 不使用 `@Autowired` 字段注入
 - **命名规范** — 包名小写、类名 PascalCase、方法/变量 camelCase
+- **多 AI 协作卫生** — 禁止提交 AI/IDE 产物（`.qoder/`/`.workbuddy/`/`.codex/`/`.cursor/`/`.idea/`/`.vscode/`/`.DS_Store` 等，已列入 `.gitignore`）；需要留档的分析/审计产物放入 `docs/reports/` 并显式提交，勿留在工作区或 `.tmp`/`.bak`
 
 ### 4.3 执行后
 - [ ] 更新 `backend/DAILY/DayXXX.md`（今日产出 + 明日计划）

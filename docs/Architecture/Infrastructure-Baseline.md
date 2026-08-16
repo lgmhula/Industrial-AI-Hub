@@ -30,7 +30,7 @@
 | Redis Sentinel (×3) | 7.4.0 | 26379-81 | Configured | 高可用预留（full profile） |
 | RabbitMQ | 4.0 | 5672, 15672 | Active | Phase 3 已集成 |
 | Nacos | 2.4.3 | 8848, 9848 | Configured | 预留（未纳入 16 周路线） |
-| MinIO | RELEASE.2025-09-07 | 9000, 9001 | Configured | 预留（未纳入 16 周路线） |
+| MinIO | RELEASE.2025-09-07 | 9000, 9001 | Configured | Phase 5 预留（对象存储/RAG 文档） |
 | Elasticsearch | 8.17 | 9200, 9300 | Configured | ELK 日志（Day 101，可选） |
 
 ---

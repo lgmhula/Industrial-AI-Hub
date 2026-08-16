@@ -41,48 +41,58 @@ Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台�
 
 ## 快速开始
 
+> 完整「从零复刻」指南（环境变量、双启动路径、故障排查）见 [`docs/SETUP.md`](docs/SETUP.md)。
+
 ### 环境要求
 
-- JDK 25
-- Docker Desktop / OrbStack
+- JDK 25 (Eclipse Temurin)
+- Docker Desktop / OrbStack（含 Compose v2）
 - Node.js 20+
-- Maven（项目内置 Maven Wrapper，无需手动安装）
+- Maven 无需手动安装（项目内置 Maven Wrapper）
 
-### 1. 启动基础设施
+### 1. 配置环境变量
 
 ```bash
-# 启动全部基础设施 + 后端应用（13 个服务）
+cp .env.example .env
+# 编辑 .env：至少设置 MYSQL_ROOT_PASSWORD / REDIS_PASSWORD / RABBITMQ_DEFAULT_PASS / JWT_SECRET（≥32 字符）
+```
+
+### 2. 启动基础设施 + 后端（路径 A：全容器）
+
+```bash
 docker compose up -d
+# 默认启动 4 个核心服务：mysql / redis / rabbitmq / backend
+# 全量 13 服务：docker compose --profile full up -d
 ```
 
-### 2. 初始化数据库
+数据库 `reboot` 在容器首次启动时自动初始化（7 张表 + 默认角色 + admin 账户，见 `mysql/init/`）。
 
-容器首次启动会自动执行 `backend/src/main/resources/sql/init.sql`（含 7 张表 + 默认角色 + admin 账户）。
+默认管理员：`admin / admin123`
 
-默认管理员：
-```
-用户名: admin
-密码: admin123
-```
-
-### 3. 启动后端
+### 3. 或：后端本地开发（路径 B：热更）
 
 ```bash
+docker compose up -d mysql redis rabbitmq
 cd backend
-./mvnw spring-boot:run
+./mvnw spring-boot:run     # http://localhost:8080
 ```
-
-应用启动在 `http://localhost:8080`。
 
 ### 4. 启动前端
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev     # http://localhost:5173（Vite 代理 /api → localhost:8080）
 ```
 
-前端启动在 `http://localhost:5173`（Vite 代理已配置 `/api` → `localhost:8080`）。
+### 5. 验证
+
+```bash
+curl http://localhost:8080/actuator/health   # 期望 {"status":"UP"}
+# Knife4j（仅 dev）：http://localhost:8080/doc.html
+```
+
+登录：`admin / admin123`
 
 ---
 

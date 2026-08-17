@@ -22,9 +22,10 @@
 | ★★★ | 应用架构 | `docs/Architecture/Application-Architecture.md` | 技术栈 + 分层 + API |
 | ★★☆ | 从零复刻指南 | `docs/SETUP.md` | 克隆 → 配置 → 运行 → 验证 全流程 |
 | ★★☆ | 基础设施基线 | `docs/Architecture/Infrastructure-Baseline.md` | Docker/网络/端口规范 |
-| ★★☆ | 架构决策记录 | `docs/decision-log/0001~0017` | 关键技术决策理由（含 0015 密钥 SSOT / 0016 charset / 0017 分支策略） |
+| ★★☆ | 架构决策记录 | `docs/decision-log/0001~0018` | 关键技术决策理由（含 0015 密钥 SSOT / 0016 charset / 0017 分支策略 / 0018 CI） |
 | ★★☆ | Phase 3-A 计划 | `docs/plans/phase3-a-infrastructure-stabilization.md` | 基础设施稳定化任务分解 + 验收标准 |
 | ★★☆ | 新设备部署手册 | `docs/reports/deploy-runbook-new-device.md` | 全量坑位 + 一键部署指令（副本免扫描） |
+| ★★☆ | 参与贡献指南 | `CONTRIBUTING.md` | 分支流程 + 自测清单 + 工程约束摘要 |
 | ★☆☆ | 每日日志 | `backend/DAILY/DayXXX.md` | 当天产出 + 明日计划 |
 | ★☆☆ | 周复盘 | `backend/REVIEW/WeekXX.md` | 阶段性总结 |
 | ★☆☆ | 审计报告 | `docs/reports/Architecture-Consistency-Report-v1.2.md` | 文档-代码一致性检查 |

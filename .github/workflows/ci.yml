@@ -1,0 +1,53 @@
+# ============================================================
+# Industrial AI Hub — CI（GitHub Actions）
+# 门禁：任意 PR / main 推送 → 后端构建+89 测试（H2 隔离，无需本机 MySQL）
+#       + 前端 npm ci + build。全绿才允许合并（配合分支保护）。
+# 详见 docs/decision-log/0018-ci-and-test-isolation.md
+# ============================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend — JDK 25 + mvnw test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Build & Test（H2 隔离，无外部依赖）
+        working-directory: backend
+        run: ./mvnw -B test
+
+  frontend:
+    name: Frontend — Node 22 + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install & Build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build

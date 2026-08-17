@@ -2,8 +2,8 @@
 target/
 out/
 
-# Learning code (not needed in image)
-**/code/
+# Learning code (backend/learning/ — 不参与镜像构建)
+learning/
 
 # IDE / OS
 .idea/

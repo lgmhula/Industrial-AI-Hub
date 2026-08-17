@@ -32,7 +32,7 @@ spring:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_DEFAULT_USER:admin}
-    password: ${RABBITMQ_DEFAULT_PASS:admin123}
+    password: ${RABBITMQ_DEFAULT_PASS}
     virtual-host: /
     listener:
       simple:

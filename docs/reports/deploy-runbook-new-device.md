@@ -3,7 +3,7 @@
 > 适用：任意全新设备（Windows/macOS/Linux）从 0 部署 Industrial AI Hub 全栈。
 > 本手册固化 2026-08-17 Windows 副本首次部署踩过的全部坑位与对策，
 > **执行者无需再扫描排查**，按序执行即可。
-> 适用提交：`main` ≥ `fa8f1b8`（含 ADR 0015 密钥 SSOT / `.gitattributes` / backend env 注入 / ADR 0016 charset-safe init）。
+> 适用提交：`main` ≥ `fa8f1b8`（含 ADR 0015 密钥 SSOT / `.gitattributes` / backend env 注入 / ADR 0019 Flyway 迁移）。
 
 ---
 
@@ -53,7 +53,7 @@ docs/reports/deploy-runbook-new-device.md 执行，坑位已列明，不要重�
 4. 端口预检：3307/6379/5672/8080/5173/8001/15672 空闲；冲突则改 .env 端口映射。
 5. 清理旧卷（若有旧部署残留）：docker compose down -v --remove-orphans
 6. docker compose up -d（mysql/redis/rabbitmq/backend 四核心），等待全部 healthy
-   （MySQL 首次启动经 charset-safe init 脚本以 utf8mb4 加载 init.sql + seed_test_data.sql，见 ADR 0016）。
+   （mysql 容器仅建空库；backend 启动时由 Flyway 经 JDBC utf8mb4 自动迁移 V1 schema + V2 seed，见 ADR 0019）。
 7. 验收：
    a. curl http://localhost:8080/actuator/health → {"status":"UP"}
    b. POST /api/auth/login（admin/admin123）→ code 200 + JWT
@@ -84,7 +84,7 @@ docs/reports/deploy-runbook-new-device.md 执行，坑位已列明，不要重�
 | 8 | 镜像源限速/断流 | 拉取慢、偶发失败 | 网络到 Docker Hub 抖动 | 重试即可；ES 2GB 镜像提前拉取 |
 | 9 | seed 数据不符预期 | 用户数/表数不对 | 卷未清或 init 未执行 | 见 #7；正确结果：7 张表 + admin 等 21 个用户 |
 | 10 | Vite chunk>500kB / npm audit high | 构建警告 | ECharts/Element Plus 按需引入不彻底；依赖告警 | 非阻塞，忽略（已入 TECH-DEBT #13） |
-| 11 | 中文种子数据乱码（双重编码） | device/role/alarm 中文乱码 | 官方 mysql 镜像 init 客户端不带 charset 参数，UTF-8 被按 latin1/cp1252 解读 | **已修复**（ADR 0016：init 包装脚本显式 `--default-character-set=utf8mb4`）；既有库需 `docker compose down -v` 后重灌 |
+| 11 | 中文种子数据乱码（双重编码） | device/role/alarm 中文乱码 | 官方 mysql 镜像 init 客户端不带 charset 参数，UTF-8 被按 latin1/cp1252 解读 | **已修复**（Flyway 经 JDBC utf8mb4 加载，ADR 0019 取代 0016 CLI 包装脚本）；既有库需 `docker compose down -v` 后重灌 |
 | 12 | ES 数据目录 root 归属 | ES 崩溃：node.lock AccessDeniedException | WSL2/Linux 下 bind mount 目录由 daemon 创建为 root:root，ES(uid 1000) 不可写 | `docker run --rm -v .../elasticsearch:/data alpine chown -R 1000:1000 /data` 后 restart；全新 clone 复现时再次执行 |
 
 ---

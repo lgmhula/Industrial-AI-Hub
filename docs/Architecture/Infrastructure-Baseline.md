@@ -12,6 +12,10 @@
 
 - **Unified Specification** — One compose file, one network, one .env
 - **Configuration as Code** — All configs versioned in Git
+- **Secrets SSOT** — `.env` is the single source of truth for local dev secrets
+  (ADR 0015): dev loads it via `spring.config.import`; Compose interpolates it;
+  test uses isolated placeholders; prod injects via container env. No secret copies
+  in IDE run configurations or `application*.yml`.
 - **Separation of Concerns** — config / data / logs in separate directories
 - **Decision Log** — Every architectural choice is documented
 - **Config vs Runtime** — This document tracks **configuration state**. Runtime via `docker compose ps`.

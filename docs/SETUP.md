@@ -51,7 +51,15 @@ cp .env.example .env
 | `RABBITMQ_DEFAULT_PASS` | RabbitMQ 密码 |
 | `JWT_SECRET` | **≥32 字符**（HS256 需 256 bits），否则后端启动即失败 |
 
-> `.env` 已被 `.gitignore` 排除，不会入库；`.env.example` 是唯一提交的模板。
+> `.env` 已被 `.gitignore` 排除，不会入库；`.env.example` 是唯一提交的模板（只含变量名与占位值，禁止真实密钥）。
+>
+> **`.env` 是本地开发环境敏感配置的唯一事实源（ADR 0015）**：
+> - Docker Compose 自动读取它（`${VAR}` 插值）。
+> - **dev 模式（IDEA / 命令行）**：`application-dev.yml` 经 `spring.config.import` 自动读取根 `.env`，
+>   **无需手动 `source`，也无需在 IDEA Run Configuration 手填任何密钥**。
+> - **test**：使用 `application-test.yml` 隔离占位密钥，不读 `.env`。
+> - **prod**：由容器环境变量注入（`compose.yml`），不依赖本地 `.env`。
+> - 优先级：**OS 环境变量 > .env > application.yml 默认值**。
 
 ---
 
@@ -86,6 +94,12 @@ cd backend
 ```
 
 > 后端默认 profile 是 `dev`（`application.yml`：`SPRING_PROFILES_ACTIVE` 缺省 `dev`）；容器内强制 `prod`（`compose.yml` 注入）。
+>
+> **密钥自动加载（无需手动 `source`）**：dev profile 经 `spring.config.import` 自动读取项目根目录 `.env`。
+> 双候选路径（`../.env` / `./.env`）同时兼容**命令行（工作目录 `backend/`）**与 **IDEA（工作目录为项目根或模块目录）**，
+> 均无需手填任何环境变量。
+> IDEA 运行 `IndustrialAiHubApplication` 同样自动生效：**Run Configuration 中不要手填任何密钥环境变量**
+> （旧配置若残留 `JWT_SECRET` / `REDIS_PASSWORD` 等，先删除并 File → Reload All from Disk）。
 
 ### 3.3 全量 13 服务（可选）
 
@@ -151,6 +165,8 @@ mysql -u root -p reboot < backend/src/main/resources/sql/seed_test_data.sql   # 
 | 现象 | 原因 | 解法 |
 |------|------|------|
 | 后端启动即崩 | `JWT_SECRET` 为空或 <32 字符 | `.env` 里设置 ≥32 字符密钥 |
+| IDEA 启动报 `Redis WRONGPASS` / `Unable to connect to Redis` | 旧 Run Configuration 手填的密钥与 `.env` 漂移，或漏配 `REDIS_PASSWORD` | 见 §3.2：删除 Run Configuration 中手填的环境变量 → File → Reload All from Disk → 重新 Run（dev 自动读 `.env`） |
+| IDEA / 命令行启动报缺密钥（`Could not resolve placeholder`） | `.env` 缺失，或工作目录不是 `backend/` | `cp .env.example .env` 并填真实值；确认在 `backend/` 下启动（`.env` 相对路径 `../.env`） |
 | 端口被占用 | 3307/6379/5672/8080/5173 冲突 | `lsof -i :端口` 排查，或改 `.env`/compose 端口映射 |
 | `docker compose up` 报缺变量 | 未 `cp .env.example .env` | 执行 §2 |
 | 前端登录 403 | CORS 白名单只放行 5173 | 保持 Vite 端口 5173，或改 `.env` `CORS_ORIGINS` |
@@ -167,7 +183,8 @@ mysql -u root -p reboot < backend/src/main/resources/sql/seed_test_data.sql   # 
 | 总计划 + 每日任务 | `backend/DAILY_ROADMAP.md` |
 | 技术栈 + 分层 + API | `docs/Architecture/Application-Architecture.md` |
 | Docker/网络/端口规范 | `docs/Architecture/Infrastructure-Baseline.md` |
-| 关键技术决策 | `docs/decision-log/0001~0014` |
+| 关键技术决策 | `docs/decision-log/0001~0015` |
+| 开发环境密钥来源（SSOT） | `docs/decision-log/0015-dev-env-secrets-ssot.md` + `AGENTS.md §8` |
 | 数据库变更记录 | `docs/decision-log/0012-database-changelog.md` |
 | SQL 初始化说明 | `backend/src/main/resources/sql/README.md` |
 | AI 执行入口 + 行为约束 | `AGENTS.md` |

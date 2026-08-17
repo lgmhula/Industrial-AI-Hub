@@ -7,6 +7,9 @@ jwt:
   expiration-ms: 86400000
 
 spring:
+  # 测试环境完全隔离：不读取本地 .env，密钥一律使用占位隔离值
+  datasource:
+    password: test-password-for-context-load
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration

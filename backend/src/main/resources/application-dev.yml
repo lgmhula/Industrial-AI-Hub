@@ -2,6 +2,17 @@
 # Industrial AI Hub — Dev Profile
 # ========================
 
+# 开发环境密钥唯一事实源：项目根目录 .env（见 AGENTS.md §8 / docs/SETUP.md §2）
+# - 优先级：OS 环境变量 > .env > application.yml 默认值
+# - 仅 dev profile 加载；test 使用隔离密钥（application-test.yml），prod 由容器环境注入
+# - optional: .env 缺失时不报错；但密钥缺失会因 application.yml 中 ${VAR} 无默认值而显式启动失败（fail-fast）
+# - 双候选路径：兼容两种工作目录——命令行（backend/，命中 ../.env）与 IDEA（项目根，命中 ./.env）
+spring:
+  config:
+    import:
+      - optional:file:../.env[.properties]
+      - optional:file:.env[.properties]
+
 logging:
   level:
     dev.reboot: DEBUG

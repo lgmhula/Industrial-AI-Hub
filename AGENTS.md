@@ -22,7 +22,7 @@
 | ★★★ | 应用架构 | `docs/Architecture/Application-Architecture.md` | 技术栈 + 分层 + API |
 | ★★☆ | 从零复刻指南 | `docs/SETUP.md` | 克隆 → 配置 → 运行 → 验证 全流程 |
 | ★★☆ | 基础设施基线 | `docs/Architecture/Infrastructure-Baseline.md` | Docker/网络/端口规范 |
-| ★★☆ | 架构决策记录 | `docs/decision-log/0001~0014` | 关键技术决策理由 |
+| ★★☆ | 架构决策记录 | `docs/decision-log/0001~0015` | 关键技术决策理由（含 0015 密钥 SSOT） |
 | ★★☆ | Phase 3-A 计划 | `docs/plans/phase3-a-infrastructure-stabilization.md` | 基础设施稳定化任务分解 + 验收标准 |
 | ★☆☆ | 每日日志 | `backend/DAILY/DayXXX.md` | 当天产出 + 明日计划 |
 | ★☆☆ | 周复盘 | `backend/REVIEW/WeekXX.md` | 阶段性总结 |
@@ -151,6 +151,47 @@ Industrial-AI-Hub/
 - **认证方式**：JWT — JwtUtils 生成/验证/解析 + AuthService 登录/注册（已实现，Day 23）
 - **权限模型**：RBAC — 拦截器 AuthInterceptor + @RequireRole 注解（已实现，Day 24）
 - **逻辑删除**：device 表 is_deleted + softDeleteById（已实现，Day 24 post-audit）
+
+---
+
+## 8. 密钥与敏感配置来源（SSOT，ADR 0015）
+
+> **项目根目录 `.env` 是本地开发环境敏感配置的唯一事实源（Single Source of Truth）。**
+
+### 8.1 加载机制
+
+| 环境 | 密钥来源 | 机制 |
+|------|----------|------|
+| dev（IDEA / 命令行） | 根目录 `.env` | `application-dev.yml` 经 `spring.config.import` 自动读取（双候选 `../.env` / `./.env`，兼容 backend/ 与项目根两种工作目录）；**无需手工设置任何环境变量** |
+| test | `application-test.yml` 隔离占位值 | 不读取本地 `.env` |
+| prod（Docker 容器） | 容器环境变量 | `compose.yml` 经 `${VAR}` 插值注入；**不依赖本地 `.env`** |
+
+### 8.2 优先级
+
+```
+dev : OS 环境变量 > .env > application.yml 默认值
+docker : .env → Docker Compose → Container Environment
+prod : 由部署环境注入，不依赖开发 .env
+```
+
+### 8.3 强制规则（违反即视为缺陷）
+
+- 禁止将真实密钥提交 Git（`.env` 已入 `.gitignore`）。
+- 禁止在 IDEA Run Configuration / 其他 IDE 配置中手工复制密钥（会导致漂移，见 ADR 0015 事故）。
+- 禁止在 `application*.yml` 中硬编码密钥。
+- `.env.example` 只保留变量名与说明，禁止真实密钥。
+- 敏感变量（`JWT_SECRET` / `REDIS_PASSWORD` / `MYSQL_PASSWORD`）**禁止使用 `${VAR:}` 空默认**，
+  缺失必须显式启动失败（fail-fast），不得静默退化为空字符串。
+- IDEA 启动前若 Run Configuration 残留旧环境变量（如 `JWT_SECRET`、`REDIS_PASSWORD`），
+  先删除（Run → Edit Configurations → 环境变量），再 File → Reload All from Disk。
+
+### 8.4 排查速查
+
+| 现象 | 检查 |
+|------|------|
+| IDEA 启动报 Redis WRONGPASS / 缺密钥 | `.env` 是否存在；Run Configuration 是否残留手填密钥；是否 Reload 配置 |
+| 启动报缺密钥（Could not resolve placeholder） | `.env` 是否存在且含密钥；工作目录为 `backend/` 或项目根均可（dev 双候选路径自动定位根 `.env`） |
+| 怀疑密钥漂移 | `grep -rn '<密钥值>' .idea/ backend/src/main/resources/` 应无命中 |
 
 ---
 

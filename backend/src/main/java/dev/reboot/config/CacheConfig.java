@@ -12,6 +12,10 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 import java.time.Duration;
 
 /**
@@ -57,11 +61,16 @@ public class CacheConfig {
     @Bean
     @Profile("!test")
     public RedisCacheManager redisCacheManager(RedisConnectionFactory factory) {
+        // ObjectMapper 需注册 JavaTimeModule：UserVO/DeviceVO 含 LocalDateTime，
+        // 缺失会导致 @Cacheable 写缓存时序列化失败（500）。
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         RedisCacheConfiguration defaults = RedisCacheConfiguration.defaultCacheConfig()
                 .prefixCacheNameWith("cache:")
                 .entryTtl(DEFAULT_TTL)
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(new GenericJackson2JsonRedisSerializer()))
+                        .fromSerializer(new GenericJackson2JsonRedisSerializer(objectMapper)))
                 .disableCachingNullValues();
         return RedisCacheManager.builder(factory)
                 .cacheDefaults(defaults)

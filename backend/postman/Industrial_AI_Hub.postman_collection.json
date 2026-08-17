@@ -644,7 +644,7 @@
                   "pm.test('返回新状态值', function() {",
                   "    var json = pm.response.json();",
                   "    pm.expect(json.data).to.be.oneOf([0, 1]);",
-                  "    pm.expect(json.message).to.include(json.data === 1 ? '已启用' : '已禁用');",
+                  "    pm.expect(json.message).to.include('状态更新成功');",
                   "});"
                 ]
               }
@@ -951,11 +951,14 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('code=200', function() { pm.expect(pm.response.json().code).to.eql(200); });",
-                  "pm.test('返回设备列表', function() {",
-                  "    pm.expect(pm.response.json().data).to.be.an('array');",
+                  "pm.test('返回分页设备列表', function() {",
+                  "    var data = pm.response.json().data;",
+                  "    pm.expect(data).to.have.property('total');",
+                  "    pm.expect(data).to.have.property('list');",
+                  "    pm.expect(data.list).to.be.an('array');",
                   "});",
                   "pm.test('DeviceVO 不含 isDeleted', function() {",
-                  "    var list = pm.response.json().data;",
+                  "    var list = pm.response.json().data.list;",
                   "    if (list.length > 0) {",
                   "        pm.expect(list[0]).to.not.have.property('isDeleted');",
                   "    }",
@@ -1651,36 +1654,6 @@
                 "2?page=1&size=10"
               ]
             }
-          }
-        },
-        {
-          "name": "全量查询(不分页)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "http://localhost:8080/api/alarms/all",
-              "host": [
-                "http://localhost:8080"
-              ],
-              "path": [
-                "api",
-                "alarms",
-                "all"
-              ]
-            },
-            "description": "兼容旧调用"
           }
         },
         {

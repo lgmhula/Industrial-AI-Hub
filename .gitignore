@@ -5,6 +5,9 @@
 out/
 *.log
 
+# 本地 Compose 覆盖（机器级补丁，禁止入库；部署修复一律走仓库 main）
+compose.override.yml
+
 # macOS
 .DS_Store
 

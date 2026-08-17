@@ -1,0 +1,39 @@
+# ============================================================
+# Industrial AI Hub — Git Attributes（跨平台换行符统一）
+# 背景：Windows 检出时 autocrlf 将 mvnw/*.sh 转成 CRLF，
+#       容器内 shebang 失效导致 Docker 构建 exit 127（2026-08-17 副本事故）。
+# 规则：本文件提交后，所有检出/提交的换行符由 git 按属性强制，
+#       不再受各机器 core.autocrlf 设置影响（.gitattributes 优先级最高）。
+# ============================================================
+
+# 文本文件默认规范化（仓库内统一 LF，检出按平台）
+* text=auto
+
+# ---- 必须 LF：容器内执行/解析的脚本与配置（Windows 检出也不得转 CRLF）----
+*.sh         text eol=lf
+mvnw         text eol=lf
+mvnw.cmd     text eol=lf
+Dockerfile   text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf
+*.sql        text eol=lf
+*.properties text eol=lf
+*.xml        text eol=lf
+*.json       text eol=lf
+*.md         text eol=lf
+*.env.example text eol=lf
+*.cnf        text eol=lf
+.gitignore   text eol=lf
+.gitattributes text eol=lf
+
+# ---- 必须 CRLF：Windows 批处理（防御性，cmd 对 LF 亦兼容）----
+*.bat        text eol=crlf
+
+# ---- 二进制（禁止文本化处理）----
+*.jar        binary
+*.png        binary
+*.jpg        binary
+*.jpeg       binary
+*.gif        binary
+*.ico        binary
+*.woff2      binary

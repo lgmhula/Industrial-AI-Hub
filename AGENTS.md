@@ -155,7 +155,7 @@ Industrial-AI-Hub/
 
 ## 7. 关键约定
 
-- **数据库**：`reboot`，7 张表（user/role/user_role/device/device_data/alarm/operation_log）
+- **数据库**：`reboot`，7 张表（user/role/user_role/device/device_data/alarm/operation_log）；schema 由 **Flyway** 管理（`backend/src/main/resources/db/migration/`，ADR 0019），变更 = 新增 `V###__*.sql`
 - **API 前缀**：`/api/`
 - **端口**：Spring Boot 8080，MySQL(Docker) 3307，Redis 6379
 - **密码加密**：BCrypt（已实现，Day 23）

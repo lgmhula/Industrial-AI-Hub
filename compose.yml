@@ -27,10 +27,7 @@ services:
       TZ: Asia/Shanghai
     volumes:
       - ./mysql/conf/my.cnf:/etc/mysql/conf.d/my.cnf:ro
-      # charset-safe 初始化（ADR 0016）：SQL 由 01-init-db.sh 以 --default-character-set=utf8mb4 显式加载，
-      # 修复官方镜像 init 客户端无 charset 参数导致的中文种子数据双重编码
-      - ./backend/src/main/resources/sql:/init-sql:ro
-      - ./mysql/init/01-init-db.sh:/docker-entrypoint-initdb.d/01-init-db.sh:ro
+      # schema 由应用层 Flyway 管理（ADR 0019），mysql 容器仅创建空库，不再加载 SQL 初始化脚本
       - ./mysql/data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]

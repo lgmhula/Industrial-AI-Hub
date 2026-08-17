@@ -77,6 +77,16 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Flyway: schema 版本化迁移（ADR 0019，版本由 Spring Boot 3.5 BOM 管理） -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+
         <!-- Redis Client (Day 43: basic data types practice) -->
         <dependency>
             <groupId>redis.clients</groupId>

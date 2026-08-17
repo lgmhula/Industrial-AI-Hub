@@ -1,56 +1,49 @@
 # SQL 脚本目录
 
-> 最后更新：2026-07-27 | 维护者：hula0710 + AI
+> 最后更新：2026-08-17 | 维护者：hula0710 + AI
+
+## 说明
+
+> ⚠️ **Schema 已由 Flyway 接管（ADR 0019）**：活动迁移脚本已移至
+> `backend/src/main/resources/db/migration/`，由应用启动时经 JDBC 自动执行（utf8mb4，无乱码）。
+> 本目录仅保留历史存档与说明。
 
 ## 目录结构
 
 ```
 sql/
 ├── README.md              ← 本文件
-├── init.sql               ← Schema + 必需初始化（SSOT：默认角色 + admin）
-├── seed_test_data.sql     ← 可选演示数据（SSOT：20用户/50设备/12告警/采集数据）
-└── archive/               ← 历史存档
-    ├── migrate_v1.1.sql   ← 已合入 init.sql，不再执行
-    └── seed_test_data_v1_device1_legacy.sql  ← 旧 seed 存档（设备1 的 24h 序列）
+└── archive/               ← 历史存档（不再执行）
+    ├── migrate_v1.1.sql   ← 已合入 V1__baseline.sql，不再执行
+    └── seed_test_data_v1_device1_legacy.sql  ← 旧 seed 存档
 ```
 
-## 数据库初始化
+活跃迁移（在 `db/migration/`）：
 
-### 方式一：Docker Compose（推荐）
+| 版本 | 文件 | 内容 |
+|------|------|------|
+| V1 | `V1__baseline.sql` | Schema + 必需初始化（7 表 + 约束 + 默认角色/admin） |
+| V2 | `V2__seed_test_data.sql` | 演示数据（20 用户 + 50 设备 + 12 告警 + 采集数据） |
 
-项目根目录执行：
+## 迁移机制（Flyway，ADR 0019）
+
+- **全新库**：backend 首次启动 → Flyway 自动执行 V1 → V2；
+- **既有库**：`baseline-on-migrate + baseline-version=2` 基线到 V2（跳过重放），零干预升级；
+- **未来变更**：新增 `V3__描述.sql`，所有环境自动升级；
+- **charset**：经 JDBC（Connector/J 9 默认 UTF-8）执行，中文数据无双重编码（取代 ADR 0016 CLI 包装脚本）。
+
+## 手动执行（可选，仅调试用）
 
 ```bash
-docker compose up -d mysql
-```
-
-数据库 `reboot` 和 root 密码由 `compose.yml` + `.env` 统一管理。容器首次启动时，`compose.yml` 将本目录的 `init.sql` + `seed_test_data.sql` 直接挂载到 `/docker-entrypoint-initdb.d/` 自动执行。
-
-### 方式二：手动执行
-
-```bash
-# 1. 先创建数据库（如尚未创建）
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS reboot DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_unicode_ci;"
-
-# 2. 执行初始化
-mysql -u root -p reboot < backend/src/main/resources/sql/init.sql
-
-# 3. （可选）灌入测试数据
-mysql -u root -p reboot < backend/src/main/resources/sql/seed_test_data.sql
+mysql --default-character-set=utf8mb4 -u root -p reboot < backend/src/main/resources/db/migration/V1__baseline.sql
+mysql --default-character-set=utf8mb4 -u root -p reboot < backend/src/main/resources/db/migration/V2__seed_test_data.sql
 ```
-
-### 方式三：IDEA 内执行
-
-1. 打开 `init.sql`
-2. 右键 → Run 'init.sql'
-3. 在弹出的数据源选择中指定 `reboot` 数据库
 
 ## 命名规范
 
-- **全量初始化**：`init.sql` — 始终反映最新 Schema（Single Source of Truth）
-- **增量迁移**：`V###__description.sql` — 未来如多人协作，按 Flyway 命名
-- **种子数据**：以 `R__` 或 `seed_` 前缀
-- **历史存档**：放入 `archive/`
+- **版本迁移**：`V<序号>__<描述>.sql`（Flyway 标准，严格递增，已执行不可改）
+- **历史存档**：放入 `sql/archive/`
 
 ## 当前 Schema 版本
 
@@ -60,25 +53,7 @@ mysql -u root -p reboot < backend/src/main/resources/sql/seed_test_data.sql
 
 ## 注意事项
 
-- **不要手动执行** `archive/migrate_v1.1.sql` — 已完全合入 init.sql，重复执行会报 Error 3822（Duplicate constraint）
-- Schema 变更后，同步更新 `docs/decision-log/0012-database-changelog.md`
-- 禁止在 SQL 中硬编码数据库名，统一由 compose.yml 管理
-
-## Docker 初始化说明
-
-`compose.yml` 将本目录**只读挂载**到 `/init-sql`，由 `mysql/init/01-init-db.sh`
-（挂载为 `/docker-entrypoint-initdb.d/01-init-db.sh`）以显式
-`--default-character-set=utf8mb4` 依次加载（见 ADR 0016）：
-
-1. `init.sql` — Schema + 必需初始化（7 张表 + 约束 + 默认角色/管理员）
-2. `seed_test_data.sql` — 可选演示数据（20 用户 + 50 设备 + 12 告警 + 采集数据）
-
-> 显式指定 utf8mb4 的原因：官方 mysql 镜像 init 客户端不带 `--default-character-set`，
-> 中文种子数据会被双重编码入库（2026-08-17 实证，详见 ADR 0016 / runbook 坑位 #11）。
->
-> 手动执行路径（方式二/三）建议同样加 `--default-character-set=utf8mb4`：
-> `mysql --default-character-set=utf8mb4 -u root -p reboot < init.sql`
->
-> 两个文件均已注释 `CREATE DATABASE` 和 `USE reboot`，Docker MySQL 通过 `MYSQL_DATABASE` 环境变量自动创建并选中数据库。
-> `init.sql` 含 `ON DUPLICATE KEY` 幂等保护；`seed_test_data.sql` 为一次性演示数据，仅在**空数据卷首次初始化**时执行。
-> 既有库（含乱码演示数据）需 `docker compose down -v` 后重新 `up` 完成数据级修复。
+- **不要手动执行** `archive/migrate_v1.1.sql` — 已完全合入 V1，重复执行会报 Error 3822（Duplicate constraint）
+- Schema 变更 = 新增 `V###__*.sql` + 同步更新 `docs/decision-log/0012-database-changelog.md`
+- 已执行的迁移文件**禁止修改**（否则 checksum 校验失败）；变更新增版本
+- 禁止在 SQL 中硬编码数据库名，统一由 `MYSQL_DATABASE` 环境变量管理

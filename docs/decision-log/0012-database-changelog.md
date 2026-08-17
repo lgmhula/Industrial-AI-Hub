@@ -11,10 +11,13 @@
 | — | 2026-07-27 | REFACTOR | 归档 migrate_v1.1.sql（已合入 init.sql）、重命名 mock → seed_test_data.sql、移除硬编码 DB 名、新建本 changelog | 无 Schema 变更 |
 | 1.2 | 2026-07-25 | ALTER | Day 26 — 全局异常处理、参数校验（@Valid）、device 逻辑删除完善 | device |
 | — | 2026-07-26 | SEED | Day 30 — 新增 test device + 48 条模拟温度/压力数据 | device, device_data |
+| V1 | 2026-08-17 | FLYWAY | Flyway 基线（ADR 0019）：原 init.sql 迁移为 `db/migration/V1__baseline.sql`，7 表 + 8 CHECK | 全部表 |
+| V2 | 2026-08-17 | SEED | Flyway 种子：原 seed_test_data.sql 迁移为 `V2__seed_test_data.sql`（20 用户/50 设备/12 告警/采集数据） | user, role, user_role, device, device_data, alarm |
+| V3 | 2026-08-17 | ALTER | `chk_operation_type` CHECK 扩展 `ACKNOWLEDGE`/`RESOLVE`（修复告警确认/解决操作日志静默丢失，SQL 3819） | operation_log |
 
 ## 当前 Schema 版本
 
-**v1.2** — 由 `backend/src/main/resources/sql/init.sql` 定义。
+**Flyway 管理**（ADR 0019）—— `backend/src/main/resources/db/migration/`（V1 基线 + V2 种子 + V3 操作日志类型扩展）；应用启动时自动迁移，变更 = 新增 `V###__*.sql`。历史 `sql/init.sql` / `seed_test_data.sql` 保留为 SSOT 参考（内容与 V1/V2 一致）。
 
 ### 表清单
 

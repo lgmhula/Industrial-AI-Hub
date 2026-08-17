@@ -116,10 +116,18 @@ public class UserService {
         return newStatus;
     }
 
-    /** 逻辑删除用户及关联的 user_role 记录。 */
+    /**
+     * 逻辑删除用户及关联的 user_role 记录。
+     *
+     * @param currentUserId 当前登录用户 ID（来自 JWT）；禁止删除自己，避免系统无管理员
+     * @throws BusinessException 删除当前登录用户 → 400
+     */
     @Transactional
     @CacheEvict(cacheNames = CacheConfig.CACHE_USER_DETAIL, key = "#id")
-    public boolean delete(Long id) {
+    public boolean delete(Long id, Long currentUserId) {
+        if (currentUserId != null && currentUserId.equals(id)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "不能删除当前登录用户");
+        }
         User user = userMapper.findById(id);
         if (user == null) {
             return false;

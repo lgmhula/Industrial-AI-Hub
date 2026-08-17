@@ -134,7 +134,7 @@ class UserServiceCacheTest {
         when(userMapper.softDeleteById(306L)).thenReturn(1);
 
         userService.getById(306L);
-        userService.delete(306L);
+        userService.delete(306L, 999L);
         userService.getById(306L);
 
         // 3 calls

@@ -220,7 +220,7 @@ class UserServiceTest {
         when(userMapper.findById(1L)).thenReturn(u);
         when(userMapper.softDeleteById(1L)).thenReturn(1);
 
-        boolean deleted = userService.delete(1L);
+        boolean deleted = userService.delete(1L, 99L);
 
         assertTrue(deleted);
         verify(userRoleMapper).deleteByUserId(1L);
@@ -231,7 +231,18 @@ class UserServiceTest {
     void delete_shouldReturnFalseWhenNotFound() {
         when(userMapper.findById(99L)).thenReturn(null);
 
-        assertFalse(userService.delete(99L));
+        assertFalse(userService.delete(99L, 98L));
+        verify(userMapper, never()).softDeleteById(anyLong());
+    }
+
+    @Test
+    void delete_shouldRejectDeletingSelf() {
+        // 守卫在 findById 之前抛出，无需 stub findById
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> userService.delete(1L, 1L));
+
+        assertEquals(400, ex.getErrorCode().getCode());
+        assertTrue(ex.getMessage().contains("不能删除当前登录用户"));
         verify(userMapper, never()).softDeleteById(anyLong());
     }
 

@@ -5,9 +5,7 @@ import dev.reboot.annotation.RequireRole;
 import dev.reboot.dto.ApiResponse;
 import dev.reboot.dto.UserUpdateDTO;
 import dev.reboot.dto.UserVO;
-import dev.reboot.enums.ErrorCode;
 import dev.reboot.enums.RoleEnum;
-import dev.reboot.exception.BusinessException;
 import dev.reboot.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -73,15 +71,13 @@ public class UserController {
         return ApiResponse.ok("状态更新成功", userService.toggleStatus(id));
     }
 
-    /** 逻辑删除用户（禁止删除当前登录用户，防止误删自身导致系统无管理员）。 */
+    /** 逻辑删除用户（禁止删除当前登录用户，业务规则在 UserService 校验）。 */
     @DeleteMapping("/{id}")
     @Operation(summary = "逻辑删除用户")
     public ApiResponse<Void> delete(@PathVariable Long id, HttpServletRequest request) {
         Object currentUserId = request.getAttribute("userId");
-        if (currentUserId != null && Long.valueOf(currentUserId.toString()).equals(id)) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "不能删除当前登录用户");
-        }
-        userService.delete(id);
+        Long currentUserIdLong = currentUserId != null ? Long.valueOf(currentUserId.toString()) : null;
+        userService.delete(id, currentUserIdLong);
         return ApiResponse.ok("用户已删除", null);
     }
 }

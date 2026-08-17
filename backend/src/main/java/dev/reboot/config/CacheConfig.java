@@ -12,8 +12,11 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import java.time.Duration;
@@ -28,7 +31,9 @@ import java.time.Duration;
  * </ul>
  *
  * <p>Value 序列化使用 {@link GenericJackson2JsonRedisSerializer}，
- * 不沿用 RedisConfig 中的 LaissezFaireSubTypeValidator（见安全备忘）。</p>
+ * ObjectMapper 见 {@link #createCacheObjectMapper()}：注册 JavaTimeModule +
+ * 受限类型信息（BasicPolymorphicTypeValidator allowlist），不沿用 RedisConfig 中
+ * 弃用的 LaissezFaireSubTypeValidator（无限制反序列化风险，见安全备忘）。</p>
  *
  * @author hula0710
  * @since 2026-08-04 (Day 47)
@@ -61,20 +66,46 @@ public class CacheConfig {
     @Bean
     @Profile("!test")
     public RedisCacheManager redisCacheManager(RedisConnectionFactory factory) {
-        // ObjectMapper 需注册 JavaTimeModule：UserVO/DeviceVO 含 LocalDateTime，
-        // 缺失会导致 @Cacheable 写缓存时序列化失败（500）。
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         RedisCacheConfiguration defaults = RedisCacheConfiguration.defaultCacheConfig()
                 .prefixCacheNameWith("cache:")
                 .entryTtl(DEFAULT_TTL)
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(new GenericJackson2JsonRedisSerializer(objectMapper)))
+                        .fromSerializer(new GenericJackson2JsonRedisSerializer(createCacheObjectMapper())))
                 .disableCachingNullValues();
         return RedisCacheManager.builder(factory)
                 .cacheDefaults(defaults)
                 .build();
+    }
+
+    /**
+     * 缓存值序列化 ObjectMapper —— 写/读两侧共用同一配置。
+     *
+     * <p>三个要点（缺一不可，否则缓存链路 500）：</p>
+     * <ol>
+     *   <li>{@link JavaTimeModule}：UserVO/DeviceVO/DeviceData 含 {@code LocalDateTime}，
+     *       缺失 → 写缓存序列化失败；</li>
+     *   <li>{@code activateDefaultTyping(NON_FINAL)}：写入 {@code @class} 类型信息；
+     *       缺失 → 缓存读命中反序列化为 {@code LinkedHashMap} →
+     *       ClassCastException（读 500）；</li>
+     *   <li>类型校验器使用受限 {@link BasicPolymorphicTypeValidator}（仅放行项目
+     *       dto/entity 与 JDK 集合/时间/数值），不沿用 RedisConfig 弃用的
+     *       LaissezFaireSubTypeValidator（无限制反序列化风险，见安全备忘）。</li>
+     * </ol>
+     */
+    public static ObjectMapper createCacheObjectMapper() {
+        PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
+                .allowIfSubType("dev.reboot.dto.")
+                .allowIfSubType("dev.reboot.entity.")
+                .allowIfSubType("java.util.")
+                .allowIfSubType("java.time.")
+                .allowIfSubType("java.math.")
+                .allowIfSubType("java.lang.")
+                .build();
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        objectMapper.activateDefaultTyping(ptv, ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
+        return objectMapper;
     }
 
     /**

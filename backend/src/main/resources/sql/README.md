@@ -66,10 +66,19 @@ mysql -u root -p reboot < backend/src/main/resources/sql/seed_test_data.sql
 
 ## Docker 初始化说明
 
-`compose.yml` 将本目录两个 SQL 文件**直接挂载**到 `/docker-entrypoint-initdb.d/`（无符号链接，跨平台 Windows/Linux/macOS 均可用），按文件名排序执行：
+`compose.yml` 将本目录**只读挂载**到 `/init-sql`，由 `mysql/init/01-init-db.sh`
+（挂载为 `/docker-entrypoint-initdb.d/01-init-db.sh`）以显式
+`--default-character-set=utf8mb4` 依次加载（见 ADR 0016）：
 
-1. `01_init.sql` — Schema + 必需初始化（7 张表 + 约束 + 默认角色/管理员）
-2. `02_seed_test_data.sql` — 可选演示数据（20 用户 + 50 设备 + 12 告警 + 采集数据）
+1. `init.sql` — Schema + 必需初始化（7 张表 + 约束 + 默认角色/管理员）
+2. `seed_test_data.sql` — 可选演示数据（20 用户 + 50 设备 + 12 告警 + 采集数据）
 
+> 显式指定 utf8mb4 的原因：官方 mysql 镜像 init 客户端不带 `--default-character-set`，
+> 中文种子数据会被双重编码入库（2026-08-17 实证，详见 ADR 0016 / runbook 坑位 #11）。
+>
+> 手动执行路径（方式二/三）建议同样加 `--default-character-set=utf8mb4`：
+> `mysql --default-character-set=utf8mb4 -u root -p reboot < init.sql`
+>
 > 两个文件均已注释 `CREATE DATABASE` 和 `USE reboot`，Docker MySQL 通过 `MYSQL_DATABASE` 环境变量自动创建并选中数据库。
 > `init.sql` 含 `ON DUPLICATE KEY` 幂等保护；`seed_test_data.sql` 为一次性演示数据，仅在**空数据卷首次初始化**时执行。
+> 既有库（含乱码演示数据）需 `docker compose down -v` 后重新 `up` 完成数据级修复。

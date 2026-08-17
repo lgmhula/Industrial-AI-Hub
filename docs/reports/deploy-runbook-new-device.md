@@ -3,7 +3,7 @@
 > 适用：任意全新设备（Windows/macOS/Linux）从 0 部署 Industrial AI Hub 全栈。
 > 本手册固化 2026-08-17 Windows 副本首次部署踩过的全部坑位与对策，
 > **执行者无需再扫描排查**，按序执行即可。
-> 适用提交：`main` ≥ `a7857ef`（含 `.gitattributes` / ADR 0015 / compose 直挂载 SQL / backend env 注入）。
+> 适用提交：`main` ≥ `fa8f1b8`（含 ADR 0015 密钥 SSOT / `.gitattributes` / backend env 注入 / ADR 0016 charset-safe init）。
 
 ---
 
@@ -53,13 +53,15 @@ docs/reports/deploy-runbook-new-device.md 执行，坑位已列明，不要重�
 4. 端口预检：3307/6379/5672/8080/5173/8001/15672 空闲；冲突则改 .env 端口映射。
 5. 清理旧卷（若有旧部署残留）：docker compose down -v --remove-orphans
 6. docker compose up -d（mysql/redis/rabbitmq/backend 四核心），等待全部 healthy
-   （MySQL 首次启动自动执行 init.sql + seed_test_data.sql）。
+   （MySQL 首次启动经 charset-safe init 脚本以 utf8mb4 加载 init.sql + seed_test_data.sql，见 ADR 0016）。
 7. 验收：
    a. curl http://localhost:8080/actuator/health → {"status":"UP"}
    b. POST /api/auth/login（admin/admin123）→ code 200 + JWT
    c. cd backend && ./mvnw test → 89 run / 0 fail（不要改任何代码）
    d. cd frontend && npm ci && npm run build → 成功；npm run dev 后 curl 5173 → 200
    e. 可选：docker compose --profile full up -d → 13/13 healthy
+   f. 中文数据校验：docker exec mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4
+      -e "SELECT role_name FROM reboot.role;" → 输出 管理员/操作员/观察者（不得为乱码）
 8. 自愈边界：只允许改 .env / 端口映射 / 安装依赖 / 系统配置；
    禁止改 backend/frontend 业务代码；确认为仓库缺陷时停止并报告。
 
@@ -76,16 +78,18 @@ docs/reports/deploy-runbook-new-device.md 执行，坑位已列明，不要重�
 | 2 | CRLF 破坏脚本 | Docker 构建 exit 127 / mvnw not found | Windows autocrlf 将 mvnw/*.sh 检出为 CRLF，shebang 失效 | `.gitattributes` 强制 LF（本次已提交）；pull 后无需手工处理 |
 | 3 | symlink 检出退化 | MySQL 0 张表 | 旧版 `mysql/init/01_init.sql` 是 symlink，Windows 检出成文本 | 已删除 symlink，compose 直挂载 `backend/src/main/resources/sql/*.sql` |
 | 4 | backend 连不上 Redis/RabbitMQ | 容器内 WRONGPASS / 连接拒绝 | 旧版 compose backend 漏注入 env | 新版 compose 已注入（L332-339）；删除本地 override |
-| 5 | my.cnf 被 MySQL 忽略 | 配置不生效（非阻塞） | Windows bind mount 文件 world-writable，mysqld 静默忽略 | 已知低危，暂不修复；如在意：`docker exec mysql sh -c "chmod 644 /etc/mysql/conf.d/my.cnf" && docker restart mysql` |
+| 5 | my.cnf 被 MySQL 忽略 | 配置不生效（非阻塞） | Windows bind mount 文件 world-writable，mysqld 静默忽略 | `:ro` 挂载下 chmod 不可行；MySQL 8.4 默认 utf8mb4，无实际影响，维持忽略 |
 | 6 | 沙箱 TLS 阻断 | HTTPS 全部 SEC_E_NO_CREDENTIALS | 受限令牌沙箱拦截 Schannel | 安装/拉取阶段使用 full-access 权限 |
 | 7 | 旧部署残留卷 | 数据非全新初始化 | 旧卷未清 | `docker compose down -v --remove-orphans` 后再 up |
 | 8 | 镜像源限速/断流 | 拉取慢、偶发失败 | 网络到 Docker Hub 抖动 | 重试即可；ES 2GB 镜像提前拉取 |
 | 9 | seed 数据不符预期 | 用户数/表数不对 | 卷未清或 init 未执行 | 见 #7；正确结果：7 张表 + admin 等 21 个用户 |
 | 10 | Vite chunk>500kB / npm audit high | 构建警告 | ECharts/Element Plus 按需引入不彻底；依赖告警 | 非阻塞，忽略（已入 TECH-DEBT #13） |
+| 11 | 中文种子数据乱码（双重编码） | device/role/alarm 中文乱码 | 官方 mysql 镜像 init 客户端不带 charset 参数，UTF-8 被按 latin1/cp1252 解读 | **已修复**（ADR 0016：init 包装脚本显式 `--default-character-set=utf8mb4`）；既有库需 `docker compose down -v` 后重灌 |
+| 12 | ES 数据目录 root 归属 | ES 崩溃：node.lock AccessDeniedException | WSL2/Linux 下 bind mount 目录由 daemon 创建为 root:root，ES(uid 1000) 不可写 | `docker run --rm -v .../elasticsearch:/data alpine chown -R 1000:1000 /data` 后 restart；全新 clone 复现时再次执行 |
 
 ---
 
-## 4. 验收清单（9/9）
+## 4. 验收清单（9/9 + 中文数据校验）
 
 - [ ] 环境预检通过（git/JDK25/Node20+/Docker）
 - [ ] 全新 clone + commit ≥ a7857ef + 文档对齐
@@ -93,6 +97,7 @@ docs/reports/deploy-runbook-new-device.md 执行，坑位已列明，不要重�
 - [ ] 端口全部空闲
 - [ ] compose up 四核心全部 healthy
 - [ ] /actuator/health = UP；admin 登录返回 code 200 + JWT
+- [ ] 中文种子数据校验：role 表输出 管理员/操作员/观察者（非乱码）
 - [ ] mvnw test = 89/89
 - [ ] 前端 npm ci + build 成功；dev server 5173 HTTP 200
 - [ ] （可选）--profile full 13/13 healthy

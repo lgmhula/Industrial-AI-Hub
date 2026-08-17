@@ -21,7 +21,8 @@ import dev.reboot.service.CacheService;
  * </ul>
  *
  * <p>JWT_SECRET 由 {@code application-test.yml} 提供默认值；
- * DataSource 仍需可达的 MySQL（H2 隔离留待 Phase 3）。</p>
+ * DataSource 使用 H2 内存库（MODE=MySQL，ADR 0018）——测试零外部依赖，
+ * 在无 MySQL 的机器（含 CI runner）上同样可通过。</p>
  *
  * @author AI 助手
  * @since 2026-08-03

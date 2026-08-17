@@ -8,7 +8,11 @@ jwt:
 
 spring:
   # 测试环境完全隔离：不读取本地 .env，密钥一律使用占位隔离值
+  # DB 隔离（ADR 0018）：H2 内存库（MODE=MySQL），测试零外部依赖，无需本机 MySQL
   datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
     password: test-password-for-context-load
   autoconfigure:
     exclude:

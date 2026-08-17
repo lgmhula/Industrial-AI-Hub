@@ -46,6 +46,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- H2 (test scope): 测试 DB 隔离（ADR 0018）——上下文冒烟测试零外部依赖 -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- ===== Persistence ===== -->
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>

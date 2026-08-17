@@ -22,8 +22,9 @@
 | ★★★ | 应用架构 | `docs/Architecture/Application-Architecture.md` | 技术栈 + 分层 + API |
 | ★★☆ | 从零复刻指南 | `docs/SETUP.md` | 克隆 → 配置 → 运行 → 验证 全流程 |
 | ★★☆ | 基础设施基线 | `docs/Architecture/Infrastructure-Baseline.md` | Docker/网络/端口规范 |
-| ★★☆ | 架构决策记录 | `docs/decision-log/0001~0015` | 关键技术决策理由（含 0015 密钥 SSOT） |
+| ★★☆ | 架构决策记录 | `docs/decision-log/0001~0017` | 关键技术决策理由（含 0015 密钥 SSOT / 0016 charset / 0017 分支策略） |
 | ★★☆ | Phase 3-A 计划 | `docs/plans/phase3-a-infrastructure-stabilization.md` | 基础设施稳定化任务分解 + 验收标准 |
+| ★★☆ | 新设备部署手册 | `docs/reports/deploy-runbook-new-device.md` | 全量坑位 + 一键部署指令（副本免扫描） |
 | ★☆☆ | 每日日志 | `backend/DAILY/DayXXX.md` | 当天产出 + 明日计划 |
 | ★☆☆ | 周复盘 | `backend/REVIEW/WeekXX.md` | 阶段性总结 |
 | ★☆☆ | 审计报告 | `docs/reports/Architecture-Consistency-Report-v1.2.md` | 文档-代码一致性检查 |
@@ -36,9 +37,9 @@
 
 ## 3. 当前状态
 
-- **基线**：v2.1.0 已冻结（Tag: `v2.1.0`，Commit: `ec9a158`，Release Gate: **GO**）
+- **基线**：v2.2.0 已发布（Tag: `v2.2.0`，Commit: `892c4a5`）——含 ADR 0015 密钥 SSOT / ADR 0016 charset-safe init / 跨平台交接修复；Release Gate: **GO**
 - **阶段**：Phase 3 学习路线已收官（Redis/RabbitMQ/Docker/Linux 全部完成），下一步 Phase 4 AI 集成
-- **分支**：`main`（codex/phase-3a 已合并，归档保留）
+- **Git 治理**：`main` = 唯一发布线（**禁止直推**，见 §4.4 / ADR 0017）；日常开发走分支 + PR 合并；发布打 tag
 - **Phase 3-A 归档**：`docs/plans/phase3-a-infrastructure-stabilization.md` + `docs/reports/phase3-a-plan-audit*.md`
 - **已完成**：Phase 3 中间件武装全部收官（Redis + RabbitMQ + Docker + Linux 部署，89/89 测试全绿，第三阶段检查点达成）
 - **下一步**：Day 64 — OpenAI API 基础（进入第四阶段 AI 集成）
@@ -71,7 +72,16 @@
 - [ ] 如有架构变更，更新 `Application-Architecture.md`
 - [ ] 如有新决策，新增 `docs/decision-log/00XX-*.md`
 - [ ] 更新本文件 §3「当前状态」
-- [ ] Git commit（描述格式：`Day XXX: 简要说明`）
+- [ ] Git commit（描述格式：`Day XXX: 简要说明`；**禁止直推 main**，见 §4.4）
+
+### 4.4 Git 工作流纪律（ADR 0017，违反即视为缺陷）
+
+- **main = 唯一发布线**：永远处于已验收、可部署状态；禁止任何直推（含 AI 会话）。
+- **日常开发走分支**：`feat/*`、`fix/*`、`docs/*`、`chore/*`、`ai/*`（AI 会话必须先建分支）。
+- **合并流程**：分支自测通过（后端构建 + `./mvnw test` + 前端 build）→ push 分支 → GitHub PR 自审 → 合并（squash / --no-ff）→ 删除分支。
+- **发布**：达到验收态 → 打 `v2.x.y` tag + 审计报告 → 副本/部署锁定该 tag（不跟 main HEAD 漂移）。
+- **分支卫生**：合并即删；历史分支先打 `archive/*` tag 再删除，不留死分支。
+- **例外**：治理类元变更（本文件 / ADR 自身）可直推 main，提交信息须标注 `(governance bootstrap)`。
 
 ---
 

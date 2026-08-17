@@ -1,20 +1,23 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
-  "https://mybatis.org/dtd/mybatis-3-config.dtd">
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<!-- MyBatis 配置文件 —— Day 20 多表关联查询 -->
 <configuration>
     <environments default="development">
         <environment id="development">
             <transactionManager type="JDBC"/>
             <dataSource type="POOLED">
                 <property name="driver" value="com.mysql.cj.jdbc.Driver"/>
-                <property name="url"
-                    value="jdbc:mysql://127.0.0.1:3307/reboot?useSSL=false&amp;serverTimezone=Asia/Shanghai"/>
+                <property name="url" value="jdbc:mysql://127.0.0.1:3306/reboot?useSSL=false&amp;serverTimezone=Asia/Shanghai"/>
                 <property name="username" value="root"/>
-                <property name="password" value="1zxcvbnm"/>
+                <property name="password" value="change_me"/>
             </dataSource>
         </environment>
     </environments>
+
     <mappers>
-        <mapper resource="code/day18/UserMapper.xml"/>
+        <mapper resource="code/day20/ProductMapper.xml"/>
+        <mapper resource="code/day20/CategoryMapper.xml"/>
     </mappers>
 </configuration>

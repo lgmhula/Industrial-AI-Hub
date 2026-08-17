@@ -25,7 +25,7 @@ public class Day17_JDBC {
     static final String URL = "jdbc:mysql://127.0.0.1:3307/reboot"
             + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai";
     static final String USER = "root";
-    static final String PASS = "1zxcvbnm";
+    static final String PASS = "change_me";
 
     public static void main(String[] args) throws Exception {
         Class.forName("com.mysql.cj.jdbc.Driver");

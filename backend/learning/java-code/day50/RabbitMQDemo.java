@@ -51,7 +51,7 @@ public class RabbitMQDemo {
         factory.setHost("localhost");
         factory.setPort(5672);
         factory.setUsername("admin");
-        factory.setPassword("admin123");
+        factory.setPassword("change_me");
         factory.setVirtualHost("/");
 
         try (Connection connection = factory.newConnection();

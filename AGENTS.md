@@ -125,23 +125,23 @@ Industrial-AI-Hub/
 │   ├── DAILY/                 # 每日日志
 │   ├── REVIEW/                # 周复盘
 │   ├── PROMPTS/               # 任务 prompt（可选）
+│   ├── learning/              # 学习代码（Day01-54 练习，不参与构建，见 §6 附注）
 │   └── src/main/java/
-│       ├── dev/reboot/        # 主应用代码
-│       │   ├── controller/    # REST 控制器
-│       │   ├── service/       # 业务逻辑
-│       │   ├── mapper/        # MyBatis Mapper
-│       │   ├── entity/        # 实体类
-│       │   ├── dto/           # DTO + ApiResponse
-│       │   ├── config/        # 配置类
-│       │   ├── security/      # JWT Filter + Auth/RateLimit 拦截器
-│       │   ├── aop/           # 操作日志切面
-│       │   ├── annotation/    # @RequireRole / @OperationLog
-│       │   ├── enums/         # ErrorCode / RoleEnum
-│       │   ├── exception/     # BusinessException + 全局异常处理
-│       │   ├── mq/            # RabbitMQ 生产者/消费者
-│       │   ├── rule/          # 报警规则引擎
-│       │   └── util/          # JwtUtils 等工具类
-│       └── code/day01~22/     # 学习代码（不修改）
+│       └── dev/reboot/        # 主应用代码
+│           ├── controller/    # REST 控制器
+│           ├── service/       # 业务逻辑
+│           ├── mapper/        # MyBatis Mapper
+│           ├── entity/        # 实体类
+│           ├── dto/           # DTO + ApiResponse
+│           ├── config/        # 配置类
+│           ├── security/      # JWT Filter + Auth/RateLimit 拦截器
+│           ├── aop/           # 操作日志切面
+│           ├── annotation/    # @RequireRole / @OperationLog
+│           ├── enums/         # ErrorCode / RoleEnum
+│           ├── exception/     # BusinessException + 全局异常处理
+│           ├── mq/            # RabbitMQ 生产者/消费者
+│           ├── rule/          # 报警规则引擎
+│           └── util/          # JwtUtils 等工具类
 ├── docs/
 │   ├── Architecture/          # 架构文档
 │   ├── decision-log/          # ADR 决策记录
@@ -191,7 +191,7 @@ prod : 由部署环境注入，不依赖开发 .env
 - 禁止在 IDEA Run Configuration / 其他 IDE 配置中手工复制密钥（会导致漂移，见 ADR 0015 事故）。
 - 禁止在 `application*.yml` 中硬编码密钥。
 - `.env.example` 只保留变量名与说明，禁止真实密钥。
-- 敏感变量（`JWT_SECRET` / `REDIS_PASSWORD` / `MYSQL_PASSWORD`）**禁止使用 `${VAR:}` 空默认**，
+- 敏感变量（`JWT_SECRET` / `REDIS_PASSWORD` / `MYSQL_PASSWORD` / `RABBITMQ_DEFAULT_PASS`）**禁止使用 `${VAR:}` 空默认**，
   缺失必须显式启动失败（fail-fast），不得静默退化为空字符串。
 - IDEA 启动前若 Run Configuration 残留旧环境变量（如 `JWT_SECRET`、`REDIS_PASSWORD`），
   先删除（Run → Edit Configurations → 环境变量），再 File → Reload All from Disk。
@@ -206,4 +206,4 @@ prod : 由部署环境注入，不依赖开发 .env
 
 ---
 
-> 最后更新：2026-08-16 | 维护者：AI 助手 + hula0710
+> 最后更新：2026-08-17 | 维护者：AI 助手 + hula0710

@@ -51,7 +51,7 @@ public class PubSubDemo {
         factory.setHost("localhost");
         factory.setPort(5672);
         factory.setUsername("admin");
-        factory.setPassword("admin123");
+        factory.setPassword("change_me");
 
         int msgCount = 3;
         CountDownLatch latch = new CountDownLatch(msgCount * QUEUES.length);

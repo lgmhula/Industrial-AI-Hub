@@ -63,7 +63,7 @@ public class WorkQueueDemo {
         factory.setHost("localhost");
         factory.setPort(5672);
         factory.setUsername("admin");
-        factory.setPassword("admin123");
+        factory.setPassword("change_me");
 
         try (Connection conn = factory.newConnection()) {
             // ── 声明 Exchange / Queue / Binding ──

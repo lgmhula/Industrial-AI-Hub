@@ -3,8 +3,10 @@ package dev.reboot.service;
 import dev.reboot.config.CacheConfig;
 import dev.reboot.dto.DataReportRequest;
 import dev.reboot.dto.DeviceDataStats;
+import dev.reboot.entity.Device;
 import dev.reboot.entity.DeviceData;
 import dev.reboot.mapper.DeviceDataMapper;
+import dev.reboot.mapper.DeviceMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +35,9 @@ class DeviceDataServiceCacheTest {
     @Autowired
     private DeviceDataMapper deviceDataMapper;
 
+    @Autowired
+    private DeviceMapper deviceMapper;
+
     @Configuration
     @EnableCaching
     static class CacheTestConfig {
@@ -49,9 +54,22 @@ class DeviceDataServiceCacheTest {
         AlarmDetector alarmDetector() { return mock(AlarmDetector.class); }
 
         @Bean
-        DeviceDataService deviceDataService(DeviceDataMapper mapper, AlarmDetector detector) {
-            return new DeviceDataService(mapper, detector);
+        DeviceMapper deviceMapper() { return mock(DeviceMapper.class); }
+
+        @Bean
+        SiteAccessService siteAccessService() { return mock(SiteAccessService.class); }
+
+        @Bean
+        DeviceDataService deviceDataService(DeviceDataMapper mapper, AlarmDetector detector,
+                                            DeviceMapper deviceMapper, SiteAccessService siteAccess) {
+            return new DeviceDataService(mapper, detector, deviceMapper, siteAccess);
         }
+    }
+
+    private Device device(Long id) {
+        Device d = new Device();
+        d.setId(id); d.setSiteId(10L); d.setDeviceName("d");
+        return d;
     }
 
     private LocalDateTime t1() { return LocalDateTime.of(2026, 1, 1, 0, 0); }
@@ -68,21 +86,23 @@ class DeviceDataServiceCacheTest {
 
     @Test
     void getStats_shouldHitCacheOnSecondCall() {
+        when(deviceMapper.findById(101L)).thenReturn(device(101L));
         when(deviceDataMapper.aggregate(101L, "temperature", t1(), t2())).thenReturn(statsRaw());
 
-        deviceDataService.getStats(101L, "temperature", t1(), t2());
-        deviceDataService.getStats(101L, "temperature", t1(), t2());
+        deviceDataService.getStats(101L, "temperature", t1(), t2(), 1L);
+        deviceDataService.getStats(101L, "temperature", t1(), t2(), 1L);
 
         verify(deviceDataMapper, times(1)).aggregate(101L, "temperature", t1(), t2());
     }
 
     @Test
     void getStats_differentKeys_shouldNotShareCache() {
+        when(deviceMapper.findById(102L)).thenReturn(device(102L));
         when(deviceDataMapper.aggregate(102L, "temperature", t1(), t2())).thenReturn(statsRaw());
         when(deviceDataMapper.aggregate(102L, "humidity", t1(), t2())).thenReturn(statsRaw());
 
-        deviceDataService.getStats(102L, "temperature", t1(), t2());
-        deviceDataService.getStats(102L, "humidity", t1(), t2());
+        deviceDataService.getStats(102L, "temperature", t1(), t2(), 1L);
+        deviceDataService.getStats(102L, "humidity", t1(), t2(), 1L);
 
         verify(deviceDataMapper, times(1)).aggregate(102L, "temperature", t1(), t2());
         verify(deviceDataMapper, times(1)).aggregate(102L, "humidity", t1(), t2());
@@ -90,30 +110,32 @@ class DeviceDataServiceCacheTest {
 
     @Test
     void listByTimeRange_shouldHitCacheOnSecondCall() {
+        when(deviceMapper.findById(103L)).thenReturn(device(103L));
         when(deviceDataMapper.findByTimeRange(103L, "temperature", t1(), t2())).thenReturn(List.of());
 
-        deviceDataService.listByTimeRange(103L, "temperature", t1(), t2());
-        deviceDataService.listByTimeRange(103L, "temperature", t1(), t2());
+        deviceDataService.listByTimeRange(103L, "temperature", t1(), t2(), 1L);
+        deviceDataService.listByTimeRange(103L, "temperature", t1(), t2(), 1L);
 
         verify(deviceDataMapper, times(1)).findByTimeRange(103L, "temperature", t1(), t2());
     }
 
     @Test
     void report_shouldEvictAggregateAndRangeCaches() {
+        when(deviceMapper.findById(104L)).thenReturn(device(104L));
         when(deviceDataMapper.aggregate(104L, "temperature", t1(), t2())).thenReturn(statsRaw());
         when(deviceDataMapper.findByTimeRange(104L, "temperature", t1(), t2())).thenReturn(List.of());
 
-        deviceDataService.getStats(104L, "temperature", t1(), t2());
-        deviceDataService.listByTimeRange(104L, "temperature", t1(), t2());
+        deviceDataService.getStats(104L, "temperature", t1(), t2(), 1L);
+        deviceDataService.listByTimeRange(104L, "temperature", t1(), t2(), 1L);
 
         DataReportRequest req = new DataReportRequest();
         req.setDataType("temperature");
         req.setDataValue(new BigDecimal("22.5"));
         req.setUnit("C");
-        deviceDataService.report(104L, req);
+        deviceDataService.report(104L, req, 1L);
 
-        deviceDataService.getStats(104L, "temperature", t1(), t2());
-        deviceDataService.listByTimeRange(104L, "temperature", t1(), t2());
+        deviceDataService.getStats(104L, "temperature", t1(), t2(), 1L);
+        deviceDataService.listByTimeRange(104L, "temperature", t1(), t2(), 1L);
 
         verify(deviceDataMapper, times(2)).aggregate(104L, "temperature", t1(), t2());
         verify(deviceDataMapper, times(2)).findByTimeRange(104L, "temperature", t1(), t2());

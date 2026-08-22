@@ -82,6 +82,23 @@ class DevSeedDemoDataTest {
                 JOIN `user` u ON u.id = ur.user_id
                 JOIN role r ON r.id = ur.role_id
                 WHERE u.username = 'user05' AND r.role_code = 'VIEWER'"""), "user05 应被分配 VIEWER");
+
+        // P1-01 站点成员：20 个演示用户归属默认站点（2 OPERATOR + 18 VIEWER）
+        assertEquals(20L, scalar("SELECT COUNT(*) FROM user_site"), "20 个演示用户应分配默认站点");
+        assertTrue(exists("""
+                SELECT 1 FROM user_site us
+                JOIN `user` u ON u.id = us.user_id
+                JOIN role r ON r.id = us.role_id
+                JOIN site s ON s.id = us.site_id
+                WHERE u.username = 'operator01' AND r.role_code = 'OPERATOR' AND s.site_code = 'DEFAULT'"""),
+                "operator01 应为默认站点 OPERATOR");
+        assertTrue(exists("""
+                SELECT 1 FROM user_site us
+                JOIN `user` u ON u.id = us.user_id
+                JOIN role r ON r.id = us.role_id
+                JOIN site s ON s.id = us.site_id
+                WHERE u.username = 'viewer01' AND r.role_code = 'VIEWER' AND s.site_code = 'DEFAULT'"""),
+                "viewer01 应为默认站点 VIEWER");
     }
 
     /** Test C：seed 重复执行——数量不增长，且用户/设备/告警不重复。 */

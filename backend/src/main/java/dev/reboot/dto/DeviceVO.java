@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 public class DeviceVO {
 
     private Long id;
+    private Long siteId;
     private String deviceName;
     private String deviceCode;
     private String deviceType;
@@ -25,6 +26,8 @@ public class DeviceVO {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Long getSiteId() { return siteId; }
+    public void setSiteId(Long siteId) { this.siteId = siteId; }
     public String getDeviceName() { return deviceName; }
     public void setDeviceName(String deviceName) { this.deviceName = deviceName; }
     public String getDeviceCode() { return deviceCode; }
@@ -48,6 +51,7 @@ public class DeviceVO {
     public static DeviceVO from(Device device) {
         DeviceVO vo = new DeviceVO();
         vo.setId(device.getId());
+        vo.setSiteId(device.getSiteId());
         vo.setDeviceName(device.getDeviceName());
         vo.setDeviceCode(device.getDeviceCode());
         vo.setDeviceType(device.getDeviceType());

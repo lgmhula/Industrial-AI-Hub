@@ -43,12 +43,18 @@ class DeviceServiceCacheTest {
         DeviceMapper deviceMapper() { return mock(DeviceMapper.class); }
 
         @Bean
-        DeviceService deviceService(DeviceMapper mapper) { return new DeviceService(mapper); }
+        SiteAccessService siteAccessService() { return mock(SiteAccessService.class); }
+
+        @Bean
+        DeviceService deviceService(DeviceMapper mapper, SiteAccessService siteAccess) {
+            return new DeviceService(mapper, siteAccess);
+        }
     }
 
     private Device newDevice(Long id, String name, String code) {
         Device d = new Device();
         d.setId(id);
+        d.setSiteId(10L);
         d.setDeviceName(name);
         d.setDeviceCode(code);
         d.setDeviceType("泵");
@@ -73,8 +79,8 @@ class DeviceServiceCacheTest {
         Device device = newDevice(201L, "泵A", "PUMP-001");
         when(deviceMapper.findById(201L)).thenReturn(device);
 
-        DeviceVO first = deviceService.getById(201L);
-        DeviceVO second = deviceService.getById(201L);
+        DeviceVO first = deviceService.getById(201L, 1L);
+        DeviceVO second = deviceService.getById(201L, 1L);
 
         assertEquals("PUMP-001", first.getDeviceCode());
         assertEquals("PUMP-001", second.getDeviceCode());
@@ -88,8 +94,8 @@ class DeviceServiceCacheTest {
         when(deviceMapper.findById(202L)).thenReturn(d202);
         when(deviceMapper.findById(203L)).thenReturn(d203);
 
-        deviceService.getById(202L);
-        deviceService.getById(203L);
+        deviceService.getById(202L, 1L);
+        deviceService.getById(203L, 1L);
 
         verify(deviceMapper, times(1)).findById(202L);
         verify(deviceMapper, times(1)).findById(203L);
@@ -100,9 +106,9 @@ class DeviceServiceCacheTest {
         Device device = newDevice(204L, "泵A", "PUMP-004");
         when(deviceMapper.findById(204L)).thenReturn(device);
 
-        deviceService.getById(204L);
-        deviceService.update(204L, newDTO("泵A-plus", "PUMP-004"));
-        deviceService.getById(204L);
+        deviceService.getById(204L, 1L);
+        deviceService.update(204L, newDTO("泵A-plus", "PUMP-004"), 1L);
+        deviceService.getById(204L, 1L);
 
         // 3 calls: initial getById, update's internal findById, post-eviction getById
         verify(deviceMapper, times(3)).findById(204L);
@@ -114,9 +120,9 @@ class DeviceServiceCacheTest {
         when(deviceMapper.findById(205L)).thenReturn(device);
         when(deviceMapper.softDeleteById(205L)).thenReturn(1);
 
-        deviceService.getById(205L);
+        deviceService.getById(205L, 1L);
         deviceService.delete(205L);
-        deviceService.getById(205L);
+        deviceService.getById(205L, 1L);
 
         // 3 calls: initial getById, delete's internal findById, post-eviction getById
         verify(deviceMapper, times(3)).findById(205L);

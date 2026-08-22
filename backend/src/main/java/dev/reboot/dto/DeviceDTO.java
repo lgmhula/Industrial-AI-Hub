@@ -21,6 +21,9 @@ public class DeviceDTO {
     @NotBlank(message = "设备类型不能为空")
     private String deviceType;
 
+    /** 站点 ID（P1-01）。可选：缺省时取创建者唯一站点/默认站点。 */
+    private Long siteId;
+
     private Integer status;
     private String ipAddress;
     private Integer port;
@@ -32,6 +35,8 @@ public class DeviceDTO {
     public void setDeviceCode(String deviceCode) { this.deviceCode = deviceCode; }
     public String getDeviceType() { return deviceType; }
     public void setDeviceType(String deviceType) { this.deviceType = deviceType; }
+    public Long getSiteId() { return siteId; }
+    public void setSiteId(Long siteId) { this.siteId = siteId; }
     public Integer getStatus() { return status; }
     public void setStatus(Integer status) { this.status = status; }
     public String getIpAddress() { return ipAddress; }

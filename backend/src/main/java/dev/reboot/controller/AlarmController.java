@@ -7,6 +7,7 @@ import dev.reboot.dto.ApiResponse;
 import dev.reboot.enums.ErrorCode;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.AlarmService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.validation.annotation.Validated;
@@ -19,7 +20,7 @@ import com.github.pagehelper.PageInfo;
 import java.util.List;
 
 /**
- * Alarm REST 控制器 —— 报警查询 + 确认/解决。
+ * Alarm REST 控制器 —— 报警查询 + 确认/解决（P1-01：站点作用域，userId 显式传入 Service）。
  *
  * @author hula0710
  * @since 2026-07-26
@@ -36,14 +37,15 @@ public class AlarmController {
         this.alarmService = alarmService;
     }
 
-    /** 分页查询所有告警。 */
+    /** 分页查询所有告警（当前用户可访问站点）。 */
     @GetMapping
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
     @Operation(summary = "分页查询所有告警")
     public ApiResponse<PageInfo<AlarmVO>> listAllPaged(
             @RequestParam(defaultValue = "1") @Min(1) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
-        return ApiResponse.ok(alarmService.listAllPaged(page, size));
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
+            HttpServletRequest request) {
+        return ApiResponse.ok(alarmService.listAllPaged(page, size, currentUserId(request)));
     }
 
     /** 按设备 ID 分页查询告警。 */
@@ -53,8 +55,9 @@ public class AlarmController {
     public ApiResponse<PageInfo<AlarmVO>> listByDevicePaged(
             @PathVariable Long deviceId,
             @RequestParam(defaultValue = "1") @Min(1) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
-        return ApiResponse.ok(alarmService.listByDevicePaged(deviceId, page, size));
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
+            HttpServletRequest request) {
+        return ApiResponse.ok(alarmService.listByDevicePaged(deviceId, page, size, currentUserId(request)));
     }
 
     /** 按状态分页查询告警（0=未处理, 1=已确认, 2=已解决）。 */
@@ -64,18 +67,18 @@ public class AlarmController {
     public ApiResponse<PageInfo<AlarmVO>> listByStatusPaged(
             @PathVariable Integer status,
             @RequestParam(defaultValue = "1") @Min(1) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
-        return ApiResponse.ok(alarmService.listByStatusPaged(status, page, size));
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
+            HttpServletRequest request) {
+        return ApiResponse.ok(alarmService.listByStatusPaged(status, page, size, currentUserId(request)));
     }
-
 
     /** 确认告警。 */
     @OperationLog(operationType = "ACKNOWLEDGE", targetType = "ALARM", description = "确认告警 {0}")
     @PutMapping("/{id}/acknowledge")
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
     @Operation(summary = "确认告警")
-    public ApiResponse<Void> acknowledge(@PathVariable Long id) {
-        if (alarmService.acknowledge(id)) {
+    public ApiResponse<Void> acknowledge(@PathVariable Long id, HttpServletRequest request) {
+        if (alarmService.acknowledge(id, currentUserId(request))) {
             return ApiResponse.ok("告警已确认", null);
         }
         return ApiResponse.error(ErrorCode.NOT_FOUND.getCode(), "确认失败，告警不存在");
@@ -86,10 +89,15 @@ public class AlarmController {
     @PutMapping("/{id}/resolve")
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
     @Operation(summary = "解决告警")
-    public ApiResponse<Void> resolve(@PathVariable Long id) {
-        if (alarmService.resolve(id)) {
+    public ApiResponse<Void> resolve(@PathVariable Long id, HttpServletRequest request) {
+        if (alarmService.resolve(id, currentUserId(request))) {
             return ApiResponse.ok("告警已解决", null);
         }
         return ApiResponse.error(ErrorCode.NOT_FOUND.getCode(), "解决失败，告警不存在");
+    }
+
+    private Long currentUserId(HttpServletRequest request) {
+        Object v = request.getAttribute("userId");
+        return v == null ? null : Long.valueOf(v.toString());
     }
 }

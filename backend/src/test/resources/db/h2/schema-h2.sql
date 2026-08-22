@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS `user_role` (
 
 CREATE TABLE IF NOT EXISTS `device` (
     `id`           BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
+    `site_id`      BIGINT       NOT NULL DEFAULT 1       COMMENT '站点 ID（P1-01）',
     `device_name`  VARCHAR(128) NOT NULL                 COMMENT '设备名称',
     `device_code`  VARCHAR(64)  NOT NULL                 COMMENT '设备编码（唯一）',
     `device_type`  VARCHAR(32)  NOT NULL                 COMMENT '设备类型：PLC/SENSOR/CAMERA/ROBOT/OTHER',
@@ -132,3 +133,33 @@ ON DUPLICATE KEY UPDATE `username` = VALUES(`username`), `password` = VALUES(`pa
 
 INSERT INTO `user_role` (`user_id`, `role_id`) VALUES (1, 1)
 ON DUPLICATE KEY UPDATE `user_id` = VALUES(`user_id`);
+
+-- ================================================================
+-- P1-01：site / user_site 夹具（镜像 V4__add_site_scoping.sql）
+-- ================================================================
+CREATE TABLE IF NOT EXISTS `site` (
+    `id`           BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '主键',
+    `site_name`    VARCHAR(64)  NOT NULL                 COMMENT '站点名称',
+    `site_code`    VARCHAR(32)  NOT NULL                 COMMENT '站点编码（唯一）',
+    `description`  VARCHAR(256) DEFAULT NULL             COMMENT '站点描述',
+    `address`      VARCHAR(256) DEFAULT NULL             COMMENT '站点地址',
+    `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_site_code` (`site_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='站点表';
+
+INSERT INTO `site` (`site_name`, `site_code`, `description`) VALUES
+    ('默认工厂', 'DEFAULT', '系统默认站点')
+ON DUPLICATE KEY UPDATE `site_name` = VALUES(`site_name`);
+
+CREATE TABLE IF NOT EXISTS `user_site` (
+    `id`           BIGINT  NOT NULL AUTO_INCREMENT  COMMENT '主键',
+    `user_id`      BIGINT  NOT NULL                 COMMENT '用户 ID',
+    `site_id`      BIGINT  NOT NULL                 COMMENT '站点 ID',
+    `role_id`      BIGINT  NOT NULL                 COMMENT '站点内角色 ID',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_user_site` (`user_id`, `site_id`),
+    KEY `idx_us_user_id` (`user_id`),
+    KEY `idx_us_site_id` (`site_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户站点角色表';

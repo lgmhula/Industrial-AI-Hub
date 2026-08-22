@@ -161,7 +161,7 @@ Industrial-AI-Hub/
 - **端口**：Spring Boot 8080，MySQL(Docker) 3307，Redis 6379
 - **密码加密**：BCrypt（已实现，Day 23）
 - **认证方式**：JWT — JwtUtils 生成/验证/解析 + AuthService 登录/注册（已实现，Day 23）
-- **权限模型**：RBAC — 拦截器 AuthInterceptor + @RequireRole 注解（已实现，Day 24）
+- **权限模型**：RBAC（拦截器 AuthInterceptor + @RequireRole 注解）+ **站点资源作用域**（P1-01，ADR 0020）——设备/告警/数据按 `user_site` 站点内角色授权，全局 ADMIN 隐式全站点（SiteAccessService）
 - **逻辑删除**：device 表 is_deleted + softDeleteById（已实现，Day 24 post-audit）
 
 ---

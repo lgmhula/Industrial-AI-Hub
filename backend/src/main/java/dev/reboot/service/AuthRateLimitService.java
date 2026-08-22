@@ -41,10 +41,17 @@ public class AuthRateLimitService {
     public static final Duration REGISTER_IP_WINDOW = Duration.ofMinutes(10);
     public static final long REGISTER_IP_MAX = 10;
 
-    private final StringRedisTemplate redis;
+    /** 全局每日注册配额 key 前缀：register:daily:{yyyy-MM-dd}（P1-02-A-3）。 */
+    public static final String REGISTER_DAILY_KEY_PREFIX = "register:daily:";
 
-    public AuthRateLimitService(StringRedisTemplate redis) {
+    private final StringRedisTemplate redis;
+    private final long registerDailyLimit;
+
+    public AuthRateLimitService(StringRedisTemplate redis,
+                                @org.springframework.beans.factory.annotation.Value(
+                                        "${security.registration.daily-limit:100}") long registerDailyLimit) {
         this.redis = redis;
+        this.registerDailyLimit = registerDailyLimit;
     }
 
     /** IP 维度登录限流；超限抛 429。 */
@@ -59,6 +66,42 @@ public class AuthRateLimitService {
         if (isIpLimited(REGISTER_IP_KEY_PREFIX + clientIp, REGISTER_IP_WINDOW, REGISTER_IP_MAX)) {
             throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试");
         }
+    }
+
+    /** 全局每日注册配额检查；已达上限抛 429（P1-02-A-3）。 */
+    public void checkRegisterDailyQuota() {
+        String key = registerDailyKey();
+        String v = redis.opsForValue().get(key);
+        long count = 0;
+        if (v != null) {
+            try {
+                count = Long.parseLong(v);
+            } catch (NumberFormatException ignored) {
+                count = 0;
+            }
+        }
+        if (count >= registerDailyLimit) {
+            throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS, "注册人数已达今日上限");
+        }
+    }
+
+    /** 注册成功计数 +1（首次设置 TTL 至次日零点），供每日配额判定。 */
+    public void recordRegisterSuccess() {
+        String key = registerDailyKey();
+        Long count = redis.opsForValue().increment(key);
+        if (count != null && count == 1L) {
+            redis.expire(key, untilNextMidnight());
+        }
+    }
+
+    private String registerDailyKey() {
+        return REGISTER_DAILY_KEY_PREFIX + java.time.LocalDate.now();
+    }
+
+    private static Duration untilNextMidnight() {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.LocalDateTime nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay();
+        return Duration.between(now, nextMidnight);
     }
 
     /** 账号锁定检查：失败计数达 {@link #MAX_LOGIN_FAILURES} → 抛统一 401（不泄露账号状态）。 */

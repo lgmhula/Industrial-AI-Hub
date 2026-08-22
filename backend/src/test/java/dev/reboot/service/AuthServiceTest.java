@@ -2,7 +2,6 @@ package dev.reboot.service;
 
 import dev.reboot.dto.LoginRequest;
 import dev.reboot.dto.RegisterRequest;
-import dev.reboot.dto.UserVO;
 import dev.reboot.entity.User;
 import dev.reboot.enums.ErrorCode;
 import dev.reboot.exception.BusinessException;
@@ -11,10 +10,8 @@ import dev.reboot.mapper.UserRoleMapper;
 import dev.reboot.util.JwtUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.time.LocalDateTime;
@@ -25,7 +22,10 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * AuthService 单元测试（P1-02-A-1 入口加固 + P1-02-A-2 持久锁定）。
+ * AuthService 登录路径单元测试（P1-02-A-1 入口加固 + P1-02-A-2 持久锁定）。
+ *
+ * <p>注：注册治理（开关/邀请码/配额）相关用例见 {@link AuthRegistrationGovernanceTest}
+ * （本类 @InjectMocks 无法注入 registrationEnabled/inviteCode，故注册用例单独构造 service）。</p>
  *
  * @author hula0710
  * @since 2026-08-02
@@ -38,7 +38,14 @@ class AuthServiceTest {
     @Mock private BCryptPasswordEncoder passwordEncoder;
     @Mock private JwtUtils jwtUtils;
     @Mock private AuthRateLimitService authRateLimitService;
-    @InjectMocks private AuthService authService;
+    private AuthService authService;
+
+    /** 手工构造（@Value 参数无法经 @InjectMocks 注入；登录路径与注册开关无关，取默认 false/null）。 */
+    private AuthService service() {
+        authService = new AuthService(userMapper, userRoleMapper, passwordEncoder, jwtUtils,
+                authRateLimitService, false, null);
+        return authService;
+    }
 
     private static final String CLIENT_IP = "1.2.3.4";
 
@@ -64,7 +71,7 @@ class AuthServiceTest {
         when(jwtUtils.generateToken(eq(1L), eq("admin"), eq(List.of("ADMIN")))).thenReturn("eyJ.mocked.token");
 
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("pass");
-        String token = authService.login(req, CLIENT_IP);
+        String token = service().login(req, CLIENT_IP);
 
         assertNotNull(token);
         assertTrue(token.startsWith("eyJ"));
@@ -79,7 +86,7 @@ class AuthServiceTest {
     void login_shouldThrowWhenUserNotFound() {
         when(userMapper.findByUsername("ghost")).thenReturn(null);
         LoginRequest req = new LoginRequest(); req.setUsername("ghost"); req.setPassword("x");
-        BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
         assertEquals(401, ex.getErrorCode().getCode());
         assertEquals("用户名或密码错误", ex.getMessage());
         verify(authRateLimitService).recordLoginFailure("ghost");
@@ -94,7 +101,7 @@ class AuthServiceTest {
         u.setStatus(0);
         when(userMapper.findByUsername("banned")).thenReturn(u);
         LoginRequest req = new LoginRequest(); req.setUsername("banned"); req.setPassword("x");
-        BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
         assertEquals(401, ex.getErrorCode().getCode());
         assertEquals("用户名或密码错误", ex.getMessage(), "禁用状态不得泄露（不得出现「账户已禁用」文案）");
         verify(authRateLimitService).recordLoginFailure("banned");
@@ -107,7 +114,7 @@ class AuthServiceTest {
         when(userMapper.findByUsername("admin")).thenReturn(u);
         when(passwordEncoder.matches("wrong", "encoded")).thenReturn(false);
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("wrong");
-        BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
         assertEquals(401, ex.getErrorCode().getCode());
         verify(authRateLimitService).recordLoginFailure("admin");
         verify(userMapper).updateFailedAttempts(3L, 1);
@@ -118,7 +125,7 @@ class AuthServiceTest {
         doThrow(new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误"))
                 .when(authRateLimitService).checkUserLoginLocked("admin");
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("x");
-        BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
         assertEquals(401, ex.getErrorCode().getCode());
         verify(userMapper, never()).findByUsername(anyString());
     }
@@ -129,7 +136,7 @@ class AuthServiceTest {
         u.setLockedUntil(LocalDateTime.now().plusMinutes(10));
         when(userMapper.findByUsername("admin")).thenReturn(u);
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("x");
-        BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
         assertEquals(401, ex.getErrorCode().getCode());
         verify(passwordEncoder, never()).matches(anyString(), anyString());
         verify(userMapper, never()).updateFailedAttempts(anyLong(), anyInt());
@@ -143,7 +150,7 @@ class AuthServiceTest {
         when(userMapper.findByUsername("admin")).thenReturn(u);
         when(passwordEncoder.matches("wrong", "encoded")).thenReturn(false);
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("wrong");
-        assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
+        assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
         verify(userMapper).updateFailedAttempts(5L, 3);
         verify(userMapper, never()).updateLockedUntil(anyLong(), any());
     }
@@ -154,7 +161,7 @@ class AuthServiceTest {
         when(userMapper.findByUsername("admin")).thenReturn(u);
         when(passwordEncoder.matches("wrong", "encoded")).thenReturn(false);
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("wrong");
-        assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
+        assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
         verify(userMapper).updateFailedAttempts(6L, (int) AuthRateLimitService.MAX_LOGIN_FAILURES);
         verify(userMapper).updateLockedUntil(eq(6L), notNull());
     }
@@ -166,31 +173,8 @@ class AuthServiceTest {
         doThrow(new BusinessException(ErrorCode.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试"))
                 .when(authRateLimitService).checkLoginIpLimit(CLIENT_IP);
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("x");
-        BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
         assertEquals(429, ex.getErrorCode().getCode());
-    }
-
-    @Test
-    void register_shouldCreateUserAndAssignViewer() {
-        RegisterRequest req = new RegisterRequest(); req.setUsername("newuser"); req.setPassword("p@ssw0rd");
-        when(passwordEncoder.encode("p@ssw0rd")).thenReturn("encodedPw");
-        UserVO vo = authService.register(req, CLIENT_IP);
-
-        assertNotNull(vo);
-        assertEquals("newuser", vo.getUsername());
-        verify(authRateLimitService).checkRegisterIpLimit(CLIENT_IP);
-        verify(userMapper).insert(any(User.class));
-        verify(userRoleMapper).insert(any());
-    }
-
-    @Test
-    void register_shouldThrowConflictOnDuplicate() {
-        RegisterRequest req = new RegisterRequest(); req.setUsername("dup"); req.setPassword("123456");
-        when(passwordEncoder.encode("123456")).thenReturn("encoded");
-        when(userMapper.insert(any())).thenThrow(new DuplicateKeyException("dup"));
-
-        BusinessException ex = assertThrows(BusinessException.class, () -> authService.register(req, CLIENT_IP));
-        assertEquals(409, ex.getErrorCode().getCode());
     }
 
     @Test
@@ -198,7 +182,7 @@ class AuthServiceTest {
         doThrow(new BusinessException(ErrorCode.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试"))
                 .when(authRateLimitService).checkRegisterIpLimit(CLIENT_IP);
         RegisterRequest req = new RegisterRequest(); req.setUsername("newuser"); req.setPassword("123456");
-        BusinessException ex = assertThrows(BusinessException.class, () -> authService.register(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().register(req, CLIENT_IP));
         assertEquals(429, ex.getErrorCode().getCode());
     }
 }

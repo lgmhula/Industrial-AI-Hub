@@ -20,8 +20,13 @@ public class RegisterRequest {
     @Size(min = 6, message = "密码长度至少6位")
     private String password;
 
+    /** 注册邀请码（P1-02-A-3：security.registration.enabled=true 时必填）。 */
+    private String inviteCode;
+
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+    public String getInviteCode() { return inviteCode; }
+    public void setInviteCode(String inviteCode) { this.inviteCode = inviteCode; }
 }

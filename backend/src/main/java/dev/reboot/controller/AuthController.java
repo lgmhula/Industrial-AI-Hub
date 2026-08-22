@@ -8,6 +8,7 @@ import dev.reboot.dto.UserVO;
 import dev.reboot.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,16 +32,17 @@ public class AuthController {
     @OperationLog(operationType = "LOGIN", targetType = "USER", description = "用户登录")
     @PostMapping("/login")
     @Operation(summary = "用户登录", description = "返回 JWT Token")
-    public ApiResponse<String> login(@Valid @RequestBody LoginRequest dto) {
-        String token = authService.login(dto);
+    public ApiResponse<String> login(@Valid @RequestBody LoginRequest dto, HttpServletRequest request) {
+        // Controller 仅提取客户端 IP；限流/失败计数等安全逻辑在 Service 层（P1-02-A-1）
+        String token = authService.login(dto, request.getRemoteAddr());
         return ApiResponse.ok("登录成功", token);
     }
 
     @OperationLog(operationType = "CREATE", targetType = "USER", description = "用户注册")
     @PostMapping("/register")
     @Operation(summary = "用户注册", description = "创建新用户，返回 UserVO（不含密码）")
-    public ApiResponse<UserVO> register(@Valid @RequestBody RegisterRequest dto) {
-        UserVO vo = authService.register(dto);
+    public ApiResponse<UserVO> register(@Valid @RequestBody RegisterRequest dto, HttpServletRequest request) {
+        UserVO vo = authService.register(dto, request.getRemoteAddr());
         return ApiResponse.ok("注册成功", vo);
     }
 }

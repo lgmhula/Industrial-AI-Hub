@@ -45,6 +45,7 @@ public class AuthService {
     private final JwtUtils jwtUtils;
     private final AuthRateLimitService authRateLimitService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final LoginAuditService loginAuditService;
     private final boolean registrationEnabled;
     private final String inviteCode;
 
@@ -53,6 +54,7 @@ public class AuthService {
                        JwtUtils jwtUtils,
                        AuthRateLimitService authRateLimitService,
                        TokenBlacklistService tokenBlacklistService,
+                       LoginAuditService loginAuditService,
                        @org.springframework.beans.factory.annotation.Value(
                                "${security.registration.enabled:false}") boolean registrationEnabled,
                        @org.springframework.beans.factory.annotation.Value(
@@ -63,6 +65,7 @@ public class AuthService {
         this.jwtUtils = jwtUtils;
         this.authRateLimitService = authRateLimitService;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.loginAuditService = loginAuditService;
         this.registrationEnabled = registrationEnabled;
         this.inviteCode = inviteCode;
     }
@@ -82,46 +85,68 @@ public class AuthService {
     }
 
     /**
-     * 登录 —— 入口加固：IP 限流 → 账号锁定检查 → 统一 401 失败语义。
+     * 登录 —— 入口加固 + 登录审计（P1-02-A-5）。
      *
-     * @param dto      登录请求
-     * @param clientIp 客户端 IP（Controller 从 request.getRemoteAddr() 取得，用于 IP 限流）
-     * @throws BusinessException IP 超限 → 429；任何认证失败 → 401（统一文案）
+     * @param dto       登录请求
+     * @param clientIp  客户端 IP（Controller 从 request.getRemoteAddr() 取得）
+     * @param userAgent User-Agent（审计来源信息）
+     * @throws BusinessException IP 超限 → 429；任何认证失败 → 401（统一文案，审计 reason 不回传）
      */
-    public String login(LoginRequest dto, String clientIp) {
-        authRateLimitService.checkLoginIpLimit(clientIp);
-        authRateLimitService.checkUserLoginLocked(dto.getUsername());
+    public String login(LoginRequest dto, String clientIp, String userAgent) {
+        try {
+            authRateLimitService.checkLoginIpLimit(clientIp);
+        } catch (BusinessException e) {
+            audit(dto, null, false, clientIp, userAgent, LoginAuditService.REASON_RATE_LIMIT);
+            throw e;
+        }
+        try {
+            authRateLimitService.checkUserLoginLocked(dto.getUsername());
+        } catch (BusinessException e) {
+            audit(dto, null, false, clientIp, userAgent, LoginAuditService.REASON_ACCOUNT_LOCKED);
+            throw e;
+        }
 
         User user = userMapper.findByUsername(dto.getUsername());
         if (user == null) {
             // 不存在用户：仅 Redis 计数（无 DB 行可更新）
             log.warn("登录失败：用户不存在 username={}", dto.getUsername());
             authRateLimitService.recordLoginFailure(dto.getUsername());
+            audit(dto, null, false, clientIp, userAgent, LoginAuditService.REASON_INVALID_CREDENTIAL);
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
         if (user.isLockedNow()) {
             // DB 持久锁定：不泄露状态、不计数（锁定期间拒绝一切尝试）
             log.warn("登录失败：账户持久锁定 username={}", dto.getUsername());
+            audit(dto, user.getId(), false, clientIp, userAgent, LoginAuditService.REASON_ACCOUNT_LOCKED);
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
         if (user.getStatus() != null && user.getStatus() == 0) {
             // 统一 401 文案，不泄露「账户已被禁用」这一存在性信息
             log.warn("登录失败：账户已禁用 username={}", dto.getUsername());
             recordLoginFailure(user);
+            audit(dto, user.getId(), false, clientIp, userAgent, LoginAuditService.REASON_ACCOUNT_DISABLED);
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
         if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
             log.warn("登录失败：密码错误 username={}", dto.getUsername());
             recordLoginFailure(user);
+            audit(dto, user.getId(), false, clientIp, userAgent, LoginAuditService.REASON_INVALID_PASSWORD);
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
 
-        // 登录成功：清除 Redis 失败计数 + DB 安全状态
+        // 登录成功：清除 Redis 失败计数 + DB 安全状态 + 审计
         authRateLimitService.clearLoginFailure(dto.getUsername());
         userMapper.resetLoginSecurity(user.getId());
         List<String> roles = userRoleMapper.findRoleCodesByUserId(user.getId());
+        audit(dto, user.getId(), true, clientIp, userAgent, LoginAuditService.REASON_SUCCESS);
         log.info("登录成功 username={} roles={}", dto.getUsername(), roles);
         return jwtUtils.generateToken(user.getId(), user.getUsername(), roles);
+    }
+
+    /** 登录审计（异步，不阻断；reason 仅服务端记录）。 */
+    private void audit(LoginRequest dto, Long userId, boolean success,
+                       String clientIp, String userAgent, String reason) {
+        loginAuditService.record(userId, dto.getUsername(), success, clientIp, userAgent, reason);
     }
 
     /**

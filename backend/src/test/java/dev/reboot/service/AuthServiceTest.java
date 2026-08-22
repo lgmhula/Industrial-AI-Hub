@@ -39,12 +39,15 @@ class AuthServiceTest {
     @Mock private JwtUtils jwtUtils;
     @Mock private AuthRateLimitService authRateLimitService;
     @Mock private TokenBlacklistService tokenBlacklistService;
+    @Mock private LoginAuditService loginAuditService;
     private AuthService authService;
+
+    private static final String USER_AGENT = "test-agent";
 
     /** 手工构造（@Value 参数无法经 @InjectMocks 注入；登录路径与注册开关无关，取默认 false/null）。 */
     private AuthService service() {
         authService = new AuthService(userMapper, userRoleMapper, passwordEncoder, jwtUtils,
-                authRateLimitService, tokenBlacklistService, false, null);
+                authRateLimitService, tokenBlacklistService, loginAuditService, false, null);
         return authService;
     }
 
@@ -72,7 +75,7 @@ class AuthServiceTest {
         when(jwtUtils.generateToken(eq(1L), eq("admin"), eq(List.of("ADMIN")))).thenReturn("eyJ.mocked.token");
 
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("pass");
-        String token = service().login(req, CLIENT_IP);
+        String token = service().login(req, CLIENT_IP, USER_AGENT);
 
         assertNotNull(token);
         assertTrue(token.startsWith("eyJ"));
@@ -87,7 +90,7 @@ class AuthServiceTest {
     void login_shouldThrowWhenUserNotFound() {
         when(userMapper.findByUsername("ghost")).thenReturn(null);
         LoginRequest req = new LoginRequest(); req.setUsername("ghost"); req.setPassword("x");
-        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
         assertEquals(401, ex.getErrorCode().getCode());
         assertEquals("用户名或密码错误", ex.getMessage());
         verify(authRateLimitService).recordLoginFailure("ghost");
@@ -102,7 +105,7 @@ class AuthServiceTest {
         u.setStatus(0);
         when(userMapper.findByUsername("banned")).thenReturn(u);
         LoginRequest req = new LoginRequest(); req.setUsername("banned"); req.setPassword("x");
-        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
         assertEquals(401, ex.getErrorCode().getCode());
         assertEquals("用户名或密码错误", ex.getMessage(), "禁用状态不得泄露（不得出现「账户已禁用」文案）");
         verify(authRateLimitService).recordLoginFailure("banned");
@@ -115,7 +118,7 @@ class AuthServiceTest {
         when(userMapper.findByUsername("admin")).thenReturn(u);
         when(passwordEncoder.matches("wrong", "encoded")).thenReturn(false);
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("wrong");
-        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
         assertEquals(401, ex.getErrorCode().getCode());
         verify(authRateLimitService).recordLoginFailure("admin");
         verify(userMapper).updateFailedAttempts(3L, 1);
@@ -126,7 +129,7 @@ class AuthServiceTest {
         doThrow(new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误"))
                 .when(authRateLimitService).checkUserLoginLocked("admin");
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("x");
-        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
         assertEquals(401, ex.getErrorCode().getCode());
         verify(userMapper, never()).findByUsername(anyString());
     }
@@ -137,7 +140,7 @@ class AuthServiceTest {
         u.setLockedUntil(LocalDateTime.now().plusMinutes(10));
         when(userMapper.findByUsername("admin")).thenReturn(u);
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("x");
-        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
         assertEquals(401, ex.getErrorCode().getCode());
         verify(passwordEncoder, never()).matches(anyString(), anyString());
         verify(userMapper, never()).updateFailedAttempts(anyLong(), anyInt());
@@ -151,7 +154,7 @@ class AuthServiceTest {
         when(userMapper.findByUsername("admin")).thenReturn(u);
         when(passwordEncoder.matches("wrong", "encoded")).thenReturn(false);
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("wrong");
-        assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
+        assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
         verify(userMapper).updateFailedAttempts(5L, 3);
         verify(userMapper, never()).updateLockedUntil(anyLong(), any());
     }
@@ -162,7 +165,7 @@ class AuthServiceTest {
         when(userMapper.findByUsername("admin")).thenReturn(u);
         when(passwordEncoder.matches("wrong", "encoded")).thenReturn(false);
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("wrong");
-        assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
+        assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
         verify(userMapper).updateFailedAttempts(6L, (int) AuthRateLimitService.MAX_LOGIN_FAILURES);
         verify(userMapper).updateLockedUntil(eq(6L), notNull());
     }
@@ -174,7 +177,7 @@ class AuthServiceTest {
         doThrow(new BusinessException(ErrorCode.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试"))
                 .when(authRateLimitService).checkLoginIpLimit(CLIENT_IP);
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("x");
-        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
         assertEquals(429, ex.getErrorCode().getCode());
     }
 
@@ -197,5 +200,75 @@ class AuthServiceTest {
     void logout_blankJti_shouldBeNoop() {
         service().logout("  ", java.time.Duration.ofMinutes(30));
         verify(tokenBlacklistService, never()).blacklistToken(anyString(), any());
+    }
+
+    /* ============ P1-02-A-5 登录审计 reason ============ */
+
+    @Test
+    void login_success_shouldAuditSuccess() {
+        User u = activeUser(1L, 0);
+        when(userMapper.findByUsername("admin")).thenReturn(u);
+        when(passwordEncoder.matches("pass", "encoded")).thenReturn(true);
+        when(userRoleMapper.findRoleCodesByUserId(1L)).thenReturn(List.of("ADMIN"));
+        when(jwtUtils.generateToken(eq(1L), eq("admin"), eq(List.of("ADMIN")))).thenReturn("tok");
+
+        LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("pass");
+        service().login(req, CLIENT_IP, USER_AGENT);
+
+        verify(loginAuditService).record(1L, "admin", true, CLIENT_IP, USER_AGENT,
+                LoginAuditService.REASON_SUCCESS);
+    }
+
+    @Test
+    void login_notFound_shouldAuditInvalidCredential() {
+        when(userMapper.findByUsername("ghost")).thenReturn(null);
+        LoginRequest req = new LoginRequest(); req.setUsername("ghost"); req.setPassword("x");
+        assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
+        verify(loginAuditService).record(isNull(), eq("ghost"), eq(false), eq(CLIENT_IP), eq(USER_AGENT),
+                eq(LoginAuditService.REASON_INVALID_CREDENTIAL));
+    }
+
+    @Test
+    void login_wrongPassword_shouldAuditInvalidPassword() {
+        User u = activeUser(3L, 0);
+        when(userMapper.findByUsername("admin")).thenReturn(u);
+        when(passwordEncoder.matches("wrong", "encoded")).thenReturn(false);
+        LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("wrong");
+        assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
+        verify(loginAuditService).record(3L, "admin", false, CLIENT_IP, USER_AGENT,
+                LoginAuditService.REASON_INVALID_PASSWORD);
+    }
+
+    @Test
+    void login_disabled_shouldAuditAccountDisabled() {
+        User u = activeUser(2L, null);
+        u.setUsername("banned");
+        u.setStatus(0);
+        when(userMapper.findByUsername("banned")).thenReturn(u);
+        LoginRequest req = new LoginRequest(); req.setUsername("banned"); req.setPassword("x");
+        assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
+        verify(loginAuditService).record(2L, "banned", false, CLIENT_IP, USER_AGENT,
+                LoginAuditService.REASON_ACCOUNT_DISABLED);
+    }
+
+    @Test
+    void login_dbLocked_shouldAuditAccountLocked() {
+        User u = activeUser(4L, 5);
+        u.setLockedUntil(java.time.LocalDateTime.now().plusMinutes(10));
+        when(userMapper.findByUsername("admin")).thenReturn(u);
+        LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("x");
+        assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
+        verify(loginAuditService).record(4L, "admin", false, CLIENT_IP, USER_AGENT,
+                LoginAuditService.REASON_ACCOUNT_LOCKED);
+    }
+
+    @Test
+    void login_ipLimited_shouldAuditRateLimit() {
+        doThrow(new BusinessException(ErrorCode.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试"))
+                .when(authRateLimitService).checkLoginIpLimit(CLIENT_IP);
+        LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("x");
+        assertThrows(BusinessException.class, () -> service().login(req, CLIENT_IP, USER_AGENT));
+        verify(loginAuditService).record(isNull(), eq("admin"), eq(false), eq(CLIENT_IP), eq(USER_AGENT),
+                eq(LoginAuditService.REASON_RATE_LIMIT));
     }
 }

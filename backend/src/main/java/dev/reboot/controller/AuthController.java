@@ -33,8 +33,9 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(summary = "用户登录", description = "返回 JWT Token")
     public ApiResponse<String> login(@Valid @RequestBody LoginRequest dto, HttpServletRequest request) {
-        // Controller 仅提取客户端 IP；限流/失败计数等安全逻辑在 Service 层（P1-02-A-1）
-        String token = authService.login(dto, request.getRemoteAddr());
+        // Controller 仅提取客户端 IP 与 User-Agent；限流/失败计数/审计等安全逻辑在 Service 层
+        // （不解析 X-Forwarded-For，反向代理治理后续处理）
+        String token = authService.login(dto, request.getRemoteAddr(), request.getHeader("User-Agent"));
         return ApiResponse.ok("登录成功", token);
     }
 

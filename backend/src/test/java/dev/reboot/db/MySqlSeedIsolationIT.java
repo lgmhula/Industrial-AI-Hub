@@ -113,8 +113,8 @@ class MySqlSeedIsolationIT {
             Flyway fw = prodFlyway(db);
             fw.migrate();
 
-            assertEquals(List.of("1", "3", "4", "5"), appliedVersions(fw),
-                    "全新库只执行 V1 + V3 + V4 + V5（V2 已退役；V4 站点授权、V5 用户安全状态）");
+            assertEquals(List.of("1", "3", "4", "5", "6"), appliedVersions(fw),
+                    "全新库只执行 V1 + V3 + V4 + V5 + V6（V2 已退役；V6 登录审计）");
             assertEquals(1L, scalar(db, "SELECT COUNT(*) FROM `user`"), "只有 admin，无 Demo 用户");
             assertEquals(0L, scalar(db, "SELECT COUNT(*) FROM device"), "无 Demo 设备");
             assertEquals(0L, scalar(db, "SELECT COUNT(*) FROM alarm"), "无 Demo 告警");

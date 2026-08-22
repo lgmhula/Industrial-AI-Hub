@@ -78,3 +78,15 @@ logging:
 jwt:
   secret: ${JWT_SECRET}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+# ========================
+# 注册治理（P1-02-A-3）
+# enabled=false（默认）：POST /api/auth/register 返回 403（统一错误语义）
+# enabled=true：必须携带与 invite-code 匹配的邀请码；每日注册上限 daily-limit（Redis 计数）
+# invite-code 建议经环境注入（dev 由 .env 的 REGISTER_INVITE_CODE 提供；prod 由容器环境注入）
+# ========================
+security:
+  registration:
+    enabled: false
+    invite-code: ${REGISTER_INVITE_CODE:}
+    daily-limit: 100

@@ -44,16 +44,24 @@ public class AuthService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final AuthRateLimitService authRateLimitService;
+    private final boolean registrationEnabled;
+    private final String inviteCode;
 
     public AuthService(UserMapper userMapper, UserRoleMapper userRoleMapper,
                        BCryptPasswordEncoder passwordEncoder,
                        JwtUtils jwtUtils,
-                       AuthRateLimitService authRateLimitService) {
+                       AuthRateLimitService authRateLimitService,
+                       @org.springframework.beans.factory.annotation.Value(
+                               "${security.registration.enabled:false}") boolean registrationEnabled,
+                       @org.springframework.beans.factory.annotation.Value(
+                               "${security.registration.invite-code:}") String inviteCode) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
         this.authRateLimitService = authRateLimitService;
+        this.registrationEnabled = registrationEnabled;
+        this.inviteCode = inviteCode;
     }
 
     /**
@@ -114,14 +122,21 @@ public class AuthService {
     }
 
     /**
-     * 注册 —— 入口加固：IP 限流；创建用户并分配默认 VIEWER 角色（无站点成员 → 零资源访问权，P1-01）。
+     * 注册 —— 注册治理（P1-02-A-3）：
+     * IP 限流 → 注册开关/邀请码校验（统一 403，不泄露开关与邀请码有效状态）
+     * → 每日全局配额（429）→ 创建用户 + 默认 VIEWER 角色（不自动加入站点）。
      *
      * @return UserVO（绝不包含 password 字段）
-     * @throws BusinessException 用户名已存在 → 409；IP 超限 → 429
+     * @throws BusinessException 注册未开放/邀请码无效 → 403；配额超限/IP 超限 → 429；用户名重复 → 409（通用文案）
      */
     @Transactional
     public UserVO register(RegisterRequest dto, String clientIp) {
         authRateLimitService.checkRegisterIpLimit(clientIp);
+        if (!registrationEnabled || !isInviteValid(dto.getInviteCode())) {
+            // 统一失败语义：不泄露注册开关是否开启、邀请码是否正确
+            throw new BusinessException(ErrorCode.FORBIDDEN, "注册失败，请稍后再试");
+        }
+        authRateLimitService.checkRegisterDailyQuota();
 
         User user = new User();
         user.setUsername(dto.getUsername());
@@ -132,7 +147,8 @@ public class AuthService {
             userMapper.insert(user);
         } catch (DuplicateKeyException e) {
             log.warn("注册失败：用户名已存在 username={}", dto.getUsername());
-            throw new BusinessException(ErrorCode.CONFLICT, "用户名已存在");
+            // 通用失败文案，不泄露用户名是否已被注册
+            throw new BusinessException(ErrorCode.CONFLICT, "注册失败，请稍后再试");
         }
 
         UserRole userRole = new UserRole();
@@ -140,7 +156,13 @@ public class AuthService {
         userRole.setRoleId(RoleEnum.VIEWER.getRoleId());
         userRoleMapper.insert(userRole);
 
+        authRateLimitService.recordRegisterSuccess();
         log.info("注册成功 username={} userId={}", dto.getUsername(), user.getId());
         return UserVO.from(user);
+    }
+
+    /** 邀请码校验：配置了邀请码且与请求一致。 */
+    private boolean isInviteValid(String code) {
+        return inviteCode != null && !inviteCode.isBlank() && inviteCode.equals(code);
     }
 }

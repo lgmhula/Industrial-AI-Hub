@@ -29,7 +29,7 @@ class AuthRateLimitServiceTest {
     @Mock private ValueOperations<String, String> valueOps;
 
     private AuthRateLimitService service() {
-        return new AuthRateLimitService(redis);
+        return new AuthRateLimitService(redis, 100);
     }
 
     /* ---- IP 登录限流（滑动窗口）---- */
@@ -115,5 +115,34 @@ class AuthRateLimitServiceTest {
         when(redis.delete("login:fail:user:alice")).thenReturn(true);
         service().clearLoginFailure("alice");
         verify(redis).delete("login:fail:user:alice");
+    }
+
+    /* ---- 全局每日注册配额（P1-02-A-3） ---- */
+
+    @Test
+    void checkRegisterDailyQuota_underLimit_shouldPass() {
+        when(redis.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get(AuthRateLimitService.REGISTER_DAILY_KEY_PREFIX + java.time.LocalDate.now()))
+                .thenReturn("50");
+        assertDoesNotThrow(() -> service().checkRegisterDailyQuota());
+    }
+
+    @Test
+    void checkRegisterDailyQuota_atLimit_shouldThrow429() {
+        when(redis.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get(AuthRateLimitService.REGISTER_DAILY_KEY_PREFIX + java.time.LocalDate.now()))
+                .thenReturn("100");
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service().checkRegisterDailyQuota());
+        assertEquals(429, ex.getErrorCode().getCode());
+    }
+
+    @Test
+    void recordRegisterSuccess_shouldIncrementAndExpireOnFirst() {
+        when(redis.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(AuthRateLimitService.REGISTER_DAILY_KEY_PREFIX + java.time.LocalDate.now()))
+                .thenReturn(1L);
+        service().recordRegisterSuccess();
+        verify(redis).expire(eq(AuthRateLimitService.REGISTER_DAILY_KEY_PREFIX + java.time.LocalDate.now()), any());
     }
 }

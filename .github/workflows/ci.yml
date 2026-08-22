@@ -55,19 +55,22 @@ jobs:
   # ============================================================
   # Migration integrity guard（ADR 0019 §5.5 的补偿措施）
   # 背景：ignore-migration-patterns: "*:missing" 会容忍「已应用迁移文件被删除」，
-  #       为避免未来误删/重命名正式 migration 被静默放过，PR 必须保证：
-  #       任何"已存在于目标分支"的 db/migration/*.sql 不得被删除(D)或重命名(R)。
-  # 职责边界：只拦 D/R；新增(A)/内容修改(M) 不拦（M 由 Flyway checksum/validate 负责）。
+  #       为避免未来"未经治理"的 migration 删除/重命名被静默放过：
+  #         - 删除(D)/重命名(R) 正式 migration 默认 FAIL；
+  #         - 唯一例外：APPROVED_RETIRED_MIGRATIONS 中"已治理退役"的迁移
+  #           （当前仅 V2__seed_test_data.sql，ADR 0019 §5.3 批准删除；§5.4 已否决重命名方案），
+  #           只放行「D + 精确路径」；重命名(R) 一律不自动放行。
+  # 职责边界：新增(A)/内容修改(M) 不拦（M 由 Flyway checksum/validate 负责）。
   # ============================================================
   migration-integrity:
-    name: Migration integrity — no published migration deleted/renamed
+    name: Migration integrity — no ungoverned migration deleted/renamed
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Guard — published Flyway migrations must not be deleted or renamed
+      - name: Guard — published Flyway migrations must not be deleted or renamed without governance
         env:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
@@ -79,14 +82,47 @@ jobs:
           fi
           echo "base=${BASE_SHA}"
           echo "head=${HEAD_SHA}"
+
+          # 已治理退役（governed retirement，非通用 whitelist）：
+          # 仅放行「D + 精确路径」；重命名(R)或删除其他任何 migration 仍 FAIL。
+          # 新增合法退役时：先补 ADR 记录，再在此追加精确路径（保持 D-only，不允许 R）。
+          APPROVED_RETIRED_MIGRATIONS="backend/src/main/resources/db/migration/V2__seed_test_data.sql"
+
           CHANGES="$(git diff --name-status "${BASE_SHA}...${HEAD_SHA}" -- 'backend/src/main/resources/db/migration/*.sql' 2>/dev/null || true)"
           if [ -z "$CHANGES" ]; then
             echo "no changes under db/migration"
             exit 0
           fi
           printf '%s\n' "$CHANGES"
-          if printf '%s\n' "$CHANGES" | grep -qE '^(D|R[0-9]+)'; then
-            echo "::error::a published Flyway migration was deleted (D) or renamed (R) — this breaks existing DB schema history; add a NEW V###__*.sql instead"
+
+          VIOLATIONS=0
+          while IFS=$'\t' read -r status old_path new_path; do
+            [ -z "$status" ] && continue
+            case "$status" in
+              A|M)
+                : # 新增(A)/内容修改(M) 放行；M 的 checksum 由 Flyway validate 负责
+                ;;
+              D)
+                if [ "$old_path" = "$APPROVED_RETIRED_MIGRATIONS" ]; then
+                  echo "governed retirement allowed: ${old_path} (ADR 0019 §5.3)"
+                else
+                  echo "::error::unapproved migration deletion: ${old_path} — only an ADR-governed retirement may delete a published migration"
+                  VIOLATIONS=$((VIOLATIONS + 1))
+                fi
+                ;;
+              R[0-9]*)
+                echo "::error::migration rename is not auto-approved: ${old_path} -> ${new_path}"
+                VIOLATIONS=$((VIOLATIONS + 1))
+                ;;
+              *)
+                echo "::error::unexpected migration change (status=${status}): ${old_path}"
+                VIOLATIONS=$((VIOLATIONS + 1))
+                ;;
+            esac
+          done <<< "$CHANGES"
+
+          if [ "$VIOLATIONS" -ne 0 ]; then
+            echo "::error::${VIOLATIONS} unapproved migration deletion(s)/rename(s) — add a NEW V###__*.sql instead"
             exit 1
           fi
-          echo "migration changes are additions/modifications only — OK"
+          echo "migration changes OK (additions/modifications + approved retirements only)"

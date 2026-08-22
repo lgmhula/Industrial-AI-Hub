@@ -44,6 +44,9 @@ class UserServiceTest {
     @Mock
     private BCryptPasswordEncoder passwordEncoder;
 
+    @Mock
+    private AuthRateLimitService authRateLimitService;
+
 
     @InjectMocks
     private UserService userService;
@@ -300,5 +303,36 @@ class UserServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> userService.changePassword(1L, null, "newPwd"));
         assertEquals(401, ex.getErrorCode().getCode());
+    }
+
+    /* ============ P1-02-A-2 管理员锁定/解锁 ============ */
+
+    @Test
+    void lockUser_shouldSetPersistentLock() {
+        when(userMapper.findById(1L)).thenReturn(newUser(1L, "alice", 1, "pw"));
+        assertTrue(userService.lockUser(1L));
+        verify(userMapper).updateLockedUntil(eq(1L), notNull());
+    }
+
+    @Test
+    void lockUser_shouldReturnFalseWhenNotFound() {
+        when(userMapper.findById(99L)).thenReturn(null);
+        assertFalse(userService.lockUser(99L));
+        verify(userMapper, never()).updateLockedUntil(anyLong(), any());
+    }
+
+    @Test
+    void unlockUser_shouldClearDbAndRedis() {
+        when(userMapper.findById(1L)).thenReturn(newUser(1L, "alice", 1, "pw"));
+        assertTrue(userService.unlockUser(1L));
+        verify(userMapper).resetLoginSecurity(1L);
+        verify(authRateLimitService).clearLoginFailure("alice");
+    }
+
+    @Test
+    void unlockUser_shouldReturnFalseWhenNotFound() {
+        when(userMapper.findById(99L)).thenReturn(null);
+        assertFalse(userService.unlockUser(99L));
+        verify(userMapper, never()).resetLoginSecurity(anyLong());
     }
 }

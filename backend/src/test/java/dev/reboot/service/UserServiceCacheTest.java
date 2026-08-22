@@ -51,9 +51,13 @@ class UserServiceCacheTest {
         BCryptPasswordEncoder passwordEncoder() { return mock(BCryptPasswordEncoder.class); }
 
         @Bean
+        AuthRateLimitService authRateLimitService() { return mock(AuthRateLimitService.class); }
+
+        @Bean
         UserService userService(UserMapper userMapper, UserRoleMapper userRoleMapper,
-                                BCryptPasswordEncoder passwordEncoder) {
-            return new UserService(userMapper, userRoleMapper, passwordEncoder);
+                                BCryptPasswordEncoder passwordEncoder,
+                                AuthRateLimitService authRateLimitService) {
+            return new UserService(userMapper, userRoleMapper, passwordEncoder, authRateLimitService);
         }
     }
 

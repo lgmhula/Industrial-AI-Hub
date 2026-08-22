@@ -41,7 +41,7 @@ class FlywayProductionSeedIsolationTest {
             "operator01", "TEMP-001", "13800001001", "Test123456"
     );
 
-    /** 契约 1：迁移目录只允许正式迁移（V1/V3/V4；演示种子已移出，V2 退役）。 */
+    /** 契约 1：迁移目录只允许正式迁移（V1/V3/V4/V5；演示种子已移出，V2 退役）。 */
     @Test
     void migrationDirectory_containsOnlyFormalMigrations() throws IOException {
         Path migrationDir = new ClassPathResource("db/migration").getFile().toPath();
@@ -54,7 +54,8 @@ class FlywayProductionSeedIsolationTest {
             assertEquals(
                     List.of("V1__baseline.sql",
                             "V3__operation_log_check_types.sql",
-                            "V4__add_site_scoping.sql"),
+                            "V4__add_site_scoping.sql",
+                            "V5__add_user_security_status.sql"),
                     names,
                     "db/migration 只允许正式迁移；演示种子已移出（V2__seed_test_data.sql 退役）"
             );

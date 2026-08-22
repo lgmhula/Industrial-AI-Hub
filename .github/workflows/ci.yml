@@ -51,3 +51,42 @@ jobs:
         run: |
           npm ci
           npm run build
+
+  # ============================================================
+  # Migration integrity guard（ADR 0019 §5.5 的补偿措施）
+  # 背景：ignore-migration-patterns: "*:missing" 会容忍「已应用迁移文件被删除」，
+  #       为避免未来误删/重命名正式 migration 被静默放过，PR 必须保证：
+  #       任何"已存在于目标分支"的 db/migration/*.sql 不得被删除(D)或重命名(R)。
+  # 职责边界：只拦 D/R；新增(A)/内容修改(M) 不拦（M 由 Flyway checksum/validate 负责）。
+  # ============================================================
+  migration-integrity:
+    name: Migration integrity — no published migration deleted/renamed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard — published Flyway migrations must not be deleted or renamed
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE_SHA:-}" ]; then
+            echo "::notice::no base SHA (manual dispatch) — skip migration integrity check"
+            exit 0
+          fi
+          echo "base=${BASE_SHA}"
+          echo "head=${HEAD_SHA}"
+          CHANGES="$(git diff --name-status "${BASE_SHA}...${HEAD_SHA}" -- 'backend/src/main/resources/db/migration/*.sql' 2>/dev/null || true)"
+          if [ -z "$CHANGES" ]; then
+            echo "no changes under db/migration"
+            exit 0
+          fi
+          printf '%s\n' "$CHANGES"
+          if printf '%s\n' "$CHANGES" | grep -qE '^(D|R[0-9]+)'; then
+            echo "::error::a published Flyway migration was deleted (D) or renamed (R) — this breaks existing DB schema history; add a NEW V###__*.sql instead"
+            exit 1
+          fi
+          echo "migration changes are additions/modifications only — OK"

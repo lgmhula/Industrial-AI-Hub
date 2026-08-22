@@ -38,6 +38,7 @@ class AuthRegistrationGovernanceTest {
     @Mock private JwtUtils jwtUtils;
     @Mock private AuthRateLimitService authRateLimitService;
     @Mock private TokenBlacklistService tokenBlacklistService;
+    @Mock private LoginAuditService loginAuditService;
 
     private static final String CLIENT_IP = "1.2.3.4";
     private static final String INVITE = "secret-invite";
@@ -45,7 +46,7 @@ class AuthRegistrationGovernanceTest {
     /** 手工构造 AuthService（@Value 参数显式传入，覆盖开关/邀请码场景）。 */
     private AuthService service(boolean enabled, String inviteCode) {
         return new AuthService(userMapper, userRoleMapper, passwordEncoder, jwtUtils,
-                authRateLimitService, tokenBlacklistService, enabled, inviteCode);
+                authRateLimitService, tokenBlacklistService, loginAuditService, enabled, inviteCode);
     }
 
     private RegisterRequest req(String username, String inviteCode) {

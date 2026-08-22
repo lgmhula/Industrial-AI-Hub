@@ -38,12 +38,13 @@ class AuthServiceTest {
     @Mock private BCryptPasswordEncoder passwordEncoder;
     @Mock private JwtUtils jwtUtils;
     @Mock private AuthRateLimitService authRateLimitService;
+    @Mock private TokenBlacklistService tokenBlacklistService;
     private AuthService authService;
 
     /** 手工构造（@Value 参数无法经 @InjectMocks 注入；登录路径与注册开关无关，取默认 false/null）。 */
     private AuthService service() {
         authService = new AuthService(userMapper, userRoleMapper, passwordEncoder, jwtUtils,
-                authRateLimitService, false, null);
+                authRateLimitService, tokenBlacklistService, false, null);
         return authService;
     }
 
@@ -184,5 +185,17 @@ class AuthServiceTest {
         RegisterRequest req = new RegisterRequest(); req.setUsername("newuser"); req.setPassword("123456");
         BusinessException ex = assertThrows(BusinessException.class, () -> service().register(req, CLIENT_IP));
         assertEquals(429, ex.getErrorCode().getCode());
+    }
+
+    @Test
+    void logout_shouldBlacklistToken() {
+        service().logout("jti-abc", java.time.Duration.ofMinutes(30));
+        verify(tokenBlacklistService).blacklistToken("jti-abc", java.time.Duration.ofMinutes(30));
+    }
+
+    @Test
+    void logout_blankJti_shouldBeNoop() {
+        service().logout("  ", java.time.Duration.ofMinutes(30));
+        verify(tokenBlacklistService, never()).blacklistToken(anyString(), any());
     }
 }

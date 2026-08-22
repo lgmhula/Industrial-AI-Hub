@@ -47,6 +47,9 @@ class UserServiceTest {
     @Mock
     private AuthRateLimitService authRateLimitService;
 
+    @Mock
+    private TokenBlacklistService tokenBlacklistService;
+
 
     @InjectMocks
     private UserService userService;
@@ -334,5 +337,37 @@ class UserServiceTest {
         when(userMapper.findById(99L)).thenReturn(null);
         assertFalse(userService.unlockUser(99L));
         verify(userMapper, never()).resetLoginSecurity(anyLong());
+    }
+
+    /* ============ P1-02-A-4 状态联动撤销 ============ */
+
+    @Test
+    void toggleStatus_disable_shouldRevokeUserTokens() {
+        when(userMapper.findById(1L)).thenReturn(newUser(1L, "alice", 1, "pw"));
+        when(userMapper.updateStatus(1L, 0)).thenReturn(1);
+        Integer newStatus = userService.toggleStatus(1L);
+        assertEquals(0, newStatus);
+        verify(tokenBlacklistService).revokeUser(1L);
+    }
+
+    @Test
+    void toggleStatus_enable_shouldNotRevoke() {
+        when(userMapper.findById(1L)).thenReturn(newUser(1L, "alice", 0, "pw"));
+        when(userMapper.updateStatus(1L, 1)).thenReturn(1);
+        Integer newStatus = userService.toggleStatus(1L);
+        assertEquals(1, newStatus);
+        verify(tokenBlacklistService, never()).revokeUser(anyLong());
+    }
+
+    @Test
+    void changePassword_shouldRecordChangedAtAndRevoke() {
+        when(userMapper.findById(1L)).thenReturn(newUser(1L, "alice", 1, "oldEnc"));
+        when(passwordEncoder.matches("old", "oldEnc")).thenReturn(true);
+        when(passwordEncoder.encode("newPwd6")).thenReturn("newEnc");
+        when(userMapper.updatePassword(1L, "newEnc")).thenReturn(1);
+
+        assertTrue(userService.changePassword(1L, "old", "newPwd6"));
+        verify(userMapper).updatePasswordChangedAt(eq(1L), notNull());
+        verify(tokenBlacklistService).revokeUser(1L);
     }
 }

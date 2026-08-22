@@ -35,11 +35,15 @@ class ApplicationContextLoadTest {
     private ApplicationContext applicationContext;
 
     /**
-     * CacheService 仅存在于非 test Profile。
-     * 测试 Profile 下通过 MockBean 补全依赖，确保上下文可加载。
+     * CacheService / StringRedisTemplate 仅存在于非 test Profile。
+     * 测试 Profile 下通过 MockBean 补全依赖，确保上下文可加载
+     * （AuthRateLimitService 注入 StringRedisTemplate，P1-02-A-1）。
      */
     @MockBean
     private CacheService cacheService;
+
+    @MockBean
+    private org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
 
     @Test
     void contextLoads() {

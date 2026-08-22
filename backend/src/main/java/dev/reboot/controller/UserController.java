@@ -5,6 +5,7 @@ import dev.reboot.annotation.RequireRole;
 import dev.reboot.dto.ApiResponse;
 import dev.reboot.dto.UserUpdateDTO;
 import dev.reboot.dto.UserVO;
+import dev.reboot.enums.ErrorCode;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -79,5 +80,25 @@ public class UserController {
         Long currentUserIdLong = currentUserId != null ? Long.valueOf(currentUserId.toString()) : null;
         userService.delete(id, currentUserIdLong);
         return ApiResponse.ok("用户已删除", null);
+    }
+
+    /** 管理员锁定用户（P1-02-A-2：持久锁定 15 分钟，登录返回统一 401）。 */
+    @PutMapping("/{id}/lock")
+    @Operation(summary = "锁定用户（持久锁定 15 分钟）")
+    public ApiResponse<Void> lock(@PathVariable Long id) {
+        if (!userService.lockUser(id)) {
+            return ApiResponse.error(ErrorCode.NOT_FOUND.getCode(), "用户不存在");
+        }
+        return ApiResponse.ok("用户已锁定", null);
+    }
+
+    /** 管理员解锁用户（P1-02-A-2：清除 DB 锁定与失败计数 + Redis 计数）。 */
+    @PutMapping("/{id}/unlock")
+    @Operation(summary = "解锁用户（清除失败计数与锁定）")
+    public ApiResponse<Void> unlock(@PathVariable Long id) {
+        if (!userService.unlockUser(id)) {
+            return ApiResponse.error(ErrorCode.NOT_FOUND.getCode(), "用户不存在");
+        }
+        return ApiResponse.ok("用户已解锁", null);
     }
 }

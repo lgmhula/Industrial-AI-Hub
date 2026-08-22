@@ -19,6 +19,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -36,12 +37,15 @@ public class UserService {
     private final UserMapper userMapper;
     private final UserRoleMapper userRoleMapper;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final AuthRateLimitService authRateLimitService;
 
     public UserService(UserMapper userMapper, UserRoleMapper userRoleMapper,
-                       BCryptPasswordEncoder passwordEncoder) {
+                       BCryptPasswordEncoder passwordEncoder,
+                       AuthRateLimitService authRateLimitService) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.passwordEncoder = passwordEncoder;
+        this.authRateLimitService = authRateLimitService;
     }
 
     /** 分页查询用户列表。 */
@@ -160,5 +164,40 @@ public class UserService {
         int rows = userMapper.updatePassword(id, encoded);
         log.info("密码已更新 userId={}", id);
         return rows > 0;
+    }
+
+    /**
+     * 管理员锁定用户（P1-02-A-2）：设置持久锁定 {@code locked_until = now + 15min}。
+     * 锁定期间登录返回统一 401（{@link dev.reboot.service.AuthService#login} 校验 DB 锁定）。
+     *
+     * @return 用户不存在 → false
+     */
+    @CacheEvict(cacheNames = CacheConfig.CACHE_USER_DETAIL, key = "#id")
+    public boolean lockUser(Long id) {
+        User user = userMapper.findById(id);
+        if (user == null) {
+            return false;
+        }
+        userMapper.updateLockedUntil(id, LocalDateTime.now().plus(AuthRateLimitService.LOGIN_FAIL_TTL));
+        log.info("用户被管理员锁定 userId={}", id);
+        return true;
+    }
+
+    /**
+     * 管理员解锁用户（P1-02-A-2）：清除 DB 安全状态（failed_attempts=0, locked_until=NULL）
+     * 并同步删除 Redis 失败计数。
+     *
+     * @return 用户不存在 → false
+     */
+    @CacheEvict(cacheNames = CacheConfig.CACHE_USER_DETAIL, key = "#id")
+    public boolean unlockUser(Long id) {
+        User user = userMapper.findById(id);
+        if (user == null) {
+            return false;
+        }
+        userMapper.resetLoginSecurity(id);
+        authRateLimitService.clearLoginFailure(user.getUsername());
+        log.info("用户被管理员解锁 userId={}", id);
+        return true;
     }
 }

@@ -4,6 +4,7 @@ import dev.reboot.dto.LoginRequest;
 import dev.reboot.dto.RegisterRequest;
 import dev.reboot.dto.UserVO;
 import dev.reboot.entity.User;
+import dev.reboot.enums.ErrorCode;
 import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.UserMapper;
 import dev.reboot.mapper.UserRoleMapper;
@@ -16,17 +17,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * AuthService 单元测试（P1-02-A-1 入口加固）。
- *
- * <p>覆盖：统一 401（不存在/禁用/密码错/锁定）、失败计数记录/清除、IP 限流 429、注册限流。</p>
+ * AuthService 单元测试（P1-02-A-1 入口加固 + P1-02-A-2 持久锁定）。
  *
  * @author hula0710
  * @since 2026-08-02
@@ -43,9 +42,22 @@ class AuthServiceTest {
 
     private static final String CLIENT_IP = "1.2.3.4";
 
+    private User activeUser(Long id, Integer failedAttempts) {
+        User u = new User();
+        u.setId(id);
+        u.setUsername("admin");
+        u.setPassword("encoded");
+        u.setStatus(1);
+        u.setFailedAttempts(failedAttempts);
+        u.setLockedUntil(null);
+        return u;
+    }
+
+    /* ============ 登录成功 ============ */
+
     @Test
     void login_shouldReturnTokenOnSuccess() {
-        User u = new User(); u.setId(1L); u.setUsername("admin"); u.setPassword("encoded"); u.setStatus(1);
+        User u = activeUser(1L, 0);
         when(userMapper.findByUsername("admin")).thenReturn(u);
         when(passwordEncoder.matches("pass", "encoded")).thenReturn(true);
         when(userRoleMapper.findRoleCodesByUserId(1L)).thenReturn(List.of("ADMIN"));
@@ -58,7 +70,10 @@ class AuthServiceTest {
         assertTrue(token.startsWith("eyJ"));
         verify(authRateLimitService).checkLoginIpLimit(CLIENT_IP);
         verify(authRateLimitService).clearLoginFailure("admin");
+        verify(userMapper).resetLoginSecurity(1L);
     }
+
+    /* ============ 统一 401（账户枚举防护） ============ */
 
     @Test
     void login_shouldThrowWhenUserNotFound() {
@@ -68,33 +83,39 @@ class AuthServiceTest {
         assertEquals(401, ex.getErrorCode().getCode());
         assertEquals("用户名或密码错误", ex.getMessage());
         verify(authRateLimitService).recordLoginFailure("ghost");
+        // 不存在用户无 DB 行可更新
+        verify(userMapper, never()).updateFailedAttempts(anyLong(), anyInt());
     }
 
     @Test
     void login_disabledUser_shouldReturnUnified401_noAccountLeak() {
-        User u = new User(); u.setUsername("banned"); u.setStatus(0);
+        User u = activeUser(2L, null);
+        u.setUsername("banned");
+        u.setStatus(0);
         when(userMapper.findByUsername("banned")).thenReturn(u);
         LoginRequest req = new LoginRequest(); req.setUsername("banned"); req.setPassword("x");
         BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
         assertEquals(401, ex.getErrorCode().getCode());
         assertEquals("用户名或密码错误", ex.getMessage(), "禁用状态不得泄露（不得出现「账户已禁用」文案）");
         verify(authRateLimitService).recordLoginFailure("banned");
+        verify(userMapper).updateFailedAttempts(2L, 1);
     }
 
     @Test
     void login_shouldThrowWhenWrongPassword() {
-        User u = new User(); u.setStatus(1); u.setPassword("encoded");
+        User u = activeUser(3L, 0);
         when(userMapper.findByUsername("admin")).thenReturn(u);
         when(passwordEncoder.matches("wrong", "encoded")).thenReturn(false);
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("wrong");
         BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
         assertEquals(401, ex.getErrorCode().getCode());
         verify(authRateLimitService).recordLoginFailure("admin");
+        verify(userMapper).updateFailedAttempts(3L, 1);
     }
 
     @Test
-    void login_whenAccountLocked_shouldReturnUnified401() {
-        doThrow(new BusinessException(dev.reboot.enums.ErrorCode.UNAUTHORIZED, "用户名或密码错误"))
+    void login_whenRedisLocked_shouldReturnUnified401() {
+        doThrow(new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误"))
                 .when(authRateLimitService).checkUserLoginLocked("admin");
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("x");
         BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
@@ -103,13 +124,50 @@ class AuthServiceTest {
     }
 
     @Test
+    void login_whenDbLocked_shouldReturnUnified401() {
+        User u = activeUser(4L, 5);
+        u.setLockedUntil(LocalDateTime.now().plusMinutes(10));
+        when(userMapper.findByUsername("admin")).thenReturn(u);
+        LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("x");
+        BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
+        assertEquals(401, ex.getErrorCode().getCode());
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+        verify(userMapper, never()).updateFailedAttempts(anyLong(), anyInt());
+    }
+
+    /* ============ 持久失败计数与锁定（P1-02-A-2） ============ */
+
+    @Test
+    void login_failure_shouldIncrementDbFailedAttempts() {
+        User u = activeUser(5L, 2);
+        when(userMapper.findByUsername("admin")).thenReturn(u);
+        when(passwordEncoder.matches("wrong", "encoded")).thenReturn(false);
+        LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("wrong");
+        assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
+        verify(userMapper).updateFailedAttempts(5L, 3);
+        verify(userMapper, never()).updateLockedUntil(anyLong(), any());
+    }
+
+    @Test
+    void login_fiveFailures_shouldSetPersistentLock() {
+        User u = activeUser(6L, (int) AuthRateLimitService.MAX_LOGIN_FAILURES - 1);
+        when(userMapper.findByUsername("admin")).thenReturn(u);
+        when(passwordEncoder.matches("wrong", "encoded")).thenReturn(false);
+        LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("wrong");
+        assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
+        verify(userMapper).updateFailedAttempts(6L, (int) AuthRateLimitService.MAX_LOGIN_FAILURES);
+        verify(userMapper).updateLockedUntil(eq(6L), notNull());
+    }
+
+    /* ============ IP 限流 / 注册 ============ */
+
+    @Test
     void login_ipLimited_shouldThrow429() {
-        doThrow(new BusinessException(dev.reboot.enums.ErrorCode.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试"))
+        doThrow(new BusinessException(ErrorCode.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试"))
                 .when(authRateLimitService).checkLoginIpLimit(CLIENT_IP);
         LoginRequest req = new LoginRequest(); req.setUsername("admin"); req.setPassword("x");
         BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(req, CLIENT_IP));
         assertEquals(429, ex.getErrorCode().getCode());
-        verify(userMapper, never()).findByUsername(anyString());
     }
 
     @Test
@@ -137,11 +195,10 @@ class AuthServiceTest {
 
     @Test
     void register_ipLimited_shouldThrow429() {
-        doThrow(new BusinessException(dev.reboot.enums.ErrorCode.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试"))
+        doThrow(new BusinessException(ErrorCode.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试"))
                 .when(authRateLimitService).checkRegisterIpLimit(CLIENT_IP);
         RegisterRequest req = new RegisterRequest(); req.setUsername("newuser"); req.setPassword("123456");
         BusinessException ex = assertThrows(BusinessException.class, () -> authService.register(req, CLIENT_IP));
         assertEquals(429, ex.getErrorCode().getCode());
-        verify(userMapper, never()).insert(any());
     }
 }

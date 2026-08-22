@@ -18,6 +18,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -68,26 +69,48 @@ public class AuthService {
 
         User user = userMapper.findByUsername(dto.getUsername());
         if (user == null) {
+            // 不存在用户：仅 Redis 计数（无 DB 行可更新）
             log.warn("登录失败：用户不存在 username={}", dto.getUsername());
             authRateLimitService.recordLoginFailure(dto.getUsername());
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
+        }
+        if (user.isLockedNow()) {
+            // DB 持久锁定：不泄露状态、不计数（锁定期间拒绝一切尝试）
+            log.warn("登录失败：账户持久锁定 username={}", dto.getUsername());
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
         if (user.getStatus() != null && user.getStatus() == 0) {
             // 统一 401 文案，不泄露「账户已被禁用」这一存在性信息
             log.warn("登录失败：账户已禁用 username={}", dto.getUsername());
-            authRateLimitService.recordLoginFailure(dto.getUsername());
+            recordLoginFailure(user);
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
         if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
             log.warn("登录失败：密码错误 username={}", dto.getUsername());
-            authRateLimitService.recordLoginFailure(dto.getUsername());
+            recordLoginFailure(user);
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
 
+        // 登录成功：清除 Redis 失败计数 + DB 安全状态
         authRateLimitService.clearLoginFailure(dto.getUsername());
+        userMapper.resetLoginSecurity(user.getId());
         List<String> roles = userRoleMapper.findRoleCodesByUserId(user.getId());
         log.info("登录成功 username={} roles={}", dto.getUsername(), roles);
         return jwtUtils.generateToken(user.getId(), user.getUsername(), roles);
+    }
+
+    /**
+     * 登录失败记录（双层）：Redis 快速计数（P1-02-A-1）+ DB 持久计数（P1-02-A-2）；
+     * 连续失败达 {@link AuthRateLimitService#MAX_LOGIN_FAILURES} 次 → 持久锁定 15 分钟。
+     */
+    private void recordLoginFailure(User user) {
+        authRateLimitService.recordLoginFailure(user.getUsername());
+        int attempts = (user.getFailedAttempts() == null ? 0 : user.getFailedAttempts()) + 1;
+        userMapper.updateFailedAttempts(user.getId(), attempts);
+        if (attempts >= AuthRateLimitService.MAX_LOGIN_FAILURES) {
+            userMapper.updateLockedUntil(user.getId(),
+                    LocalDateTime.now().plus(AuthRateLimitService.LOGIN_FAIL_TTL));
+        }
     }
 
     /**

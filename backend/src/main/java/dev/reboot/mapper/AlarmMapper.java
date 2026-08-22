@@ -8,20 +8,32 @@ import java.util.List;
 /**
  * Alarm 表 Mapper — 分页由 PageHelper 自动拦截，无需手动 LIMIT。
  *
+ * <p>P1-01：列表查询按设备所属站点过滤（JOIN device；siteIds=null 表示不过滤=全局管理员）。</p>
+ *
  * @author hula0710
  * @since 2026-07-20
  */
 @Mapper
 public interface AlarmMapper {
 
-    @Select("SELECT * FROM alarm ORDER BY triggered_at DESC")
-    List<Alarm> findAll();
+    @Select("<script>SELECT a.* FROM alarm a JOIN device d ON a.device_id = d.id"
+            + "<if test='siteIds != null'> WHERE d.site_id IN "
+            + "<foreach collection='siteIds' item='sid' open='(' separator=',' close=')'>#{sid}</foreach>"
+            + "</if> ORDER BY a.triggered_at DESC</script>")
+    List<Alarm> findAll(@Param("siteIds") List<Long> siteIds);
 
     @Select("SELECT * FROM alarm WHERE device_id = #{deviceId} ORDER BY triggered_at DESC")
     List<Alarm> findByDeviceId(@Param("deviceId") Long deviceId);
 
-    @Select("SELECT * FROM alarm WHERE status = #{status} ORDER BY triggered_at DESC")
-    List<Alarm> findByStatus(@Param("status") Integer status);
+    @Select("<script>SELECT a.* FROM alarm a JOIN device d ON a.device_id = d.id"
+            + " WHERE a.status = #{status}"
+            + "<if test='siteIds != null'> AND d.site_id IN "
+            + "<foreach collection='siteIds' item='sid' open='(' separator=',' close=')'>#{sid}</foreach>"
+            + "</if> ORDER BY a.triggered_at DESC</script>")
+    List<Alarm> findByStatus(@Param("status") Integer status, @Param("siteIds") List<Long> siteIds);
+
+    @Select("SELECT * FROM alarm WHERE id = #{id}")
+    Alarm findById(@Param("id") Long id);
 
     @Insert("INSERT INTO alarm(device_id, alarm_type, alarm_level, alarm_message, status, triggered_at) "
           + "VALUES(#{deviceId}, #{alarmType}, #{alarmLevel}, #{alarmMessage}, #{status}, #{triggeredAt})")

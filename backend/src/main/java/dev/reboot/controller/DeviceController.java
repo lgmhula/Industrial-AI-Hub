@@ -8,6 +8,7 @@ import dev.reboot.dto.DeviceDTO;
 import dev.reboot.dto.DeviceVO;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.DeviceService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -20,7 +21,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 /**
  * Device REST 控制器。
  *
- * <p>业务异常统一由 {@link dev.reboot.exception.GlobalExceptionHandler} 处理。</p>
+ * <p>业务异常统一由 {@link dev.reboot.exception.GlobalExceptionHandler} 处理。
+ * P1-01：当前登录用户 ID（来自 JWT）显式传入 Service，由 Service 做站点资源作用域校验。</p>
  *
  * @author hula0710
  * @since 2026-07-24
@@ -37,9 +39,7 @@ public class DeviceController {
     }
 
     /**
-     * 分页搜索设备列表。
-     *
-     * <p>支持关键字模糊搜索（设备名称/编码）、设备类型筛选、状态筛选。</p>
+     * 分页搜索设备列表（当前用户可访问站点范围内）。
      */
     @GetMapping
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
@@ -49,31 +49,34 @@ public class DeviceController {
             @RequestParam(required = false) String deviceType,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") @Min(1) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
-        return ApiResponse.ok(deviceService.searchDevices(keyword, deviceType, status, page, size));
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
+            HttpServletRequest request) {
+        return ApiResponse.ok(deviceService.searchDevices(
+                keyword, deviceType, status, page, size, currentUserId(request)));
     }
 
     @GetMapping("/{id}")
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
     @Operation(summary = "按 ID 查询设备")
-    public ApiResponse<DeviceVO> getById(@PathVariable Long id) {
-        return ApiResponse.ok(deviceService.getById(id));
+    public ApiResponse<DeviceVO> getById(@PathVariable Long id, HttpServletRequest request) {
+        return ApiResponse.ok(deviceService.getById(id, currentUserId(request)));
     }
 
     @OperationLog(operationType = "CREATE", targetType = "DEVICE", description = "创建设备")
     @PostMapping
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
     @Operation(summary = "创建设备")
-    public ApiResponse<DeviceVO> create(@Valid @RequestBody DeviceDTO dto) {
-        return ApiResponse.ok("设备创建成功", deviceService.create(dto));
+    public ApiResponse<DeviceVO> create(@Valid @RequestBody DeviceDTO dto, HttpServletRequest request) {
+        return ApiResponse.ok("设备创建成功", deviceService.create(dto, currentUserId(request)));
     }
 
     @OperationLog(operationType = "UPDATE", targetType = "DEVICE", description = "更新设备 {0}")
     @PutMapping("/{id}")
     @RequireRole({RoleEnum.OPERATOR, RoleEnum.ADMIN})
     @Operation(summary = "更新设备")
-    public ApiResponse<DeviceVO> update(@PathVariable Long id, @Valid @RequestBody DeviceDTO dto) {
-        return ApiResponse.ok("设备更新成功", deviceService.update(id, dto));
+    public ApiResponse<DeviceVO> update(@PathVariable Long id, @Valid @RequestBody DeviceDTO dto,
+                                        HttpServletRequest request) {
+        return ApiResponse.ok("设备更新成功", deviceService.update(id, dto, currentUserId(request)));
     }
 
     @OperationLog(operationType = "DELETE", targetType = "DEVICE", description = "删除设备 {0}")
@@ -83,5 +86,10 @@ public class DeviceController {
     public ApiResponse<Void> delete(@PathVariable Long id) {
         deviceService.delete(id);
         return ApiResponse.ok("设备已删除", null);
+    }
+
+    private Long currentUserId(HttpServletRequest request) {
+        Object v = request.getAttribute("userId");
+        return v == null ? null : Long.valueOf(v.toString());
     }
 }

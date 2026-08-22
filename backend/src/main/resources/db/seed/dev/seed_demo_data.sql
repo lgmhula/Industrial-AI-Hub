@@ -365,3 +365,28 @@ WHERE NOT EXISTS (
     WHERE ol.user_id = u.id AND ol.operation_type = t.operation_type
       AND ol.target_type = t.target_type AND ol.description = t.description
 );
+
+-- ================================================================
+-- 7. 站点成员分配（user_site）—— 演示用户归属默认站点（P1-01）
+--    守卫键：user_site(user_id, site_id)
+--    operator01/02 → 默认站点 OPERATOR；viewer01/02 + user05~20 → 默认站点 VIEWER
+--    全局 ADMIN（admin）无需 user_site（系统管理员隐式全站点）
+-- ================================================================
+INSERT INTO `user_site` (`user_id`, `site_id`, `role_id`)
+SELECT u.id, s.id, r.id
+FROM `user` u
+JOIN `site` s ON s.site_code = 'DEFAULT'
+JOIN `role` r ON r.role_code = 'OPERATOR'
+WHERE u.username IN ('operator01', 'operator02')
+  AND NOT EXISTS (SELECT 1 FROM `user_site` us WHERE us.user_id = u.id AND us.site_id = s.id);
+
+INSERT INTO `user_site` (`user_id`, `site_id`, `role_id`)
+SELECT u.id, s.id, r.id
+FROM `user` u
+JOIN `site` s ON s.site_code = 'DEFAULT'
+JOIN `role` r ON r.role_code = 'VIEWER'
+WHERE u.username IN ('viewer01','viewer02',
+                     'user05','user06','user07','user08','user09','user10',
+                     'user11','user12','user13','user14','user15','user16',
+                     'user17','user18','user19','user20')
+  AND NOT EXISTS (SELECT 1 FROM `user_site` us WHERE us.user_id = u.id AND us.site_id = s.id);

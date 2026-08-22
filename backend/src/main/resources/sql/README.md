@@ -24,6 +24,7 @@ sql/
 |------|------|------|
 | V1 | `V1__baseline.sql` | Schema + 必需初始化（7 表 + 约束 + 默认角色/admin） |
 | V3 | `V3__operation_log_check_types.sql` | 操作日志类型 CHECK 扩展（ACKNOWLEDGE/RESOLVE） |
+| V4 | `V4__add_site_scoping.sql` | 站点授权模型（P1-01，ADR 0020）：site/user_site 表 + device.site_id（默认站点回填） |
 
 > ⚠️ **演示/测试种子数据不在迁移链内**（ADR 0019 §5，P0）：原 `V2__seed_test_data.sql` 已退役，
 > 唯一事实源为 `db/seed/dev/seed_demo_data.sql`，开发环境经 `scripts/seed-dev.sh` 显式执行（幂等）。

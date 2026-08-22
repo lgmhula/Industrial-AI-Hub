@@ -4,8 +4,13 @@ import dev.reboot.dto.AlarmVO;
 import dev.reboot.dto.DataReportRequest;
 import dev.reboot.dto.DeviceDataStats;
 import dev.reboot.config.CacheConfig;
+import dev.reboot.entity.Device;
 import dev.reboot.entity.DeviceData;
+import dev.reboot.enums.ErrorCode;
+import dev.reboot.enums.RoleEnum;
+import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.DeviceDataMapper;
+import dev.reboot.mapper.DeviceMapper;
 import dev.reboot.mq.AlarmMessage;
 import dev.reboot.mq.AlarmProducer;
 import dev.reboot.mq.DeviceDataMessage;
@@ -23,7 +28,10 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
- * DeviceData 业务逻辑层。
+ * DeviceData 业务逻辑层（P1-01：站点作用域）。
+ *
+ * <p>读取需设备所在站点 VIEWER 及以上；上报需 OPERATOR 及以上。
+ * 缓存 key 含 userId（避免缓存命中绕过站点授权）。</p>
  *
  * @author hula0710
  * @since 2026-07-26
@@ -34,8 +42,9 @@ public class DeviceDataService {
     private static final Logger log = LoggerFactory.getLogger(DeviceDataService.class);
 
     private final DeviceDataMapper deviceDataMapper;
-
     private final AlarmDetector alarmDetector;
+    private final DeviceMapper deviceMapper;
+    private final SiteAccessService siteAccessService;
 
     @Autowired(required = false)
     private AlarmProducer alarmProducer;
@@ -43,31 +52,34 @@ public class DeviceDataService {
     @Autowired(required = false)
     private DeviceDataProducer deviceDataProducer;
 
-    public DeviceDataService(DeviceDataMapper deviceDataMapper, AlarmDetector alarmDetector) {
+    public DeviceDataService(DeviceDataMapper deviceDataMapper, AlarmDetector alarmDetector,
+                             DeviceMapper deviceMapper, SiteAccessService siteAccessService) {
         this.deviceDataMapper = deviceDataMapper;
         this.alarmDetector = alarmDetector;
+        this.deviceMapper = deviceMapper;
+        this.siteAccessService = siteAccessService;
     }
 
-    /** 按设备 ID 查询所有数据记录。 */
-    public List<DeviceData> listByDevice(Long deviceId) {
+    /** 按设备 ID 查询所有数据记录（需设备站点 VIEWER 及以上）。 */
+    public List<DeviceData> listByDevice(Long deviceId, Long userId) {
+        requireDeviceAccess(deviceId, userId, RoleEnum.VIEWER);
         return deviceDataMapper.findByDeviceId(deviceId);
     }
 
-    /** 获取设备最新一条数据。 */
-    public DeviceData getLatest(Long deviceId, String dataType) {
+    /** 获取设备最新一条数据（需设备站点 VIEWER 及以上）。 */
+    public DeviceData getLatest(Long deviceId, String dataType, Long userId) {
+        requireDeviceAccess(deviceId, userId, RoleEnum.VIEWER);
         return deviceDataMapper.findLatest(deviceId, dataType);
     }
 
     /**
-     * 上报设备数据，同时执行报警规则检测。
-     *
-     * <p>上报成功后清空聚合统计与时间范围查询缓存，避免旧数据污染。</p>
-     *
-     * @return 持久化后的 DeviceData
+     * 上报设备数据，同时执行报警规则检测（需设备站点 OPERATOR 及以上）。
      */
     @CacheEvict(cacheNames = {CacheConfig.CACHE_DEVICE_STATS, CacheConfig.CACHE_DEVICE_RANGE},
             allEntries = true)
-    public DeviceData report(Long deviceId, DataReportRequest req) {
+    public DeviceData report(Long deviceId, DataReportRequest req, Long userId) {
+        requireDeviceAccess(deviceId, userId, RoleEnum.OPERATOR);
+
         DeviceData data = new DeviceData();
         data.setDeviceId(deviceId);
         data.setDataType(req.getDataType());
@@ -111,29 +123,26 @@ public class DeviceDataService {
     }
 
     /**
-     * 按时间范围查询设备数据。
-     *
-     * @param deviceId  设备 ID
-     * @param dataType  数据类型（可选）
-     * @param startTime 开始时间（可选）
-     * @param endTime   结束时间（可选）
+     * 按时间范围查询设备数据（需设备站点 VIEWER 及以上；缓存 key 含 userId）。
      */
     @Cacheable(cacheNames = CacheConfig.CACHE_DEVICE_RANGE,
-            key = "#deviceId + ':' + #dataType + ':' + #startTime + ':' + #endTime")
+            key = "#userId + ':' + #deviceId + ':' + #dataType + ':' + #startTime + ':' + #endTime")
     public List<DeviceData> listByTimeRange(Long deviceId, String dataType,
-                                            LocalDateTime startTime, LocalDateTime endTime) {
+                                            LocalDateTime startTime, LocalDateTime endTime,
+                                            Long userId) {
+        requireDeviceAccess(deviceId, userId, RoleEnum.VIEWER);
         return deviceDataMapper.findByTimeRange(deviceId, dataType, startTime, endTime);
     }
 
     /**
-     * 聚合统计：avg/min/max/count。
-     *
-     * <p>相同查询参数走 Spring Cache 缓存（30 分钟 TTL）。</p>
+     * 聚合统计：avg/min/max/count（需设备站点 VIEWER 及以上；缓存 key 含 userId）。
      */
     @Cacheable(cacheNames = CacheConfig.CACHE_DEVICE_STATS,
-            key = "#deviceId + ':' + #dataType + ':' + #startTime + ':' + #endTime")
+            key = "#userId + ':' + #deviceId + ':' + #dataType + ':' + #startTime + ':' + #endTime")
     public DeviceDataStats getStats(Long deviceId, String dataType,
-                                    LocalDateTime startTime, LocalDateTime endTime) {
+                                    LocalDateTime startTime, LocalDateTime endTime,
+                                    Long userId) {
+        requireDeviceAccess(deviceId, userId, RoleEnum.VIEWER);
         Map<String, Object> raw = deviceDataMapper.aggregate(deviceId, dataType, startTime, endTime);
         DeviceDataStats stats = new DeviceDataStats();
         stats.setAvg((BigDecimal) raw.get("avg"));
@@ -141,5 +150,13 @@ public class DeviceDataService {
         stats.setMax((BigDecimal) raw.get("max"));
         stats.setCount(((Number) raw.get("cnt")).longValue());
         return stats;
+    }
+
+    private void requireDeviceAccess(Long deviceId, Long userId, RoleEnum required) {
+        Device device = deviceMapper.findById(deviceId);
+        if (device == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "设备不存在");
+        }
+        siteAccessService.assertSiteAccess(userId, device.getSiteId(), required);
     }
 }

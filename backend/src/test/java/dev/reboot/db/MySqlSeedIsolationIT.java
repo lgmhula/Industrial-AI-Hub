@@ -113,7 +113,8 @@ class MySqlSeedIsolationIT {
             Flyway fw = prodFlyway(db);
             fw.migrate();
 
-            assertEquals(List.of("1", "3"), appliedVersions(fw), "全新库只执行 V1 + V3（V2 已退役）");
+            assertEquals(List.of("1", "3", "4"), appliedVersions(fw),
+                    "全新库只执行 V1 + V3 + V4（V2 已退役；V4 为站点授权迁移）");
             assertEquals(1L, scalar(db, "SELECT COUNT(*) FROM `user`"), "只有 admin，无 Demo 用户");
             assertEquals(0L, scalar(db, "SELECT COUNT(*) FROM device"), "无 Demo 设备");
             assertEquals(0L, scalar(db, "SELECT COUNT(*) FROM alarm"), "无 Demo 告警");
@@ -148,6 +149,23 @@ class MySqlSeedIsolationIT {
                 // Test C：幂等
                 ScriptUtils.executeSqlScript(c, utf8("db/seed/dev/seed_demo_data.sql"));
                 assertArrayEquals(first, counts(db), "seed 二次执行不得产生重复数据");
+
+                // P1-01：站点成员幂等分配（20 个演示用户 → 默认站点）
+                assertEquals(20L, scalar(db, "SELECT COUNT(*) FROM user_site"), "user_site 应为 20（不重复）");
+                assertTrue(exists(db, """
+                        SELECT 1 FROM user_site us
+                        JOIN `user` u ON u.id = us.user_id
+                        JOIN role r ON r.id = us.role_id
+                        JOIN site s ON s.id = us.site_id
+                        WHERE u.username = 'operator01' AND r.role_code = 'OPERATOR' AND s.site_code = 'DEFAULT'"""),
+                        "operator01 应为默认站点 OPERATOR");
+                assertTrue(exists(db, """
+                        SELECT 1 FROM user_site us
+                        JOIN `user` u ON u.id = us.user_id
+                        JOIN role r ON r.id = us.role_id
+                        JOIN site s ON s.id = us.site_id
+                        WHERE u.username = 'viewer01' AND r.role_code = 'VIEWER' AND s.site_code = 'DEFAULT'"""),
+                        "viewer01 应为默认站点 VIEWER");
             }
         } finally {
             dropDb(db);
@@ -199,7 +217,7 @@ class MySqlSeedIsolationIT {
         try {
             // 构造旧链路：V1 + V2(演示种子内容) + V3 —— 模拟旧版本（V2 在迁移链内）执行过的库
             copyTo("db/migration/V1__baseline.sql", oldChain.resolve("V1__baseline.sql"));
-            copyTo("db/seed/dev/seed_demo_data.sql", oldChain.resolve("V2__seed_test_data.sql"));
+            Files.write(oldChain.resolve("V2__seed_test_data.sql"), seedProxyForOldChain());
             copyTo("db/migration/V3__operation_log_check_types.sql", oldChain.resolve("V3__operation_log_check_types.sql"));
             Flyway oldChainFlyway = Flyway.configure()
                     .dataSource(dbUrl(db), USER, PASSWORD)
@@ -237,6 +255,18 @@ class MySqlSeedIsolationIT {
 
     private static EncodedResource utf8(String location) {
         return new EncodedResource(new ClassPathResource(location), StandardCharsets.UTF_8);
+    }
+
+    /** 旧链 V2 代理：取当前 seed 但截断 user_site 段（历史 V2 无站点段；user_site 由 V4 建立）。 */
+    private static byte[] seedProxyForOldChain() throws Exception {
+        String content = org.springframework.util.StreamUtils.copyToString(
+                new EncodedResource(new ClassPathResource("db/seed/dev/seed_demo_data.sql"),
+                        StandardCharsets.UTF_8).getInputStream(), StandardCharsets.UTF_8);
+        int idx = content.indexOf("7. 站点成员分配");
+        if (idx > 0) {
+            content = content.substring(0, idx);
+        }
+        return content.getBytes(StandardCharsets.UTF_8);
     }
 
     private static void copyTo(String classpath, Path target) throws Exception {

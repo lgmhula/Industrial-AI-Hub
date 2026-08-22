@@ -46,7 +46,7 @@ public class JwtUtils {
     }
 
     /**
-     * 生成带角色信息的 JWT Token。
+     * 生成带角色信息的 JWT Token（P1-02-A-4：含 jti 用于黑名单/撤销）。
      *
      * @param userId   用户 ID
      * @param username 用户名
@@ -58,6 +58,7 @@ public class JwtUtils {
         Date expiration = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
+                .id(java.util.UUID.randomUUID().toString()) // jti（登出黑名单/用户撤销基准）
                 .subject(username)
                 .claim("userId", userId)
                 .claim("roles", roles != null ? roles : Collections.emptyList())

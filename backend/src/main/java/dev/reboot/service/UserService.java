@@ -38,14 +38,17 @@ public class UserService {
     private final UserRoleMapper userRoleMapper;
     private final BCryptPasswordEncoder passwordEncoder;
     private final AuthRateLimitService authRateLimitService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     public UserService(UserMapper userMapper, UserRoleMapper userRoleMapper,
                        BCryptPasswordEncoder passwordEncoder,
-                       AuthRateLimitService authRateLimitService) {
+                       AuthRateLimitService authRateLimitService,
+                       TokenBlacklistService tokenBlacklistService) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.passwordEncoder = passwordEncoder;
         this.authRateLimitService = authRateLimitService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     /** 分页查询用户列表。 */
@@ -116,6 +119,10 @@ public class UserService {
         }
         int newStatus = (user.getStatus() != null && user.getStatus() == 1) ? 0 : 1;
         userMapper.updateStatus(id, newStatus);
+        // P1-02-A-4：禁用（1→0）时撤销该用户全部存量 token；恢复启用不撤销历史 token
+        if (newStatus == 0) {
+            tokenBlacklistService.revokeUser(id);
+        }
         log.info("用户状态切换 userId={} newStatus={}", id, newStatus);
         return newStatus;
     }
@@ -162,6 +169,11 @@ public class UserService {
         }
         String encoded = passwordEncoder.encode(newPassword);
         int rows = userMapper.updatePassword(id, encoded);
+        if (rows > 0) {
+            // P1-02-A-4：记录改密时间（V5 列，旧 token 失效基准）+ 撤销全部存量 token
+            userMapper.updatePasswordChangedAt(id, LocalDateTime.now());
+            tokenBlacklistService.revokeUser(id);
+        }
         log.info("密码已更新 userId={}", id);
         return rows > 0;
     }

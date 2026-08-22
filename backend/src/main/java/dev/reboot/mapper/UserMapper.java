@@ -55,4 +55,9 @@ public interface UserMapper {
     /** 成功登录/管理员解锁：清零失败次数并清除锁定。 */
     @Update("UPDATE user SET failed_attempts = 0, locked_until = NULL WHERE id = #{id} AND is_deleted = 0")
     int resetLoginSecurity(@Param("id") Long id);
+
+    /** P1-02-A-4：记录最近改密时间（旧 token 失效基准）。 */
+    @Update("UPDATE user SET password_changed_at = #{passwordChangedAt} WHERE id = #{id} AND is_deleted = 0")
+    int updatePasswordChangedAt(@Param("id") Long id,
+                                @Param("passwordChangedAt") java.time.LocalDateTime passwordChangedAt);
 }

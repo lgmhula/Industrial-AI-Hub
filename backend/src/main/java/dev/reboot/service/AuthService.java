@@ -44,6 +44,7 @@ public class AuthService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final AuthRateLimitService authRateLimitService;
+    private final TokenBlacklistService tokenBlacklistService;
     private final boolean registrationEnabled;
     private final String inviteCode;
 
@@ -51,6 +52,7 @@ public class AuthService {
                        BCryptPasswordEncoder passwordEncoder,
                        JwtUtils jwtUtils,
                        AuthRateLimitService authRateLimitService,
+                       TokenBlacklistService tokenBlacklistService,
                        @org.springframework.beans.factory.annotation.Value(
                                "${security.registration.enabled:false}") boolean registrationEnabled,
                        @org.springframework.beans.factory.annotation.Value(
@@ -60,8 +62,23 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
         this.authRateLimitService = authRateLimitService;
+        this.tokenBlacklistService = tokenBlacklistService;
         this.registrationEnabled = registrationEnabled;
         this.inviteCode = inviteCode;
+    }
+
+    /**
+     * 登出（P1-02-A-4）：将当前 token（jti）加入黑名单，TTL = 剩余有效期。
+     *
+     * @param jti token 的 jti（由 JwtAuthFilter 注入 request attribute）
+     * @param ttl 剩余有效时间（exp − now）
+     */
+    public void logout(String jti, java.time.Duration ttl) {
+        if (jti == null || jti.isBlank()) {
+            return;
+        }
+        tokenBlacklistService.blacklistToken(jti, ttl);
+        log.info("用户登出 jti={}", jti);
     }
 
     /**

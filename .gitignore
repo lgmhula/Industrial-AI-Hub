@@ -38,6 +38,7 @@ backend/**/*.class
 # Frontend
 frontend/node_modules/
 frontend/dist/
+frontend/dist.bak*/
 
 # Infrastructure runtime data (Docker persistent volumes)
 # Entire directories excluded — Git tracks only config, not data

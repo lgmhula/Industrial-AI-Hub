@@ -1,9 +1,9 @@
-# Application Architecture V2.1
+# Application Architecture V2.2
 
-> **Status:** Active  
-> **Version:** 2.1
-> **Updated:** 2026-08-03
-> **Based on:** Baseline V2.1 Hotfix（Day 042 后）
+> **Status:** Active
+> **Version:** 2.2
+> **Updated:** 2026-08-26
+> **Based on:** Phase 3 收官 + 安全治理合并（站点授权 / 用户安全状态 / JWT 生命周期 / 登录审计 / 限流 / 注册治理 + V7-V8 迁移）
 > **Governs:** All application-layer decisions for Industrial AI Hub Backend
 
 ---
@@ -88,21 +88,27 @@ HTTP Request
 
 ## 3. 模块清单
 
-### Controllers (6)
+### Controllers (8)
 
 | Controller | 端点 | 鉴权 |
 |-----------|------|------|
-| AuthController | POST /login, /register | 公开 |
+| AuthController | POST /login, /register, /logout | 公开（含限流） |
 | DeviceController | CRUD + searchDevices | VIEWER/OPERATOR/ADMIN |
-| UserController | listPage/get/update/toggleStatus/delete | ADMIN |
-| AlarmController | listPaged/acknowledge/resolve | VIEWER+ |
-| DeviceDataController | report/list/stats/latest | VIEWER+ |
+| UserController | listPage/get/create/update/delete/toggleStatus/lock/unlock/resetPassword/assignRole/revokeRole | ADMIN |
+| AlarmController | listPaged/listByDevice/listByStatus/acknowledge/resolve | VIEWER+ |
+| DeviceDataController | report/list/listByTimeRange/stats/latest | VIEWER+ |
 | OperationLogController | listPaged/listByUserId/listRecent | ADMIN |
+| RoleController | CRUD + toggleStatus | ADMIN |
+| SiteController | list | VIEWER+ |
 
-### Services (7)
+### Services (14)
 
-DeviceService / UserService / AuthService / AlarmService / DeviceDataService /
-OperationLogService / AlarmDetector
+| 类别 | Service |
+|------|---------|
+| 业务核心 | DeviceService / UserService / AuthService / AlarmService / DeviceDataService / OperationLogService / AlarmDetector |
+| 角色与站点 | RoleService / SiteService / SiteAccessService |
+| 安全治理 | AuthRateLimitService / TokenBlacklistService / LoginAuditService |
+| 基础设施 | CacheService |
 
 ### 中间件整合（Phase 3 新增）
 
@@ -125,23 +131,27 @@ OperationLogService / AlarmDetector
 | 页面 | 路由 | 状态 |
 |------|------|:--:|
 | Login | /login | ✅ 含路由守卫 + 401 跳转 |
+| Register | /register | ✅ 受注册开关 + 邀请码控制 |
 | Dashboard | /dashboard | ✅ KPI + 告警流 + ECharts（默认首页） |
 | DeviceList | /devices | ✅ |
 | DeviceDetail | /devices/:id | ✅ |
-| AlarmList | /alarms | ✅ |
-| OperationLogList | /logs | ✅ |
+| AlarmList | /alarms | ✅ 多选批量确认/解决 |
+| UserList | /users | ✅ 含角色分配/锁定/解锁/重置密码 |
+| RoleList | /roles | ✅ 角色 CRUD |
+| OperationLogList | /logs | ✅ 服务端筛选 |
+| NotFound | /:pathMatch(.*)* | ✅ 404 兜底 |
 
 ---
 
 ## 4. API 端点清单
 
-25 个端点 + Knife4j 文档 (/doc.html)。
+约 40 个端点（覆盖 Auth / Device / DeviceData / Alarm / OperationLog / User / Role / Site 八大模块）+ Knife4j 文档 (/doc.html)。
 
 ---
 
 ## 5. 数据库
 
-`reboot` 数据库，7 张表，8 个 CHECK 约束，零 FK，软删除策略。
+`reboot` 数据库，9 张表（user / role / user_role / site / user_site / device / device_data / alarm / operation_log + login_audit），由 Flyway 管理（V1 基线 + V3 CHECK 扩展 + V4 站点授权 + V5 用户安全状态 + V6 登录审计 + V7 alarm/role 审计字段 + V8 admin 密码更新），零 FK，软删除策略。
 
 ---
 

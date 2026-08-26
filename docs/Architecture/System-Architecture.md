@@ -1,35 +1,38 @@
 # Industrial AI Hub — 系统架构图
 
-> 版本：v1.0 | 更新：2026-08-02
+> 版本：v2.2 | 更新：2026-08-26
+> 注：Service 全量清单（14 个）见 [Application-Architecture.md](Application-Architecture.md) §3
 
 ## 总体架构
 
 ```mermaid
 graph TB
     subgraph "Frontend (Vue 3 + Vite)"
-        FE[Vue 3 SPA<br/>4 Pages: Device / Alarm / Log / Detail]
+        FE[Vue 3 SPA<br/>10 Pages: Login/Register/Dashboard/Device/Alarm/User/Role/Log/Detail/404]
         ECharts[ECharts<br/>Temperature & Pressure Charts]
         FE --> ECharts
     end
 
     subgraph "Gateway & Security"
-        JWT[JWT Filter<br/>Token Validation]
-        RL[Rate Limit Interceptor<br/>Guava 50 req/s]
-        AUTH[Auth Interceptor<br/>RBAC: @RequireRole]
+        JWT[JWT Filter<br/>Token Validation + jti + 黑名单]
+        RL[Rate Limit Interceptor<br/>Guava 50 req/s + IP/账户锁定]
+        AUTH[Auth Interceptor<br/>RBAC + 站点资源作用域]
         JWT --> RL --> AUTH
     end
 
     subgraph "Spring Boot 3.5 (JDK 25)"
-        subgraph "Controller Layer"
+        subgraph "Controller Layer (8)"
             DC[DeviceController]
             AC[AuthController]
             UC[UserController]
             DDC[DeviceDataController]
             ALC[AlarmController]
             OLC[OperationLogController]
+            RC[RoleController]
+            SC[SiteController]
         end
 
-        subgraph "Service Layer"
+        subgraph "Service Layer (14: 业务/角色站点/安全/缓存)"
             DS[DeviceService]
             AS[AuthService]
             US[UserService]

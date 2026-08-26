@@ -1,6 +1,10 @@
 # Industrial AI Hub — 数据库 ER 图
 
 > 数据库：`reboot` | 字符集：utf8mb4 | 引擎：InnoDB
+> 版本：V2.2 | 更新：2026-08-26
+> 迁移链：V1 基线 → V3 CHECK 扩展 → V4 站点授权 → V5 用户安全状态 → V6 登录审计 → V7 alarm/role 审计字段 → V8 admin 密码更新
+
+> **说明**：下方 ER Diagram 为 V1 基线快照；V4-V8 增量见 [§ V4-V8 增量表与字段](#v4-v8-增量表与字段)。
 
 ## ER Diagram
 
@@ -125,3 +129,51 @@ erDiagram
 | `alarm` | 9 | 2 (level, status) | 5 |
 | `operation_log` | 8 | 2 (operation_type, target_type) | 4 |
 | **合计** | **53** | **8** | **27** |
+
+## V4-V8 增量表与字段
+
+> 以下为 V4-V8 迁移引入的结构变更，V1 基线 ER Diagram 上方未体现；以迁移脚本为唯一事实源。
+
+### V4 站点授权（[ADR 0020](../decision-log/0020-site-authorization.md)）
+
+| 新增表 | 关键字段 |
+|--------|---------|
+| `site` | id / site_code / site_name / description / created_at / updated_at |
+| `user_site` | id / user_id / site_id / role_id / created_at |
+
+| 表 | 新增字段 |
+|----|---------|
+| `device` | `site_id` BIGINT（DEFAULT 1，归属默认站点） |
+
+### V5 用户安全状态
+
+| 表 | 新增字段 |
+|----|---------|
+| `user` | `failed_attempts` INT（连续登录失败计数） |
+| `user` | `locked_until` DATETIME（锁定截止时间） |
+| `user` | `password_changed_at` DATETIME（最近改密时间） |
+
+### V6 登录审计
+
+| 新增表 | 关键字段 |
+|--------|---------|
+| `login_audit` | id / user_id / login_time / ip / user_agent / success / failure_reason / created_at |
+
+### V7 alarm/role 审计字段
+
+| 表 | 新增字段 |
+|----|---------|
+| `alarm` | `acknowledged_at` / `acknowledged_by` / `resolved_by` / `updated_at` |
+| `role` | `status` TINYINT / `is_deleted` TINYINT / `updated_at` |
+| `device` | 唯一约束由 `uk_device_code` 改为 `uk_device_code_deleted (device_code, is_deleted)`（支持软删后复用编码） |
+
+### V8 admin 密码更新
+
+仅数据变更，无结构变更。
+
+### 增量后总规模
+
+| 维度 | V1 基线 | V4-V8 增量后 |
+|------|:------:|:-----------:|
+| 表数 | 7 | 9 |
+| 迁移版本 | V1 | V1, V3-V8（V2 已退役，见 ADR 0019） |

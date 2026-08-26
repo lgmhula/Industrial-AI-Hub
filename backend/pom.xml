@@ -53,6 +53,23 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Testcontainers (P0-6): 容器化集成测试，MySQL 8.4 + Redis -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mysql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- ===== Persistence ===== -->
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>

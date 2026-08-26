@@ -38,14 +38,14 @@ public class AlarmService {
         this.siteAccessService = siteAccessService;
     }
 
-    /** 分页查询全部告警（当前用户可访问站点）。 */
-    public PageInfo<AlarmVO> listAllPaged(int page, int size, Long userId) {
+    /** 分页查询全部告警（当前用户可访问站点，支持 keyword/alarmLevel 服务端过滤）。 */
+    public PageInfo<AlarmVO> listAllPaged(int page, int size, Long userId, String keyword, Integer alarmLevel) {
         List<Long> siteIds = siteAccessService.accessibleSiteIds(userId);
         if (siteIds != null && siteIds.isEmpty()) {
             return emptyPage(page, size);
         }
         PageHelper.startPage(page, size);
-        List<Alarm> records = alarmMapper.findAll(siteIds);
+        List<Alarm> records = alarmMapper.findAll(siteIds, keyword, alarmLevel);
         return toPageInfo(records, page, size);
     }
 
@@ -58,27 +58,27 @@ public class AlarmService {
         return toPageInfo(records, page, size);
     }
 
-    /** 按状态分页查询（当前用户可访问站点）。 */
-    public PageInfo<AlarmVO> listByStatusPaged(Integer status, int page, int size, Long userId) {
+    /** 按状态分页查询（当前用户可访问站点，支持 keyword/alarmLevel 服务端过滤）。 */
+    public PageInfo<AlarmVO> listByStatusPaged(Integer status, int page, int size, Long userId, String keyword, Integer alarmLevel) {
         List<Long> siteIds = siteAccessService.accessibleSiteIds(userId);
         if (siteIds != null && siteIds.isEmpty()) {
             return emptyPage(page, size);
         }
         PageHelper.startPage(page, size);
-        List<Alarm> records = alarmMapper.findByStatus(status, siteIds);
+        List<Alarm> records = alarmMapper.findByStatus(status, siteIds, keyword, alarmLevel);
         return toPageInfo(records, page, size);
     }
 
     /** 确认告警（需告警所属设备站点 OPERATOR 及以上）。 */
     public boolean acknowledge(Long id, Long userId) {
         assertAlarmSiteAccess(id, userId, RoleEnum.OPERATOR);
-        return alarmMapper.acknowledge(id) > 0;
+        return alarmMapper.acknowledge(id, userId) > 0;
     }
 
     /** 解决告警（需告警所属设备站点 OPERATOR 及以上）。 */
     public boolean resolve(Long id, Long userId) {
         assertAlarmSiteAccess(id, userId, RoleEnum.OPERATOR);
-        return alarmMapper.resolve(id) > 0;
+        return alarmMapper.resolve(id, userId) > 0;
     }
 
     /** 创建告警记录（系统内部：规则引擎/MQ 触发，非用户请求）。 */
@@ -95,7 +95,7 @@ public class AlarmService {
         return AlarmVO.from(alarm);
     }
 
-    /** 告警不存在 → 返回 false（保持原语义，不抛 404）；否则校验站点访问。 */
+    /** 告警不存在 → 返回 false（保持原语义，不抛 404）；设备已删 → 跳过站点校验（孤立告警可操作）。 */
     private void assertAlarmSiteAccess(Long alarmId, Long userId, RoleEnum required) {
         Alarm alarm = alarmMapper.findById(alarmId);
         if (alarm == null) {
@@ -103,7 +103,7 @@ public class AlarmService {
         }
         Device device = deviceMapper.findById(alarm.getDeviceId());
         if (device == null) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该告警");
+            return;
         }
         siteAccessService.assertSiteAccess(userId, device.getSiteId(), required);
     }

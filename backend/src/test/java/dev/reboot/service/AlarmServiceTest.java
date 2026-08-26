@@ -19,7 +19,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -55,8 +55,8 @@ class AlarmServiceTest {
     @Test
     void listAllPaged_shouldReturnPage() {
         when(siteAccessService.accessibleSiteIds(USER_ID)).thenReturn(null);
-        when(alarmMapper.findAll(null)).thenReturn(List.of(newAlarm(1L, 0)));
-        var result = alarmService.listAllPaged(1, 10, USER_ID);
+        when(alarmMapper.findAll(null, null, null)).thenReturn(List.of(newAlarm(1L, 0)));
+        var result = alarmService.listAllPaged(1, 10, USER_ID, null, null);
         assertEquals(1, result.getTotal());
         assertEquals("OVER_TEMP", result.getList().get(0).getAlarmType());
     }
@@ -64,16 +64,16 @@ class AlarmServiceTest {
     @Test
     void listAllPaged_noSiteAccess_shouldReturnEmpty() {
         when(siteAccessService.accessibleSiteIds(USER_ID)).thenReturn(List.of());
-        var result = alarmService.listAllPaged(1, 10, USER_ID);
+        var result = alarmService.listAllPaged(1, 10, USER_ID, null, null);
         assertEquals(0, result.getTotal());
-        verify(alarmMapper, never()).findAll(any());
+        verify(alarmMapper, never()).findAll(any(), any(), any());
     }
 
     @Test
     void listAllPaged_shouldReturnEmpty() {
         when(siteAccessService.accessibleSiteIds(USER_ID)).thenReturn(null);
-        when(alarmMapper.findAll(null)).thenReturn(Collections.emptyList());
-        var result = alarmService.listAllPaged(1, 10, USER_ID);
+        when(alarmMapper.findAll(null, null, null)).thenReturn(Collections.emptyList());
+        var result = alarmService.listAllPaged(1, 10, USER_ID, null, null);
         assertEquals(0, result.getTotal());
         assertTrue(result.getList().isEmpty());
     }
@@ -98,8 +98,8 @@ class AlarmServiceTest {
     @Test
     void listByStatusPaged_shouldFilterByStatus() {
         when(siteAccessService.accessibleSiteIds(USER_ID)).thenReturn(null);
-        when(alarmMapper.findByStatus(0, null)).thenReturn(List.of(newAlarm(1L, 0)));
-        var result = alarmService.listByStatusPaged(0, 1, 10, USER_ID);
+        when(alarmMapper.findByStatus(0, null, null, null)).thenReturn(List.of(newAlarm(1L, 0)));
+        var result = alarmService.listByStatusPaged(0, 1, 10, USER_ID, null, null);
         assertEquals(1, result.getTotal());
     }
 
@@ -107,7 +107,7 @@ class AlarmServiceTest {
     void acknowledge_shouldReturnTrue() {
         when(alarmMapper.findById(1L)).thenReturn(newAlarm(1L, 0));
         when(deviceMapper.findById(1L)).thenReturn(newDevice(1L));
-        when(alarmMapper.acknowledge(1L)).thenReturn(1);
+        when(alarmMapper.acknowledge(1L, USER_ID)).thenReturn(1);
         assertTrue(alarmService.acknowledge(1L, USER_ID));
         verify(siteAccessService).assertSiteAccess(USER_ID, 10L, RoleEnum.OPERATOR);
     }
@@ -116,7 +116,7 @@ class AlarmServiceTest {
     void acknowledge_shouldReturnFalseWhenNotFound() {
         when(alarmMapper.findById(99L)).thenReturn(null);
         assertFalse(alarmService.acknowledge(99L, USER_ID));
-        verify(alarmMapper).acknowledge(99L);
+        verify(alarmMapper).acknowledge(99L, USER_ID);
     }
 
     @Test
@@ -126,14 +126,14 @@ class AlarmServiceTest {
         doThrow(new BusinessException(ErrorCode.FORBIDDEN, "无权访问该站点资源"))
                 .when(siteAccessService).assertSiteAccess(USER_ID, 10L, RoleEnum.OPERATOR);
         assertThrows(BusinessException.class, () -> alarmService.acknowledge(1L, USER_ID));
-        verify(alarmMapper, never()).acknowledge(anyLong());
+        verify(alarmMapper, never()).acknowledge(anyLong(), anyLong());
     }
 
     @Test
     void resolve_shouldReturnTrue() {
         when(alarmMapper.findById(1L)).thenReturn(newAlarm(1L, 1));
         when(deviceMapper.findById(1L)).thenReturn(newDevice(1L));
-        when(alarmMapper.resolve(1L)).thenReturn(1);
+        when(alarmMapper.resolve(1L, USER_ID)).thenReturn(1);
         assertTrue(alarmService.resolve(1L, USER_ID));
     }
 
@@ -141,7 +141,7 @@ class AlarmServiceTest {
     void resolve_shouldReturnFalseWhenNotFound() {
         when(alarmMapper.findById(99L)).thenReturn(null);
         assertFalse(alarmService.resolve(99L, USER_ID));
-        verify(alarmMapper).resolve(99L);
+        verify(alarmMapper).resolve(99L, USER_ID);
     }
 
     @Test

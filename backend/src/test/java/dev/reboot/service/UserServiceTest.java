@@ -80,7 +80,7 @@ class UserServiceTest {
         User u2 = newUser(2L, "bob", 1, "pw2");
         when(userMapper.findAll()).thenReturn(Arrays.asList(u1, u2));
 
-        PageInfo<UserVO> result = userService.listPage(1, 10);
+        PageInfo<UserVO> result = userService.listPage(1, 10, null);
 
         assertEquals(2, result.getTotal());
         assertEquals(2, result.getList().size());
@@ -92,7 +92,7 @@ class UserServiceTest {
     void listPage_shouldReturnEmptyWhenNoUsers() {
         when(userMapper.findAll()).thenReturn(Collections.emptyList());
 
-        PageInfo<UserVO> result = userService.listPage(1, 10);
+        PageInfo<UserVO> result = userService.listPage(1, 10, null);
 
         assertEquals(0, result.getTotal());
         assertTrue(result.getList().isEmpty());

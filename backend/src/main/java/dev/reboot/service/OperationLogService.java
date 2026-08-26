@@ -30,10 +30,10 @@ public class OperationLogService {
         return operationLogMapper.findRecent();
     }
 
-    /** 分页查询全部日志。 */
-    public PageInfo<OperationLog> listPaged(int page, int size) {
+    /** 分页查询全部日志（支持 keyword/operationType 服务端过滤）。 */
+    public PageInfo<OperationLog> listPaged(int page, int size, String keyword, String operationType) {
         PageHelper.startPage(page, size);
-        List<OperationLog> records = operationLogMapper.findAll();
+        List<OperationLog> records = operationLogMapper.findAll(keyword, operationType);
         return new PageInfo<>(records);
     }
 

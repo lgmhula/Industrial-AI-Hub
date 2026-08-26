@@ -106,8 +106,14 @@ public class AuthRateLimitService {
 
     /** 账号锁定检查：失败计数达 {@link #MAX_LOGIN_FAILURES} → 抛统一 401（不泄露账号状态）。 */
     public void checkUserLoginLocked(String username) {
-        if (Boolean.TRUE.equals(redis.hasKey(LOGIN_FAIL_KEY_PREFIX + username))) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
+        String val = redis.opsForValue().get(LOGIN_FAIL_KEY_PREFIX + username);
+        if (val != null) {
+            try {
+                if (Long.parseLong(val) >= MAX_LOGIN_FAILURES) {
+                    throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
+                }
+            } catch (NumberFormatException ignored) {
+            }
         }
     }
 

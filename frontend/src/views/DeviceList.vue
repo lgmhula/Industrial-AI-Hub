@@ -76,6 +76,11 @@
             <el-option v-for="t in deviceTypes" :key="t" :label="t" :value="t" />
           </el-select>
         </el-form-item>
+        <el-form-item v-if="sites.length > 1" label="归属站点">
+          <el-select v-model="form.siteId" placeholder="选择站点" style="width: 100%">
+            <el-option v-for="s in sites" :key="s.id" :label="s.siteName" :value="s.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="form.status">
             <el-radio :value="1">在线</el-radio>
@@ -107,13 +112,14 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus, Search, Refresh } from '@element-plus/icons-vue'
-import { deviceApi } from '../api/index.js'
+import { deviceApi, siteApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
 
 const router = useRouter()
 const deviceTypes = ['PLC', 'SENSOR', 'CAMERA', 'ROBOT', 'OTHER']
 
 const devices = ref([])
+const sites = ref([])
 const keyword = ref('')
 const statusFilter = ref('')
 const page = ref(1)
@@ -126,7 +132,7 @@ const isEdit = ref(false)
 const editingId = ref(null)
 const submitting = ref(false)
 const formRef = ref(null)
-const form = reactive({ deviceName: '', deviceCode: '', deviceType: '', status: 1, ipAddress: '', port: null, location: '' })
+const form = reactive({ deviceName: '', deviceCode: '', deviceType: '', siteId: null, status: 1, ipAddress: '', port: null, location: '' })
 
 const rules = {
   deviceName: [{ required: true, message: '设备名称不能为空', trigger: 'blur' }],
@@ -155,7 +161,7 @@ const handleReset = () => { keyword.value = ''; statusFilter.value = ''; page.va
 const handlePageChange = (p) => { page.value = p; fetchDevices() }
 
 const resetForm = () => {
-  Object.assign(form, { deviceName: '', deviceCode: '', deviceType: '', status: 1, ipAddress: '', port: null, location: '' })
+  Object.assign(form, { deviceName: '', deviceCode: '', deviceType: '', siteId: null, status: 1, ipAddress: '', port: null, location: '' })
 }
 
 const openAdd = () => {
@@ -168,7 +174,7 @@ const openEdit = (d) => {
   isEdit.value = true; editingId.value = d.id
   Object.assign(form, {
     deviceName: d.deviceName, deviceCode: d.deviceCode, deviceType: d.deviceType,
-    status: d.status, ipAddress: d.ipAddress, port: d.port, location: d.location,
+    siteId: d.siteId || null, status: d.status, ipAddress: d.ipAddress, port: d.port, location: d.location,
   })
   showForm.value = true
 }
@@ -216,21 +222,16 @@ const statusType = (s) => ({ 1: 'success', 0: 'info', 2: 'warning' }[s] || 'info
 const statusLabel = (s) => ({ 1: '在线', 0: '离线', 2: '维护中' }[s] || '未知')
 const fmtTime = (t) => t ? new Date(t).toLocaleString('zh-CN') : '-'
 
-onMounted(fetchDevices)
+onMounted(async () => {
+  try {
+    const res = await siteApi.list()
+    sites.value = res.data || []
+  } catch {}
+  fetchDevices()
+})
 </script>
 
 <style scoped>
-.filter-bar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.pager {
-  margin-top: 18px;
-  justify-content: flex-end;
-}
 .dot {
   display: inline-block;
   width: 7px;
@@ -239,8 +240,7 @@ onMounted(fetchDevices)
   margin-right: 5px;
   vertical-align: middle;
 }
-.dot-1 { background: #16a34a; }
-.dot-0 { background: #9ca3af; }
-.dot-2 { background: #f59e0b; }
-:deep(.el-table__row) { cursor: pointer; }
+.dot-1 { background: var(--iah-success); }
+.dot-0 { background: var(--iah-text-muted); }
+.dot-2 { background: var(--iah-warning); }
 </style>

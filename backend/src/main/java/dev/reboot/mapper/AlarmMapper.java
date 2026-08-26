@@ -8,29 +8,53 @@ import java.util.List;
 /**
  * Alarm 表 Mapper — 分页由 PageHelper 自动拦截，无需手动 LIMIT。
  *
+ * <p>P1-01：列表查询按设备所属站点过滤（JOIN device；siteIds=null 表示不过滤=全局管理员）。</p>
+ *
  * @author hula0710
  * @since 2026-07-20
  */
 @Mapper
 public interface AlarmMapper {
 
-    @Select("SELECT * FROM alarm ORDER BY triggered_at DESC")
-    List<Alarm> findAll();
+    @Select("<script>SELECT a.* FROM alarm a JOIN device d ON a.device_id = d.id"
+            + "<where>"
+            + "<if test='siteIds != null'> AND d.site_id IN "
+            + "<foreach collection='siteIds' item='sid' open='(' separator=',' close=')'>#{sid}</foreach>"
+            + "</if>"
+            + "<if test='keyword != null and keyword != &quot;&quot;'> AND a.alarm_message LIKE CONCAT('%',#{keyword},'%')</if>"
+            + "<if test='alarmLevel != null'> AND a.alarm_level = #{alarmLevel}</if>"
+            + "</where> ORDER BY a.triggered_at DESC</script>")
+    List<Alarm> findAll(@Param("siteIds") List<Long> siteIds,
+                        @Param("keyword") String keyword,
+                        @Param("alarmLevel") Integer alarmLevel);
 
     @Select("SELECT * FROM alarm WHERE device_id = #{deviceId} ORDER BY triggered_at DESC")
     List<Alarm> findByDeviceId(@Param("deviceId") Long deviceId);
 
-    @Select("SELECT * FROM alarm WHERE status = #{status} ORDER BY triggered_at DESC")
-    List<Alarm> findByStatus(@Param("status") Integer status);
+    @Select("<script>SELECT a.* FROM alarm a JOIN device d ON a.device_id = d.id"
+            + " WHERE a.status = #{status}"
+            + "<if test='siteIds != null'> AND d.site_id IN "
+            + "<foreach collection='siteIds' item='sid' open='(' separator=',' close=')'>#{sid}</foreach>"
+            + "</if>"
+            + "<if test='keyword != null and keyword != &quot;&quot;'> AND a.alarm_message LIKE CONCAT('%',#{keyword},'%')</if>"
+            + "<if test='alarmLevel != null'> AND a.alarm_level = #{alarmLevel}</if>"
+            + " ORDER BY a.triggered_at DESC</script>")
+    List<Alarm> findByStatus(@Param("status") Integer status,
+                             @Param("siteIds") List<Long> siteIds,
+                             @Param("keyword") String keyword,
+                             @Param("alarmLevel") Integer alarmLevel);
+
+    @Select("SELECT * FROM alarm WHERE id = #{id}")
+    Alarm findById(@Param("id") Long id);
 
     @Insert("INSERT INTO alarm(device_id, alarm_type, alarm_level, alarm_message, status, triggered_at) "
           + "VALUES(#{deviceId}, #{alarmType}, #{alarmLevel}, #{alarmMessage}, #{status}, #{triggeredAt})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(Alarm alarm);
 
-    @Update("UPDATE alarm SET status=1 WHERE id=#{id}")
-    int acknowledge(@Param("id") Long id);
+    @Update("UPDATE alarm SET status=1, acknowledged_at=NOW(), acknowledged_by=#{userId} WHERE id=#{id}")
+    int acknowledge(@Param("id") Long id, @Param("userId") Long userId);
 
-    @Update("UPDATE alarm SET status=2, resolved_at=NOW() WHERE id=#{id}")
-    int resolve(@Param("id") Long id);
+    @Update("UPDATE alarm SET status=2, resolved_at=NOW(), resolved_by=#{userId} WHERE id=#{id}")
+    int resolve(@Param("id") Long id, @Param("userId") Long userId);
 }

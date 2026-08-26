@@ -44,6 +44,12 @@ class UserServiceTest {
     @Mock
     private BCryptPasswordEncoder passwordEncoder;
 
+    @Mock
+    private AuthRateLimitService authRateLimitService;
+
+    @Mock
+    private TokenBlacklistService tokenBlacklistService;
+
 
     @InjectMocks
     private UserService userService;
@@ -74,7 +80,7 @@ class UserServiceTest {
         User u2 = newUser(2L, "bob", 1, "pw2");
         when(userMapper.findAll()).thenReturn(Arrays.asList(u1, u2));
 
-        PageInfo<UserVO> result = userService.listPage(1, 10);
+        PageInfo<UserVO> result = userService.listPage(1, 10, null);
 
         assertEquals(2, result.getTotal());
         assertEquals(2, result.getList().size());
@@ -86,7 +92,7 @@ class UserServiceTest {
     void listPage_shouldReturnEmptyWhenNoUsers() {
         when(userMapper.findAll()).thenReturn(Collections.emptyList());
 
-        PageInfo<UserVO> result = userService.listPage(1, 10);
+        PageInfo<UserVO> result = userService.listPage(1, 10, null);
 
         assertEquals(0, result.getTotal());
         assertTrue(result.getList().isEmpty());
@@ -300,5 +306,68 @@ class UserServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> userService.changePassword(1L, null, "newPwd"));
         assertEquals(401, ex.getErrorCode().getCode());
+    }
+
+    /* ============ P1-02-A-2 管理员锁定/解锁 ============ */
+
+    @Test
+    void lockUser_shouldSetPersistentLock() {
+        when(userMapper.findById(1L)).thenReturn(newUser(1L, "alice", 1, "pw"));
+        assertTrue(userService.lockUser(1L));
+        verify(userMapper).updateLockedUntil(eq(1L), notNull());
+    }
+
+    @Test
+    void lockUser_shouldReturnFalseWhenNotFound() {
+        when(userMapper.findById(99L)).thenReturn(null);
+        assertFalse(userService.lockUser(99L));
+        verify(userMapper, never()).updateLockedUntil(anyLong(), any());
+    }
+
+    @Test
+    void unlockUser_shouldClearDbAndRedis() {
+        when(userMapper.findById(1L)).thenReturn(newUser(1L, "alice", 1, "pw"));
+        assertTrue(userService.unlockUser(1L));
+        verify(userMapper).resetLoginSecurity(1L);
+        verify(authRateLimitService).clearLoginFailure("alice");
+    }
+
+    @Test
+    void unlockUser_shouldReturnFalseWhenNotFound() {
+        when(userMapper.findById(99L)).thenReturn(null);
+        assertFalse(userService.unlockUser(99L));
+        verify(userMapper, never()).resetLoginSecurity(anyLong());
+    }
+
+    /* ============ P1-02-A-4 状态联动撤销 ============ */
+
+    @Test
+    void toggleStatus_disable_shouldRevokeUserTokens() {
+        when(userMapper.findById(1L)).thenReturn(newUser(1L, "alice", 1, "pw"));
+        when(userMapper.updateStatus(1L, 0)).thenReturn(1);
+        Integer newStatus = userService.toggleStatus(1L);
+        assertEquals(0, newStatus);
+        verify(tokenBlacklistService).revokeUser(1L);
+    }
+
+    @Test
+    void toggleStatus_enable_shouldNotRevoke() {
+        when(userMapper.findById(1L)).thenReturn(newUser(1L, "alice", 0, "pw"));
+        when(userMapper.updateStatus(1L, 1)).thenReturn(1);
+        Integer newStatus = userService.toggleStatus(1L);
+        assertEquals(1, newStatus);
+        verify(tokenBlacklistService, never()).revokeUser(anyLong());
+    }
+
+    @Test
+    void changePassword_shouldRecordChangedAtAndRevoke() {
+        when(userMapper.findById(1L)).thenReturn(newUser(1L, "alice", 1, "oldEnc"));
+        when(passwordEncoder.matches("old", "oldEnc")).thenReturn(true);
+        when(passwordEncoder.encode("newPwd6")).thenReturn("newEnc");
+        when(userMapper.updatePassword(1L, "newEnc")).thenReturn(1);
+
+        assertTrue(userService.changePassword(1L, "old", "newPwd6"));
+        verify(userMapper).updatePasswordChangedAt(eq(1L), notNull());
+        verify(tokenBlacklistService).revokeUser(1L);
     }
 }

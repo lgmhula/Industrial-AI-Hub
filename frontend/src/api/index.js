@@ -1,4 +1,6 @@
 import axios from 'axios'
+import { ElMessage } from 'element-plus'
+import { clearAuth } from '../composables/useAuth.js'
 
 const api = axios.create({
   baseURL: '/api',
@@ -15,13 +17,11 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => {
     const body = res.data
-    // 后端统一响应 ApiResponse<T>：{ code, message, data }。
-    // HTTP 200 不代表业务成功（如密码错误返回 HTTP 200 + code 401），
-    // 必须校验业务状态码，否则业务失败会被误判为成功。
     if (body && typeof body.code === 'number' && body.code !== 200) {
       if (body.code === 401) {
-        localStorage.removeItem('token')
-        window.location.hash = '#/login'
+        clearAuth()
+        ElMessage.warning('登录已过期，请重新登录')
+        setTimeout(() => { window.location.hash = '#/login' }, 500)
       }
       return Promise.reject(new Error(body.message || '请求失败'))
     }
@@ -29,8 +29,9 @@ api.interceptors.response.use(
   },
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.hash = '#/login'
+      clearAuth()
+      ElMessage.warning('登录已过期，请重新登录')
+      setTimeout(() => { window.location.hash = '#/login' }, 500)
     }
     const msg = err.response?.data?.message || err.message || '请求失败'
     return Promise.reject(new Error(msg))
@@ -41,6 +42,7 @@ api.interceptors.response.use(
 export const authApi = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),
+  logout: () => api.post('/auth/logout'),
 }
 
 // ---------- 设备 ----------
@@ -56,8 +58,9 @@ export const deviceApi = {
 export const deviceDataApi = {
   report: (deviceId, data) => api.post(`/device-data/device/${deviceId}`, data),
   list: (deviceId, params) => api.get(`/device-data/device/${deviceId}`, { params }),
-  stats: (deviceId) => api.get(`/device-data/device/${deviceId}/stats`),
-  latest: (deviceId) => api.get(`/device-data/device/${deviceId}/latest`),
+  listByTimeRange: (deviceId, params) => api.get(`/device-data/device/${deviceId}/range`, { params }),
+  stats: (deviceId, dataType, params) => api.get(`/device-data/device/${deviceId}/stats`, { params: { dataType, ...params } }),
+  latest: (deviceId, dataType) => api.get(`/device-data/device/${deviceId}/latest`, { params: { dataType } }),
 }
 
 // ---------- 报警 ----------
@@ -73,6 +76,38 @@ export const alarmApi = {
 export const operationLogApi = {
   list: (params) => api.get('/operation-logs', { params }),
   listByUser: (userId, params) => api.get(`/operation-logs/user/${userId}`, { params }),
+  listRecent: () => api.get('/operation-logs/recent'),
+}
+
+// ---------- 角色 ----------
+export const roleApi = {
+  list: () => api.get('/roles'),
+  getById: (id) => api.get(`/roles/${id}`),
+  create: (data) => api.post('/roles', data),
+  update: (id, data) => api.put(`/roles/${id}`, data),
+  delete: (id) => api.delete(`/roles/${id}`),
+  toggleStatus: (id) => api.put(`/roles/${id}/status`),
+}
+
+// ---------- 用户 ----------
+export const userApi = {
+  list: (params) => api.get('/users', { params }),
+  getById: (id) => api.get(`/users/${id}`),
+  create: (data) => api.post('/users', data),
+  update: (id, data) => api.put(`/users/${id}`, data),
+  delete: (id) => api.delete(`/users/${id}`),
+  toggleStatus: (id) => api.put(`/users/${id}/status`),
+  lock: (id) => api.put(`/users/${id}/lock`),
+  unlock: (id) => api.put(`/users/${id}/unlock`),
+  resetPassword: (id, newPassword) => api.put(`/users/${id}/password`, { newPassword }),
+  assignRole: (id, roleId) => api.post(`/users/${id}/roles/${roleId}`),
+  revokeRole: (id, roleId) => api.delete(`/users/${id}/roles/${roleId}`),
+  getRoles: (id) => api.get(`/users/${id}/roles`),
+}
+
+// ---------- 站点 ----------
+export const siteApi = {
+  list: () => api.get('/sites'),
 }
 
 export default api

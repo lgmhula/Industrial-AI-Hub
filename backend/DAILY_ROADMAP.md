@@ -440,7 +440,7 @@
 - **Baseline V2.1 Release Gate 审计通过** — 三次审计（首次 → 二次 → 最终），B1 (Maven Wrapper) + B2 (运行时数据 Git 隔离) 均 **PASS**
 - **Git Tag `v2.1.0` 创建** — annotated tag，冻结 Commit `ec9a158`
 - **Release Note 归档** — `docs/reports/v2.1.0-release-note.md`
-- **Audit Report 归档** — `docs/reports/v2.1.0-audit-report.md`
+- **Audit Report 归档** — `docs/reports/archive/v2.1.0-audit-report.md`
 - **当前 Baseline 已冻结** — 代码、配置、依赖版本均已锁定
 
 ---

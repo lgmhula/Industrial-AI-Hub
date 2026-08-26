@@ -12,6 +12,9 @@
 spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  autoconfigure:
+    exclude:
+      - org.redisson.spring.starter.RedissonAutoConfigurationV2
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3307}/reboot?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER:root}
@@ -19,10 +22,18 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   flyway:
     enabled: true
+    # 正式迁移目录：只存放 schema 变更 + 必需初始化（V1 baseline / V3 ...）。
+    # 演示/测试种子数据已移出迁移链（原 V2__seed_test_data.sql 退役）：
+    # 开发环境经 scripts/seed-dev.sh 显式灌入 db/seed/dev/seed_demo_data.sql（幂等），
+    # 生产环境启动时不会自动产生 Demo 数据（见 ADR 0019）。
     locations: classpath:db/migration
-    # 既有库（非空且无 flyway_schema_history）基线到 V2，跳过 V1/V2 重放；全新空库从 V1 开始
+    # 既有库（非空且无 flyway_schema_history）基线到 V2，跳过 V1 重放（V2 已退役，等价于跳过 V1）；全新空库从 V1 开始
     baseline-on-migrate: true
     baseline-version: 2
+    # 容忍"已执行过旧 V2"的既有库（flyway_schema_history 含 V2 行但文件已不存在）：
+    # 没有该配置时，Flyway validate 会以 "applied migration not resolved locally: 2" 失败。
+    # 仅放行 missing 状态，其余校验（checksum/description 等）保持默认严格。
+    ignore-migration-patterns: "*:missing"
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -70,3 +81,15 @@ logging:
 jwt:
   secret: ${JWT_SECRET}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+# ========================
+# 注册治理（P1-02-A-3）
+# enabled=false（默认）：POST /api/auth/register 返回 403（统一错误语义）
+# enabled=true：必须携带与 invite-code 匹配的邀请码；每日注册上限 daily-limit（Redis 计数）
+# invite-code 建议经环境注入（dev 由 .env 的 REGISTER_INVITE_CODE 提供；prod 由容器环境注入）
+# ========================
+security:
+  registration:
+    enabled: false
+    invite-code: ${REGISTER_INVITE_CODE:}
+    daily-limit: 100

@@ -143,19 +143,26 @@ npm run dev
 
 ## 6. 数据库初始化说明
 
-Docker 容器首次启动时，`compose.yml` 将 `backend/src/main/resources/sql/` 下两个 SQL **直接挂载**到 `/docker-entrypoint-initdb.d/`（无符号链接，跨平台），按文件名排序执行：
+数据库由 **Flyway 版本化迁移**管理（ADR 0019），后端启动时自动执行：
 
-1. `01_init.sql` — Schema + 必需初始化（7 张表 + 8 CHECK 约束 + 默认角色/admin）
-2. `02_seed_test_data.sql` — 可选演示数据（20 用户 + 50 设备 + 12 告警 + 采集数据）
+- `V1__baseline.sql` — Schema + 必需初始化（7 张表 + CHECK 约束 + 默认角色/admin）；
+- 后续版本 — 增量 schema 变更（如 `V3__operation_log_check_types.sql`）。
 
-> ✅ 已用**全新 MySQL 容器实测验证**：7 张表、21 用户、50 设备、12 告警、78 条采集数据全部初始化成功。
+> 全新数据库启动后：**不含任何演示数据**（测试用户/设备/告警等）。默认仅 admin 账户（密码 `admin123`）。
 
-手动初始化（跳过 Docker 自动执行时）：
+演示/测试种子数据（20 用户 + 50 设备 + 12 告警等）已移出迁移链（ADR 0019 §5，P0），
+开发环境需要时**显式执行**：
+
+```bash
+./scripts/seed-dev.sh            # 幂等，可重复执行；连接参数读取根目录 .env
+```
+
+手动初始化（跳过应用启动 / 调试用）：
 
 ```bash
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS reboot DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_unicode_ci;"
-mysql -u root -p reboot < backend/src/main/resources/sql/init.sql
-mysql -u root -p reboot < backend/src/main/resources/sql/seed_test_data.sql   # 可选演示数据
+mysql --default-character-set=utf8mb4 -u root -p reboot < backend/src/main/resources/db/migration/V1__baseline.sql
+mysql --default-character-set=utf8mb4 -u root -p reboot < backend/src/main/resources/db/seed/dev/seed_demo_data.sql   # 仅开发
 ```
 
 ---

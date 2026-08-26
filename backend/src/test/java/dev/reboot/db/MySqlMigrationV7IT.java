@@ -2,11 +2,8 @@ package dev.reboot.db;
 
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.core.io.ClassPathResource;
-import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,10 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * V7 告警审计字段 + 唯一约束修复 + 角色管理字段迁移的 MySQL 端到端验证（Testcontainers）。
+ * V7 告警审计字段 + 唯一约束修复 + 角色管理字段迁移的 MySQL 端到端验证。
  *
- * <p>使用 Testcontainers 自动拉起 MySQL 8.4 容器，无需手动启动 MySQL。
- * Docker 不可用时自动跳过（{@code disabledWithoutDocker = true}）。</p>
+ * <p>使用本地 docker-compose 启动的 MySQL 容器（端口 3307），无需 Testcontainers。
+ * 显式执行：{@code RUN_MYSQL_IT=true MYSQL_PASSWORD=... ./mvnw test -Dtest=MySqlMigrationV7IT}。</p>
  *
  * <p>验证内容：</p>
  * <ol>
@@ -34,34 +31,44 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>已有 V1-V6 history 的库：增量执行 V7 成功（append-only，存量无影响）。</li>
  * </ol>
  */
-@Testcontainers(disabledWithoutDocker = true)
+@EnabledIfEnvironmentVariable(named = "RUN_MYSQL_IT", matches = "true")
 class MySqlMigrationV7IT {
 
-    @Container
-    static final MySQLContainer<?> MYSQL = new MySQLContainer<>(DockerImageName.parse("mysql:8.4"))
-            .withDatabaseName("reboot_v7_it")
-            .withUsername("root")
-            .withPassword("test-password")
-            .withCommand("--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci");
+    private static final String HOST = System.getenv().getOrDefault("MYSQL_HOST", "127.0.0.1");
+    private static final String PORT = System.getenv().getOrDefault("MYSQL_PORT", "3307");
+    private static final String USER = System.getenv().getOrDefault("MYSQL_USER", "root");
+
+    private static final String PASSWORD = resolvePassword();
+
+    private static String resolvePassword() {
+        String p = System.getenv("MYSQL_PASSWORD");
+        if (p == null || p.isBlank()) {
+            p = System.getenv("MYSQL_ROOT_PASSWORD");
+        }
+        if (p == null || p.isBlank()) {
+            throw new IllegalStateException(
+                    "RUN_MYSQL_IT=true 需要提供 MYSQL_PASSWORD 或 MYSQL_ROOT_PASSWORD 环境变量");
+        }
+        return p;
+    }
 
     private static final List<String> CREATED_DBS = new ArrayList<>();
 
     private String serverUrl() {
-        String url = MYSQL.getJdbcUrl();
-        int idx = url.lastIndexOf('/');
-        return url.substring(0, idx + 1) + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai";
+        return "jdbc:mysql://" + HOST + ":" + PORT + "/?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai";
     }
 
     private String dbUrl(String db) {
-        return MYSQL.getJdbcUrl().replace("/" + MYSQL.getDatabaseName(), "/" + db);
+        return "jdbc:mysql://" + HOST + ":" + PORT + "/" + db
+                + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai";
     }
 
     private String getUser() {
-        return MYSQL.getUsername();
+        return USER;
     }
 
     private String getPassword() {
-        return MYSQL.getPassword();
+        return PASSWORD;
     }
 
     private Flyway prodFlyway(String db) {
@@ -124,7 +131,7 @@ class MySqlMigrationV7IT {
             assertTrue(indexExists(db, "role", "idx_role_status"), "idx_role_status 索引应存在");
 
             // 默认角色仍保留且状态为启用
-            assertEquals(1L, scalar(db, "SELECT COUNT(*) FROM role WHERE status = 1"), "默认角色应为启用状态");
+            assertEquals(3L, scalar(db, "SELECT COUNT(*) FROM role WHERE status = 1"), "3 个默认角色（ADMIN/OPERATOR/VIEWER）应为启用状态");
         } finally {
             dropDb(db);
         }

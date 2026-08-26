@@ -1,10 +1,7 @@
 package dev.reboot.container;
 
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import redis.clients.jedis.Jedis;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,10 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Redis Testcontainers 集成测试 —— 验证 Jedis 对真实 Redis 的基础操作。
+ * Redis 集成测试 —— 验证 Jedis 对真实 Redis 的基础操作。
  *
- * <p>使用 Testcontainers 自动拉起 Redis 7 容器，无需手动启动。
- * Docker 不可用时自动跳过（{@code disabledWithoutDocker = true}）。</p>
+ * <p>使用本地 docker-compose 启动的 Redis 容器（端口 6379），无需 Testcontainers。
+ * 显式执行：{@code RUN_REDIS_IT=true ./mvnw test -Dtest=RedisContainerIT}。</p>
  *
  * <p>覆盖项目缓存模式所依赖的 Redis 原语：</p>
  * <ul>
@@ -24,15 +21,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>EXPIRE / TTL — 随机 TTL 防雪崩</li>
  * </ul>
  */
-@Testcontainers(disabledWithoutDocker = true)
+@EnabledIfEnvironmentVariable(named = "RUN_REDIS_IT", matches = "true")
 class RedisContainerIT {
 
-    @Container
-    static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-            .withExposedPorts(6379);
+    private static final String HOST = System.getenv().getOrDefault("REDIS_HOST", "127.0.0.1");
+    private static final int PORT = Integer.parseInt(System.getenv().getOrDefault("REDIS_PORT", "6379"));
+    private static final String PASSWORD = System.getenv("REDIS_PASSWORD");
 
     private Jedis connect() {
-        return new Jedis(REDIS.getHost(), REDIS.getMappedPort(6379));
+        Jedis jedis = new Jedis(HOST, PORT);
+        if (PASSWORD != null && !PASSWORD.isBlank()) {
+            jedis.auth(PASSWORD);
+        }
+        return jedis;
     }
 
     @Test

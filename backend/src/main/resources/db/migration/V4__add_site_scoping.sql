@@ -54,7 +54,7 @@ ON DUPLICATE KEY UPDATE `site_name` = VALUES(`site_name`), `description` = VALUE
 --    顺序：加可空列 → 回填默认站点 → 收紧 NOT NULL（含默认值）→ 加索引
 --    默认值说明：DEFAULT site 由本迁移在【空】site 表上首次插入，id 恒为 1；
 --    `DEFAULT 1` 使未显式携带 site_id 的既有 INSERT 路径（如现有 dev seed）
---    无需修改即可自动归属默认站点（P1-01 迁移兼容性，见 docs/p1-01-baseline-audit.md §4.3）。
+--    无需修改即可自动归属默认站点（P1-01 迁移兼容性，见 docs/security/P1-01-baseline-audit.md §4.3）。
 -- ================================================================
 ALTER TABLE `device` ADD COLUMN `site_id` BIGINT NULL COMMENT '站点 ID';
 

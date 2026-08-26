@@ -42,7 +42,7 @@
 - **阶段**：Phase 3 学习路线已收官（Redis/RabbitMQ/Docker/Linux 全部完成），下一步 Phase 4 AI 集成
 - **Phase 3 收官治理（P0）**：演示/测试种子数据已与生产 Flyway 迁移链隔离（`V2__seed_test_data.sql` 退役 → `db/seed/dev/seed_demo_data.sql` + `scripts/seed-dev.sh` 显式执行，幂等；全新生产库不再自动灌入 Demo 数据，见 ADR 0019 §5）
 - **Git 治理**：`main` = 唯一发布线（**禁止直推**，见 §4.4 / ADR 0017）；日常开发走分支 + PR 合并；发布打 tag
-- **Phase 3-A 归档**：`docs/plans/phase3-a-infrastructure-stabilization.md` + `docs/reports/phase3-a-plan-audit*.md`
+- **Phase 3-A 归档**：`docs/plans/phase3-a-infrastructure-stabilization.md` + `docs/reports/archive/phase3-a-plan-audit*.md`
 - **已完成**：Phase 3 中间件武装全部收官（Redis + RabbitMQ + Docker + Linux 部署，89/89 测试全绿，第三阶段检查点达成）
 - **下一步**：Day 64 — OpenAI API 基础（进入第四阶段 AI 集成）
 - **Baseline V2.1 内容**：JWT 生产环境要求通过 compose 注入密钥；测试环境通过 application-test.yml 提供隔离密钥、Spring Bean 清理、Profiles（dev/prod）、Actuator（仅 health）、Dockerfile（multi-stage + non-root）、compose backend 服务、启动冒烟测试（ApplicationContextLoadTest）、前端路由修复 + Dashboard 页面

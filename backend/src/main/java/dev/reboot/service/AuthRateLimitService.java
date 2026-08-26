@@ -2,6 +2,8 @@ package dev.reboot.service;
 
 import dev.reboot.enums.ErrorCode;
 import dev.reboot.exception.BusinessException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +27,8 @@ import java.util.UUID;
  */
 @Service
 public class AuthRateLimitService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthRateLimitService.class);
 
     /** 账号失败计数 key 前缀：login:fail:user:{username}。 */
     public static final String LOGIN_FAIL_KEY_PREFIX = "login:fail:user:";
@@ -76,7 +80,8 @@ public class AuthRateLimitService {
         if (v != null) {
             try {
                 count = Long.parseLong(v);
-            } catch (NumberFormatException ignored) {
+            } catch (NumberFormatException e) {
+                log.warn("注册每日配额计数解析失败，重置为 0 key={} val={}", key, v, e);
                 count = 0;
             }
         }
@@ -112,7 +117,8 @@ public class AuthRateLimitService {
                 if (Long.parseLong(val) >= MAX_LOGIN_FAILURES) {
                     throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
                 }
-            } catch (NumberFormatException ignored) {
+            } catch (NumberFormatException e) {
+                log.warn("登录失败计数解析失败，视为未锁定 username={} val={}", username, val, e);
             }
         }
     }

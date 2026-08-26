@@ -15,9 +15,9 @@ import dev.reboot.mq.AlarmMessage;
 import dev.reboot.mq.AlarmProducer;
 import dev.reboot.mq.DeviceDataMessage;
 import dev.reboot.mq.DeviceDataProducer;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,18 +46,19 @@ public class DeviceDataService {
     private final DeviceMapper deviceMapper;
     private final SiteAccessService siteAccessService;
 
-    @Autowired(required = false)
-    private AlarmProducer alarmProducer;
-
-    @Autowired(required = false)
-    private DeviceDataProducer deviceDataProducer;
+    private final AlarmProducer alarmProducer;
+    private final DeviceDataProducer deviceDataProducer;
 
     public DeviceDataService(DeviceDataMapper deviceDataMapper, AlarmDetector alarmDetector,
-                             DeviceMapper deviceMapper, SiteAccessService siteAccessService) {
+                             DeviceMapper deviceMapper, SiteAccessService siteAccessService,
+                             @Nullable AlarmProducer alarmProducer,
+                             @Nullable DeviceDataProducer deviceDataProducer) {
         this.deviceDataMapper = deviceDataMapper;
         this.alarmDetector = alarmDetector;
         this.deviceMapper = deviceMapper;
         this.siteAccessService = siteAccessService;
+        this.alarmProducer = alarmProducer;
+        this.deviceDataProducer = deviceDataProducer;
     }
 
     /** 按设备 ID 查询所有数据记录（需设备站点 VIEWER 及以上）。 */

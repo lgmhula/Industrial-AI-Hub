@@ -39,14 +39,14 @@ public class AlarmEscalationConsumer {
      */
     @RabbitListener(queues = MQConfig.ALARM_ESCALATION_QUEUE)
     public void handleEscalation(AlarmMessage message) {
-        log.error("=== 报警升级 ===");
-        log.error("设备ID: {} | 报警类型: {} | 级别: {}",
+        log.warn("=== 报警升级 ===");
+        log.warn("设备ID: {} | 报警类型: {} | 级别: {}",
                 message.getDeviceId(), message.getAlarmType(), message.getAlarmLevel());
-        log.error("报警内容: {}", message.getAlarmMessage());
-        log.error("触发值: {} @ {}", message.getDataValue(), message.getTriggeredAt());
-        log.error("原因: 报警触发 30 秒后仍未处理");
-        log.error("动作: 升级通知（钉钉/邮件/短信）");
-        log.error("==============");
+        log.warn("报警内容: {}", message.getAlarmMessage());
+        log.warn("触发值: {} @ {}", message.getDataValue(), message.getTriggeredAt());
+        log.warn("原因: 报警触发 30 秒后仍未处理");
+        log.warn("动作: 升级通知（钉钉/邮件/短信）");
+        log.warn("==============");
 
         // TODO Day 55: 查询 DB 确认报警状态，避免误升级
         // TODO: 接入钉钉/邮件/短信通知

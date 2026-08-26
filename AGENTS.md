@@ -156,7 +156,7 @@ Industrial-AI-Hub/
 
 ## 7. 关键约定
 
-- **数据库**：`reboot`，7 张表（user/role/user_role/device/device_data/alarm/operation_log）；schema 由 **Flyway** 管理（`backend/src/main/resources/db/migration/`，ADR 0019），变更 = 新增 `V###__*.sql`；**演示/测试种子数据禁止放入迁移目录**，唯一事实源 `db/seed/dev/seed_demo_data.sql`，开发环境经 `scripts/seed-dev.sh` 显式执行（幂等，见 ADR 0019 §5）
+- **数据库**：`reboot`，9 张表（user/role/user_role/device/device_data/alarm/operation_log + site/user_site）；schema 由 **Flyway** 管理（`backend/src/main/resources/db/migration/`，ADR 0019），变更 = 新增 `V###__*.sql`；**演示/测试种子数据禁止放入迁移目录**，唯一事实源 `db/seed/dev/seed_demo_data.sql`，开发环境经 `scripts/seed-dev.sh` 显式执行（幂等，见 ADR 0019 §5）；`site/user_site` 由 V4 引入（P1-01 站点作用域，ADR 0020）
 - **API 前缀**：`/api/`
 - **端口**：Spring Boot 8080，MySQL(Docker) 3307，Redis 6379
 - **密码加密**：BCrypt（已实现，Day 23）

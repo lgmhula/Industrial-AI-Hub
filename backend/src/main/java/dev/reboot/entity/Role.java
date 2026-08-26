@@ -14,7 +14,10 @@ public class Role {
     private String roleName;
     private String roleCode;
     private String description;
+    private Integer status;
+    private Integer isDeleted;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -24,8 +27,14 @@ public class Role {
     public void setRoleCode(String roleCode) { this.roleCode = roleCode; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public Integer getStatus() { return status; }
+    public void setStatus(Integer status) { this.status = status; }
+    public Integer getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(Integer isDeleted) { this.isDeleted = isDeleted; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
     @Override
     public String toString() {

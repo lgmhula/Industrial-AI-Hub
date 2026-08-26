@@ -17,10 +17,16 @@ import java.util.List;
 public interface AlarmMapper {
 
     @Select("<script>SELECT a.* FROM alarm a JOIN device d ON a.device_id = d.id"
-            + "<if test='siteIds != null'> WHERE d.site_id IN "
+            + "<where>"
+            + "<if test='siteIds != null'> AND d.site_id IN "
             + "<foreach collection='siteIds' item='sid' open='(' separator=',' close=')'>#{sid}</foreach>"
-            + "</if> ORDER BY a.triggered_at DESC</script>")
-    List<Alarm> findAll(@Param("siteIds") List<Long> siteIds);
+            + "</if>"
+            + "<if test='keyword != null and keyword != &quot;&quot;'> AND a.alarm_message LIKE CONCAT('%',#{keyword},'%')</if>"
+            + "<if test='alarmLevel != null'> AND a.alarm_level = #{alarmLevel}</if>"
+            + "</where> ORDER BY a.triggered_at DESC</script>")
+    List<Alarm> findAll(@Param("siteIds") List<Long> siteIds,
+                        @Param("keyword") String keyword,
+                        @Param("alarmLevel") Integer alarmLevel);
 
     @Select("SELECT * FROM alarm WHERE device_id = #{deviceId} ORDER BY triggered_at DESC")
     List<Alarm> findByDeviceId(@Param("deviceId") Long deviceId);
@@ -29,8 +35,14 @@ public interface AlarmMapper {
             + " WHERE a.status = #{status}"
             + "<if test='siteIds != null'> AND d.site_id IN "
             + "<foreach collection='siteIds' item='sid' open='(' separator=',' close=')'>#{sid}</foreach>"
-            + "</if> ORDER BY a.triggered_at DESC</script>")
-    List<Alarm> findByStatus(@Param("status") Integer status, @Param("siteIds") List<Long> siteIds);
+            + "</if>"
+            + "<if test='keyword != null and keyword != &quot;&quot;'> AND a.alarm_message LIKE CONCAT('%',#{keyword},'%')</if>"
+            + "<if test='alarmLevel != null'> AND a.alarm_level = #{alarmLevel}</if>"
+            + " ORDER BY a.triggered_at DESC</script>")
+    List<Alarm> findByStatus(@Param("status") Integer status,
+                             @Param("siteIds") List<Long> siteIds,
+                             @Param("keyword") String keyword,
+                             @Param("alarmLevel") Integer alarmLevel);
 
     @Select("SELECT * FROM alarm WHERE id = #{id}")
     Alarm findById(@Param("id") Long id);
@@ -40,9 +52,9 @@ public interface AlarmMapper {
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(Alarm alarm);
 
-    @Update("UPDATE alarm SET status=1 WHERE id=#{id}")
-    int acknowledge(@Param("id") Long id);
+    @Update("UPDATE alarm SET status=1, acknowledged_at=NOW(), acknowledged_by=#{userId} WHERE id=#{id}")
+    int acknowledge(@Param("id") Long id, @Param("userId") Long userId);
 
-    @Update("UPDATE alarm SET status=2, resolved_at=NOW() WHERE id=#{id}")
-    int resolve(@Param("id") Long id);
+    @Update("UPDATE alarm SET status=2, resolved_at=NOW(), resolved_by=#{userId} WHERE id=#{id}")
+    int resolve(@Param("id") Long id, @Param("userId") Long userId);
 }

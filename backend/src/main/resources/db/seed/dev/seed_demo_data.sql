@@ -23,32 +23,32 @@ SET NAMES utf8mb4;
 
 -- ================================================================
 -- 1. 测试用户（20 条）— 密码均为 Test123456 (BCrypt)
---    hash: $2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
+--    hash: $2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje
 --    守卫键：user.username（uk_username）
 -- ================================================================
 INSERT INTO `user` (`username`, `password`, `email`, `phone`, `status`)
 SELECT t.username, t.password, t.email, t.phone, t.status
 FROM (
-    SELECT 'operator01' AS username, '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy' AS password, 'op01@test.com' AS email, '13800001001' AS phone, 1 AS status
-    UNION ALL SELECT 'operator02', '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'op02@test.com', '13800001002', 1
-    UNION ALL SELECT 'viewer01',   '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'vw01@test.com', '13800001003', 1
-    UNION ALL SELECT 'viewer02',   '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'vw02@test.com', '13800001004', 1
-    UNION ALL SELECT 'user05',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u05@test.com', '13800001005', 1
-    UNION ALL SELECT 'user06',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u06@test.com', '13800001006', 1
-    UNION ALL SELECT 'user07',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u07@test.com', '13800001007', 1
-    UNION ALL SELECT 'user08',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u08@test.com', '13800001008', 1
-    UNION ALL SELECT 'user09',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u09@test.com', '13800001009', 1
-    UNION ALL SELECT 'user10',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u10@test.com', '13800001010', 1
-    UNION ALL SELECT 'user11',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u11@test.com', '13800001011', 0
-    UNION ALL SELECT 'user12',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u12@test.com', '13800001012', 0
-    UNION ALL SELECT 'user13',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u13@test.com', '13800001013', 1
-    UNION ALL SELECT 'user14',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u14@test.com', '13800001014', 1
-    UNION ALL SELECT 'user15',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u15@test.com', '13800001015', 1
-    UNION ALL SELECT 'user16',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u16@test.com', '13800001016', 1
-    UNION ALL SELECT 'user17',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u17@test.com', '13800001017', 1
-    UNION ALL SELECT 'user18',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u18@test.com', '13800001018', 1
-    UNION ALL SELECT 'user19',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u19@test.com', '13800001019', 1
-    UNION ALL SELECT 'user20',     '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'u20@test.com', '13800001020', 1
+    SELECT 'operator01' AS username, '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje' AS password, 'op01@test.com' AS email, '13800001001' AS phone, 1 AS status
+    UNION ALL SELECT 'operator02', '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'op02@test.com', '13800001002', 1
+    UNION ALL SELECT 'viewer01',   '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'vw01@test.com', '13800001003', 1
+    UNION ALL SELECT 'viewer02',   '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'vw02@test.com', '13800001004', 1
+    UNION ALL SELECT 'user05',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u05@test.com', '13800001005', 1
+    UNION ALL SELECT 'user06',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u06@test.com', '13800001006', 1
+    UNION ALL SELECT 'user07',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u07@test.com', '13800001007', 1
+    UNION ALL SELECT 'user08',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u08@test.com', '13800001008', 1
+    UNION ALL SELECT 'user09',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u09@test.com', '13800001009', 1
+    UNION ALL SELECT 'user10',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u10@test.com', '13800001010', 1
+    UNION ALL SELECT 'user11',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u11@test.com', '13800001011', 0
+    UNION ALL SELECT 'user12',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u12@test.com', '13800001012', 0
+    UNION ALL SELECT 'user13',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u13@test.com', '13800001013', 1
+    UNION ALL SELECT 'user14',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u14@test.com', '13800001014', 1
+    UNION ALL SELECT 'user15',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u15@test.com', '13800001015', 1
+    UNION ALL SELECT 'user16',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u16@test.com', '13800001016', 1
+    UNION ALL SELECT 'user17',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u17@test.com', '13800001017', 1
+    UNION ALL SELECT 'user18',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u18@test.com', '13800001018', 1
+    UNION ALL SELECT 'user19',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u19@test.com', '13800001019', 1
+    UNION ALL SELECT 'user20',     '$2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje', 'u20@test.com', '13800001020', 1
 ) t
 WHERE NOT EXISTS (SELECT 1 FROM `user` u WHERE u.username = t.username);
 
@@ -371,7 +371,11 @@ WHERE NOT EXISTS (
 --    守卫键：user_site(user_id, site_id)
 --    operator01/02 → 默认站点 OPERATOR；viewer01/02 + user05~20 → 默认站点 VIEWER
 --    全局 ADMIN（admin）无需 user_site（系统管理员隐式全站点）
+--    安全网：确保 DEFAULT 站点存在（V4 迁移应已创建，此处兜底）
 -- ================================================================
+INSERT INTO `site` (`site_name`, `site_code`, `description`)
+SELECT '默认工厂', 'DEFAULT', '系统默认站点（seed 兜底）'
+WHERE NOT EXISTS (SELECT 1 FROM `site` WHERE `site_code` = 'DEFAULT');
 INSERT INTO `user_site` (`user_id`, `site_id`, `role_id`)
 SELECT u.id, s.id, r.id
 FROM `user` u

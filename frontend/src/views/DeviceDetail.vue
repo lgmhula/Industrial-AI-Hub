@@ -37,35 +37,28 @@
         </el-col>
         <el-col :xs="12" :md="6">
           <div class="card stat-card">
-            <el-statistic title="平均值" :value="stats.avg ?? 0" :precision="2" />
+            <el-statistic title="平均值" :value="primaryStats?.avg ?? 0" :precision="2" />
           </div>
         </el-col>
         <el-col :xs="12" :md="6">
           <div class="card stat-card">
-            <el-statistic title="最小值" :value="stats.min ?? 0" :precision="2" />
+            <el-statistic title="最小值" :value="primaryStats?.min ?? 0" :precision="2" />
           </div>
         </el-col>
         <el-col :xs="12" :md="6">
           <div class="card stat-card">
-            <el-statistic title="最大值" :value="stats.max ?? 0" :precision="2" />
+            <el-statistic title="最大值" :value="primaryStats?.max ?? 0" :precision="2" />
           </div>
         </el-col>
       </el-row>
 
       <!-- 趋势图 -->
       <el-row :gutter="16">
-        <el-col :xs="24" :md="12">
+        <el-col v-for="chart in charts" :key="chart.type" :xs="24" :md="12">
           <div class="card chart-card">
-            <h3 class="section-title">温度趋势 (°C)</h3>
-            <v-chart v-if="tempOption" :option="tempOption" autoresize style="height: 300px" />
-            <EmptyState v-else icon="🌡️" title="暂无温度数据" />
-          </div>
-        </el-col>
-        <el-col :xs="24" :md="12">
-          <div class="card chart-card">
-            <h3 class="section-title">压力趋势 (kPa)</h3>
-            <v-chart v-if="pressureOption" :option="pressureOption" autoresize style="height: 300px" />
-            <EmptyState v-else icon="📈" title="暂无压力数据" />
+            <h3 class="section-title">{{ chart.title }}</h3>
+            <v-chart v-if="chart.option" :option="chart.option" autoresize style="height: 300px" />
+            <EmptyState v-else :icon="chart.icon" :title="`暂无${chart.label}数据`" />
           </div>
         </el-col>
       </el-row>
@@ -114,8 +107,26 @@ const allData = ref([])
 const recentData = ref([])
 const loading = ref(false)
 
-const tempOption = computed(() => buildChartOption(allData.value, 'TEMPERATURE', '#3b82f6'))
-const pressureOption = computed(() => buildChartOption(allData.value, 'PRESSURE', '#ef4444'))
+const CHART_CONFIGS = [
+  { type: 'TEMPERATURE', label: '温度', unit: '°C', color: '#3b82f6', icon: '🌡️' },
+  { type: 'PRESSURE', label: '压力', unit: 'kPa', color: '#ef4444', icon: '📈' },
+  { type: 'HUMIDITY', label: '湿度', unit: '%', color: '#22c55e', icon: '💧' },
+  { type: 'SPEED', label: '转速', unit: 'RPM', color: '#f59e0b', icon: '⚙️' },
+]
+
+const charts = computed(() => {
+  const types = [...new Set(allData.value.map(d => d.dataType))]
+  const configs = types.length > 0
+    ? CHART_CONFIGS.filter(c => types.includes(c.type))
+    : CHART_CONFIGS.slice(0, 2)
+  return configs.map(cfg => ({
+    type: cfg.type,
+    title: `${cfg.label}趋势 (${cfg.unit})`,
+    label: cfg.label,
+    icon: cfg.icon,
+    option: buildChartOption(allData.value, cfg.type, cfg.color),
+  }))
+})
 
 const buildChartOption = (data, type, color) => {
   const filtered = data.filter(d => d.dataType === type).sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt))
@@ -150,18 +161,34 @@ const fetchDetail = async () => {
   }
 }
 
-// 客户端聚合统计（后端 stats 接口需指定 dataType，此处对全部采集值做通用统计）
 const computeStats = (data) => {
-  const vals = data.map(d => Number(d.dataValue)).filter(v => !Number.isNaN(v))
-  if (!vals.length) return null
-  const sum = vals.reduce((a, b) => a + b, 0)
-  return {
-    count: vals.length,
-    avg: sum / vals.length,
-    min: Math.min(...vals),
-    max: Math.max(...vals),
+  if (!data.length) return null
+  const byType = {}
+  for (const d of data) {
+    const t = d.dataType || 'UNKNOWN'
+    if (!byType[t]) byType[t] = []
+    byType[t].push(Number(d.dataValue))
   }
+  const result = {}
+  for (const [type, vals] of Object.entries(byType)) {
+    const valid = vals.filter(v => !Number.isNaN(v))
+    if (valid.length) {
+      result[type] = {
+        count: valid.length,
+        avg: valid.reduce((a, b) => a + b, 0) / valid.length,
+        min: Math.min(...valid),
+        max: Math.max(...valid),
+      }
+    }
+  }
+  return result
 }
+
+const primaryStats = computed(() => {
+  if (!stats.value) return null
+  const tempKey = Object.keys(stats.value).find(k => k.includes('TEMP'))
+  return stats.value[tempKey] || Object.values(stats.value)[0] || null
+})
 
 const statusType = (s) => ({ 1: 'success', 0: 'info', 2: 'warning' }[s] || 'info')
 const statusLabel = (s) => ({ 1: '在线', 0: '离线', 2: '维护中' }[s] || '未知')

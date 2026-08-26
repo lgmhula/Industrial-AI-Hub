@@ -32,7 +32,10 @@
           {{ loading ? '验证中...' : '登 录' }}
         </el-button>
       </form>
-      <div class="footer-text">Industrial AI Hub v2.0 · Day 042</div>
+      <div class="register-link">
+        <router-link to="/register">没有账号？邀请码注册</router-link>
+      </div>
+      <div class="footer-text">Industrial AI Hub · 工业设备智能管理平台</div>
     </div>
   </div>
 </template>
@@ -41,6 +44,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { authApi } from '../api/index.js'
+import { setAuth } from '../composables/useAuth.js'
 import { User, Lock } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -53,8 +57,13 @@ async function handleLogin() {
   loading.value = true; error.value = ''
   try {
     const res = await authApi.login({ username: form.username, password: form.password })
-    localStorage.setItem('token', res.data)
-    localStorage.setItem('username', form.username)
+    const token = res.data
+    let roles = []
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      roles = payload.roles || []
+    } catch { /* roles stays [] */ }
+    setAuth(token, form.username, roles)
     router.push('/dashboard')
   } catch (e) {
     error.value = e.message || '登录失败'
@@ -96,5 +105,8 @@ function particleStyle(i) {
 .input-group { margin-bottom: 16px; }
 .error-msg { color: #F56C6C; font-size: 13px; margin: 0 0 8px; text-align: center; }
 .login-btn { width: 100%; margin-top: 8px; }
+.register-link { text-align: center; margin-top: 16px; }
+.register-link a { color: #409eff; font-size: 13px; text-decoration: none; }
+.register-link a:hover { text-decoration: underline; }
 .footer-text { text-align: center; color: #c0c4cc; font-size: 12px; margin-top: 24px; }
 </style>

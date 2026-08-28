@@ -52,6 +52,41 @@
         </el-col>
       </el-row>
 
+      <!-- AI 健康诊断 -->
+      <div class="card ai-card">
+        <div class="ai-card-header">
+          <div>
+            <h3 class="section-title">AI 健康诊断</h3>
+            <div class="ai-card-subtitle">基于设备数据与最近告警生成评估</div>
+          </div>
+          <el-button type="primary" :icon="MagicStick" :loading="aiLoading" @click="runAiDiagnosis">
+            生成诊断
+          </el-button>
+        </div>
+        <el-alert v-if="aiError" :title="aiError" type="error" show-icon :closable="false" />
+        <template v-else-if="aiDiagnosis">
+          <div class="ai-diagnosis-head">
+            <el-tag :type="healthType(aiDiagnosis.healthLevel)" effect="light" size="large">
+              {{ aiDiagnosis.healthLevel || '未知' }}
+            </el-tag>
+          </div>
+          <p class="ai-summary">{{ aiDiagnosis.summary || '-' }}</p>
+          <div v-if="aiDiagnosis.issues?.length" class="ai-section">
+            <h4>发现的问题</h4>
+            <ul>
+              <li v-for="(item, i) in aiDiagnosis.issues" :key="i">{{ item }}</li>
+            </ul>
+          </div>
+          <div v-if="aiDiagnosis.suggestedActions?.length" class="ai-section">
+            <h4>建议动作</h4>
+            <ul>
+              <li v-for="(item, i) in aiDiagnosis.suggestedActions" :key="i">{{ item }}</li>
+            </ul>
+          </div>
+        </template>
+        <div v-else class="ai-placeholder">点击「生成诊断」，让 AI 基于设备基础信息、最近采集数据和未处理告警给出健康评估。</div>
+      </div>
+
       <!-- 趋势图 -->
       <el-row :gutter="16">
         <el-col v-for="chart in charts" :key="chart.type" :xs="24" :md="12">
@@ -88,13 +123,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, MagicStick } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { deviceApi, deviceDataApi } from '../api/index.js'
+import { deviceApi, deviceDataApi, aiApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
 
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
@@ -106,6 +141,9 @@ const stats = ref(null)
 const allData = ref([])
 const recentData = ref([])
 const loading = ref(false)
+const aiLoading = ref(false)
+const aiError = ref('')
+const aiDiagnosis = ref(null)
 
 const CHART_CONFIGS = [
   { type: 'TEMPERATURE', label: '温度', unit: '°C', color: '#3b82f6', icon: '🌡️' },
@@ -190,6 +228,21 @@ const primaryStats = computed(() => {
   return stats.value[tempKey] || Object.values(stats.value)[0] || null
 })
 
+const runAiDiagnosis = async () => {
+  aiLoading.value = true
+  aiError.value = ''
+  aiDiagnosis.value = null
+  try {
+    const res = await aiApi.deviceDiagnosis(deviceId)
+    aiDiagnosis.value = res.data || res
+  } catch (e) {
+    aiError.value = e.message || 'AI 健康诊断失败'
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+const healthType = (level) => ({ 健康: 'success', 关注: 'warning', 异常: 'danger' }[level] || 'info')
 const statusType = (s) => ({ 1: 'success', 0: 'info', 2: 'warning' }[s] || 'info')
 const statusLabel = (s) => ({ 1: '在线', 0: '离线', 2: '维护中' }[s] || '未知')
 const fmtTime = (t) => t ? new Date(t).toLocaleString('zh-CN') : '-'
@@ -212,5 +265,45 @@ onMounted(fetchDetail)
   font-weight: 600;
   color: var(--iah-text);
   margin-bottom: 14px;
+}
+.ai-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.ai-card-subtitle {
+  font-size: 13px;
+  color: var(--iah-text-muted);
+  margin-top: -8px;
+}
+.ai-placeholder {
+  padding: 18px 0 6px;
+  font-size: 13px;
+  color: var(--iah-text-muted);
+}
+.ai-diagnosis-head {
+  margin-bottom: 12px;
+}
+.ai-summary {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--iah-text);
+}
+.ai-section {
+  margin-top: 14px;
+}
+.ai-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--iah-text);
+  margin-bottom: 8px;
+}
+.ai-section ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--iah-text-secondary);
+  line-height: 1.9;
 }
 </style>

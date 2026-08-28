@@ -1,7 +1,7 @@
 # 技术债务清单（Technical Debt）
 
 > **SSOT**：本文档是技术债务的唯一权威清单（迁移自 `backend/REVIEW/Phase2-Summary.md` §四，并持续更新）。
-> **最后更新**：2026-08-16（Phase 3 收官）
+> **最后更新**：2026-08-28（Day 67：AI 操作日志治理）
 
 ---
 
@@ -20,6 +20,7 @@
 | 21 | README/AGENTS 状态滞后（~3 周） | 2026-08-16 漂移纠正 |
 | 22 | Phase 3 决策无 ADR | 2026-08-16 新增 ADR 0014 |
 | 23 | DAILY_ROADMAP Phase 2 复选框未勾 | 2026-08-16 勾选 |
+| 28 | AI 端点无操作日志（TD-028） | 2026-08-28（Day 67：Flyway V9 扩展 `CHAT/SUMMARY/DIAGNOSE` + `target_type=AI`，AiController 三端点补 `@OperationLog`） |
 
 ---
 
@@ -32,6 +33,7 @@
 | 4 | 无 Token 刷新/登出机制 | 24h 过期后必须重新登录 | Phase 4 前补 refresh token 或缩短说明 |
 | 5 | 缺少全局日志 traceId | 排障难定位一次请求的完整链路 | 引入 Logback `%X{traceId}` + MDC 过滤器 |
 | 19 | Redis 三客户端并存（jedis + spring-data-redis + redisson） | 依赖冗余、连接池复杂 | 收敛为 1-2 个客户端（jedis 仅 Day 43 练习用） |
+| 24 | `DeepSeekProperties.apiKey` 空默认 + 启动期无 warn（ADR 0021 明示 opt-in 例外） | 误开启时缺 Key 只能在请求期暴露 | 补 `enabled=true && apiKey.isBlank()` 启动期 WARN 日志 |
 
 ### P2（渐进）
 
@@ -42,6 +44,7 @@
 | 8 | `user` 表名是 MySQL 保留字 | 潜在解析风险 | 重命名表或统一加反引号（现已有反引号） |
 | 9 | 零外键约束 | 可能孤儿数据 | 应用层保证 + 定期审计脚本 |
 | 10 | Swagger 示例值注解不丰富 | API 文档可读性 | 补 `@Schema`/`@ExampleObject` |
+| 25 | AI 业务 DTO 枚举字段为纯 String（priority/healthLevel） | 前端映射/校验依赖约定 | 引入枚举或 `@Schema(allowableValues)` |
 
 ### P3（后续迭代）
 
@@ -50,6 +53,7 @@
 | 13 | ECharts 打包 687KB 无分包 | 首屏加载慢 | 按需引入 + 路由懒加载 |
 | 14 | 报警规则硬编码 AlarmRuleConfig | 不可动态调整 | 规则入库 + 动态加载 |
 | 15 | DeviceData 时间范围查询无分页 | 大数据量内存风险 | 加时间分页/聚合下推 |
+| 26 | AI DTO 缺 `@Schema` 注解 | Knife4j 文档可读性一般 | 补注解（与其余模块 DTO 风格一致） |
 
 ---
 

@@ -1,9 +1,9 @@
 # Application Architecture V2.2
 
 > **Status:** Active
-> **Version:** 2.2
-> **Updated:** 2026-08-26
-> **Based on:** Phase 3 收官 + 安全治理合并（站点授权 / 用户安全状态 / JWT 生命周期 / 登录审计 / 限流 / 注册治理 + V7-V8 迁移）
+> **Version:** 2.3
+> **Updated:** 2026-08-28
+> **Based on:** Phase 3 收官 + 安全治理合并（站点授权 / 用户安全状态 / JWT 生命周期 / 登录审计 / 限流 / 注册治理 + V7-V9 迁移）+ Phase 4 Day 66 DeepSeek + Day 67 Spring AI ChatClient
 > **Governs:** All application-layer decisions for Industrial AI Hub Backend
 
 ---
@@ -60,6 +60,15 @@
 | Elasticsearch | 8.17 | 9200, 9300 | Configured |
 | Backend (Spring Boot) | JDK 25 | 8080 | Active (compose build) |
 
+### AI（Phase 4 新增）
+
+| 组件 | 说明 |
+|------|------|
+| DeepSeek API | OpenAI 兼容 Chat Completions；默认 `deepseek-chat`；opt-in 启用（`deepseek.enabled`） |
+| Spring AI ChatClient | `spring-ai-starter-model-openai:1.0.3`（ADR 0022），显式 Bean 指向 DeepSeek baseUrl，业务层统一 ChatClient/PromptTemplate |
+| DeepSeekClient | 保留为通用 `chat()` 协议层（RestClient + token 用量 + 503 语义，ADR 0021） |
+| JSON 输出 | `OpenAiChatModel` 默认 `response_format=json_object`：告警摘要 / 设备健康诊断 |
+
 ### Observability & 部署 (Baseline V2.1)
 
 | 项 | 说明 |
@@ -88,7 +97,7 @@ HTTP Request
 
 ## 3. 模块清单
 
-### Controllers (8)
+### Controllers (9)
 
 | Controller | 端点 | 鉴权 |
 |-----------|------|------|
@@ -100,8 +109,9 @@ HTTP Request
 | OperationLogController | listPaged/listByUserId/listRecent | ADMIN |
 | RoleController | CRUD + toggleStatus | ADMIN |
 | SiteController | list | VIEWER+ |
+| AiController | /api/ai/chat、/api/ai/alarms/{id}/summary、/api/ai/devices/{id}/diagnose | VIEWER+ |
 
-### Services (14)
+### Services (15)
 
 | 类别 | Service |
 |------|---------|
@@ -109,6 +119,7 @@ HTTP Request
 | 角色与站点 | RoleService / SiteService / SiteAccessService |
 | 安全治理 | AuthRateLimitService / TokenBlacklistService / LoginAuditService |
 | 基础设施 | CacheService |
+| AI（Phase 4） | AiService（ChatClient 提示词编排 + DeepSeekClient 协议层，ADR 0021/0022） |
 
 ### 中间件整合（Phase 3 新增）
 
@@ -117,6 +128,16 @@ HTTP Request
 | `mq/` | RabbitMQ 管线：`AlarmProducer`/`AlarmConsumer`（工作队列）、`DeviceDataProducer`/`DeviceDataSyncConsumer`（发布/订阅）、`AlarmEscalationConsumer`（延迟队列 30s 升级） |
 | `rule/` | 报警规则引擎：`AlarmRule` / `AlarmRuleConfig` / `Operator` |
 | 缓存 | Spring Cache（`@Cacheable`/`@CacheEvict`）+ Redisson 分布式锁（设备数据上报防重） |
+
+### AI 集成（Phase 4 新增）
+
+| 包 | 内容 |
+|----|------|
+| `client/` | DeepSeek Chat Completions HTTP 客户端（通用 `chat()` 协议层，503 统一错误映射） |
+| `config/` | `OpenAiApi` / `OpenAiChatModel` / `ChatClient` 显式 Bean（DeepSeekProperties SSOT，ADR 0022） |
+| `dto/ai/` | Chat 请求/响应、token usage、告警摘要 / 设备诊断结构化 DTO |
+| `service/AiService` | ChatClient/PromptTemplate 提示词编排 + 结构化 JSON 解析降级 + 站点作用域校验 |
+| `controller/AiController` | `/api/ai/*`（VIEWER+） |
 
 ### 横切关注点
 
@@ -151,7 +172,7 @@ HTTP Request
 
 ## 5. 数据库
 
-`reboot` 数据库，9 张表（user / role / user_role / site / user_site / device / device_data / alarm / operation_log + login_audit），由 Flyway 管理（V1 基线 + V3 CHECK 扩展 + V4 站点授权 + V5 用户安全状态 + V6 登录审计 + V7 alarm/role 审计字段 + V8 admin 密码更新），零 FK，软删除策略。
+`reboot` 数据库，9 张表（user / role / user_role / site / user_site / device / device_data / alarm / operation_log + login_audit），由 Flyway 管理（V1 基线 + V3 CHECK 扩展 + V4 站点授权 + V5 用户安全状态 + V6 登录审计 + V7 alarm/role 审计字段 + V8 admin 密码更新 + V9 AI 操作日志类型），零 FK，软删除策略。
 
 ---
 
@@ -164,5 +185,5 @@ HTTP Request
 | Phase 1 | 第 1-3 周 | Day 1-21 | Java 复苏 | ✅ |
 | Phase 2 | 第 4-6 周 | Day 22-42 | 项目 V1：CRUD / JWT / RBAC / 告警 / 前端 | ✅ v1.0 + Baseline V2.1 |
 | Phase 3 | 第 7-9 周 | Day 43-63 | 中间件武装：Redis + RabbitMQ + Docker + Linux | ✅ 2026-08-16 |
-| Phase 4 | 第 10-13 周 | Day 64-91 | AI 集成：OpenAI → RAG → Agent/MCP | 📅 待启动 |
+| Phase 4 | 第 10-13 周 | Day 64-91 | AI 集成：DeepSeek → RAG → Agent/MCP | 🔨 Day 66-67 已完成基础 + ChatClient 抽象 |
 | Phase 5 | 第 14-16 周 | Day 92-112 | PLC + MQTT + 完整系统 | 📅 计划 |

@@ -21,6 +21,13 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
       - org.redisson.spring.starter.RedissonAutoConfigurationV2
+      # Spring AI 仅启用 Chat（DeepSeekConfig 显式 Bean）；其余 OpenAI 自动配置未配置
+      # spring.ai.openai.api-key 时启动失败，统一排除（ADR 0022）
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiEmbeddingAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiImageAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration
   sql:
     init:
       mode: never
@@ -29,3 +36,9 @@ logging:
   level:
     dev.reboot: WARN
     org.springframework: WARN
+
+deepseek:
+  enabled: false
+  api-key: test-deepseek-key-not-used
+  base-url: https://api.deepseek.com
+  model: deepseek-chat

@@ -15,11 +15,14 @@ import java.lang.annotation.*;
 @Documented
 public @interface OperationLog {
 
-    /** 操作类型：CREATE / UPDATE / DELETE / LOGIN / EXPORT / ACKNOWLEDGE / RESOLVE。 */
+    /** 操作类型：CREATE / UPDATE / DELETE / LOGIN / EXPORT / ACKNOWLEDGE / RESOLVE / CHAT / SUMMARY / DIAGNOSE。 */
     String operationType();
 
-    /** 目标类型：USER / DEVICE / ALARM / ROLE / DEVICE_DATA。 */
+    /** 目标类型：USER / DEVICE / ALARM / ROLE / DEVICE_DATA / AI。 */
     String targetType();
+
+    /** 目标 ID 参数下标（方法参数从 0 开始）；-1 表示不记录 targetId。 */
+    int targetIdArg() default -1;
 
     /** 操作描述，支持占位符 {0} {1}，按方法参数位置替换。 */
     String description() default "";

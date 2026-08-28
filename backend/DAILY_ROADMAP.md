@@ -504,16 +504,19 @@
 
 # 第四阶段：AI 集成（第 10-13 周）
 
-> 目标：OpenAI API → RAG → Agent → MCP，全部进入项目。
+> 目标：DeepSeek API → RAG → Agent → MCP，全部进入项目。
 > 注意：不是做聊天机器人，而是让 AI 服务业务。
 
-### 第 10 周：OpenAI API + Spring AI
+### 第 10 周：DeepSeek API + Spring AI
+
+> 实际排期以 `backend/DAILY/DayXXX.md` 为准：Day 64-65 用于 Phase 3 收官治理，Phase 4 从 Day 66 起。
+
 | 天 | 任务 |
 |----|------|
-| Day 64 | OpenAI API 基础：ChatCompletion、Streaming、Token 管理 |
+| Day 64 | DeepSeek API 基础：ChatCompletion、Streaming、Token 管理 |
 | Day 65 | Spring AI 集成：配置、ChatClient、Prompt Template |
-| Day 66 | 实战：AI 分析设备数据并生成自然语言摘要 |
-| Day 67 | 实战：AI 分析报警记录并给出处理建议 |
+| Day 66 | DeepSeek API 基础 + 实战：AI 分析设备数据/告警生成摘要（已交付，ADR 0021） |
+| Day 67 | Spring AI ChatClient/PromptTemplate 抽象 + 前端告警摘要/设备诊断入口（ADR 0022） |
 | Day 68 | Function Calling：AI 自动调用项目接口查询设备状态 |
 | Day 69 | 前端集成：设备详情页加入"AI 分析"按钮 |
 | Day 70 | 周复盘 + AI 模块笔记 |

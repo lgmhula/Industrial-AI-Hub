@@ -58,7 +58,8 @@ class FlywayProductionSeedIsolationTest {
                             "V5__add_user_security_status.sql",
                             "V6__add_login_audit.sql",
                             "V7__alarm_role_audit_fields.sql",
-                            "V8__update_admin_password.sql"),
+                            "V8__update_admin_password.sql",
+                            "V9__ai_operation_log_types.sql"),
                     names,
                     "db/migration 只允许正式迁移；演示种子已移出（V2__seed_test_data.sql 退役）"
             );

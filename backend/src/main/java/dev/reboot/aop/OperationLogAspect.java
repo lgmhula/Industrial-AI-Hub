@@ -74,12 +74,27 @@ public class OperationLogAspect {
         entity.setUserId(userId);
         entity.setOperationType(annotation.operationType());
         entity.setTargetType(annotation.targetType());
+        entity.setTargetId(resolveTargetId(annotation.targetIdArg(), joinPoint.getArgs()));
         entity.setDescription(desc);
         entity.setIpAddress(getClientIp(request));
 
         operationLogMapper.insert(entity);
         log.info("操作日志: userId={}, op={}, target={}, failed={}",
                 userId, annotation.operationType(), annotation.targetType(), failed);
+    }
+
+    private Long resolveTargetId(int targetIdArg, Object[] args) {
+        if (targetIdArg < 0 || args == null || targetIdArg >= args.length) {
+            return null;
+        }
+        Object value = args[targetIdArg];
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && text.matches("\\d+")) {
+            return Long.valueOf(text);
+        }
+        return null;
     }
 
     private OperationLog getAnnotation(ProceedingJoinPoint joinPoint) {

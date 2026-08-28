@@ -110,4 +110,11 @@ export const siteApi = {
   list: () => api.get('/sites'),
 }
 
+// ---------- AI ----------
+export const aiApi = {
+  chat: (data) => api.post('/ai/chat', data, { timeout: 60000 }),
+  alarmSummary: (id) => api.post(`/ai/alarms/${id}/summary`, null, { timeout: 60000 }),
+  deviceDiagnosis: (id) => api.post(`/ai/devices/${id}/diagnose`, null, { timeout: 60000 }),
+}
+
 export default api

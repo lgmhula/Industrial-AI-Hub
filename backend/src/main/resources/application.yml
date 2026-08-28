@@ -15,6 +15,13 @@ spring:
   autoconfigure:
     exclude:
       - org.redisson.spring.starter.RedissonAutoConfigurationV2
+      # Spring AI 仅启用 Chat（DeepSeekConfig 显式 Bean）；Embedding/Image/Audio/Moderation
+      # 自动配置会在未配置 spring.ai.openai.api-key 时启动失败，统一排除（ADR 0022）
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiEmbeddingAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiImageAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3307}/reboot?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER:root}
@@ -81,6 +88,20 @@ logging:
 jwt:
   secret: ${JWT_SECRET}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+# ========================
+# DeepSeek AI（Phase 4，OpenAI 兼容）
+# 默认关闭：未配置 API Key 不影响核心服务启动；
+# 启用后密钥 SSOT 为根目录 .env（DEEPSEEK_API_KEY，见 ADR 0021）
+# ========================
+deepseek:
+  enabled: ${DEEPSEEK_ENABLED:false}
+  base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+  api-key: ${DEEPSEEK_API_KEY:}
+  model: ${DEEPSEEK_MODEL:deepseek-chat}
+  timeout-seconds: ${DEEPSEEK_TIMEOUT_SECONDS:30}
+  max-tokens: ${DEEPSEEK_MAX_TOKENS:1024}
+  temperature: 0.3
 
 # ========================
 # 注册治理（P1-02-A-3）

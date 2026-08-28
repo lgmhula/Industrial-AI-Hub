@@ -87,6 +87,36 @@
         <div v-else class="ai-placeholder">点击「生成诊断」，让 AI 基于设备基础信息、最近采集数据和未处理告警给出健康评估。</div>
       </div>
 
+      <!-- AI 设备问答（Function Calling 折叠面板） -->
+      <div class="card ai-card">
+        <el-collapse v-model="qaOpen">
+          <el-collapse-item name="qa" title="AI 设备问答（自动查询实时数据）">
+            <div class="qa-tip">AI 将自动调用项目工具查询设备基础信息、最近告警与站点未处理告警后再回答（最多 3 轮工具调用）。</div>
+            <div class="qa-input-row">
+              <el-input v-model="qaQuestion" placeholder="例如：这台设备最近有什么告警？运行是否正常？"
+                        :disabled="qaLoading" clearable @keyup.enter="askQuestion" />
+              <el-button type="primary" :icon="ChatDotRound" :loading="qaLoading" @click="askQuestion">提问</el-button>
+            </div>
+            <el-alert v-if="qaError" :title="qaError" type="error" show-icon :closable="false" class="qa-error" />
+            <template v-else-if="qaResult">
+              <div class="qa-meta">
+                <el-tag size="small" :type="qaResult.referencedRealTime ? 'success' : 'warning'" effect="light">
+                  {{ qaResult.referencedRealTime ? '已参考实时数据' : '未参考实时数据' }}
+                </el-tag>
+                <el-tag size="small" type="info" effect="plain">工具调用 {{ qaResult.toolCalls }} 次 / {{ qaResult.toolRounds }} 轮</el-tag>
+                <el-tag v-if="qaResult.truncated" size="small" type="warning" effect="dark">已达 3 轮工具上限</el-tag>
+                <el-tag v-for="(t, i) in qaResult.toolTrace || []" :key="i" size="small" effect="plain"
+                        :type="t.success ? 'success' : 'danger'">
+                  {{ t.toolName }}{{ t.success ? '' : ' ✗' }}
+                </el-tag>
+              </div>
+              <p class="ai-summary">{{ qaResult.answer }}</p>
+            </template>
+            <div v-else class="ai-placeholder">输入问题后，AI 将基于实时数据回答设备状态。</div>
+          </el-collapse-item>
+        </el-collapse>
+      </div>
+
       <!-- 趋势图 -->
       <el-row :gutter="16">
         <el-col v-for="chart in charts" :key="chart.type" :xs="24" :md="12">
@@ -123,7 +153,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ArrowLeft, MagicStick } from '@element-plus/icons-vue'
+import { ArrowLeft, MagicStick, ChatDotRound } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
@@ -144,6 +174,13 @@ const loading = ref(false)
 const aiLoading = ref(false)
 const aiError = ref('')
 const aiDiagnosis = ref(null)
+
+// AI 设备问答（Function Calling）
+const qaOpen = ref([])
+const qaQuestion = ref('')
+const qaLoading = ref(false)
+const qaError = ref('')
+const qaResult = ref(null)
 
 const CHART_CONFIGS = [
   { type: 'TEMPERATURE', label: '温度', unit: '°C', color: '#3b82f6', icon: '🌡️' },
@@ -242,6 +279,25 @@ const runAiDiagnosis = async () => {
   }
 }
 
+const askQuestion = async () => {
+  const question = qaQuestion.value?.trim()
+  if (!question) {
+    ElMessage.warning('请输入问题')
+    return
+  }
+  qaLoading.value = true
+  qaError.value = ''
+  qaResult.value = null
+  try {
+    const res = await aiApi.deviceStatus(deviceId, question)
+    qaResult.value = res.data || res
+  } catch (e) {
+    qaError.value = e.message || 'AI 设备问答失败'
+  } finally {
+    qaLoading.value = false
+  }
+}
+
 const healthType = (level) => ({ 健康: 'success', 关注: 'warning', 异常: 'danger' }[level] || 'info')
 const statusType = (s) => ({ 1: 'success', 0: 'info', 2: 'warning' }[s] || 'info')
 const statusLabel = (s) => ({ 1: '在线', 0: '离线', 2: '维护中' }[s] || '未知')
@@ -282,6 +338,25 @@ onMounted(fetchDetail)
   padding: 18px 0 6px;
   font-size: 13px;
   color: var(--iah-text-muted);
+}
+.qa-tip {
+  font-size: 13px;
+  color: var(--iah-text-muted);
+  margin-bottom: 10px;
+}
+.qa-input-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.qa-error {
+  margin-bottom: 12px;
+}
+.qa-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 .ai-diagnosis-head {
   margin-bottom: 12px;

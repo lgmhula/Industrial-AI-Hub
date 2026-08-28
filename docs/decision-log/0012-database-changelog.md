@@ -21,10 +21,11 @@
 | V7 | 2026-08-27 | ALTER | alarm 审计字段（acknowledged/resolved/updated_at）、device 复合唯一约束修复、role 管理字段 | alarm, device, role |
 | V8 | 2026-08-28 | ALTER | admin 默认弱密码升级（BCrypt） | user |
 | V9 | 2026-08-28 | ALTER | AI 操作日志类型扩展：`chk_operation_type` 增加 `CHAT/SUMMARY/DIAGNOSE`，`chk_target_type` 增加 `AI`（TD-028，Day 67） | operation_log |
+| V10 | 2026-08-29 | ALTER | Function Calling 操作日志类型扩展：`chk_operation_type` 增加 `FUNCTION_CALL`（Day 68，ADR 0023） | operation_log |
 
 ## 当前 Schema 版本
 
-**Flyway 管理**（ADR 0019）—— `backend/src/main/resources/db/migration/`（V1 基线 + V3~V9 增量）；应用启动时自动迁移，变更 = 新增 `V###__*.sql`。演示/测试种子数据**不在迁移链内**：唯一事实源为 `db/seed/dev/seed_demo_data.sql`，开发环境经 `scripts/seed-dev.sh` 显式执行（幂等；原 `V2__seed_test_data.sql` 已于 2026-08-18 退役，见 ADR 0019 §5）。
+**Flyway 管理**（ADR 0019）—— `backend/src/main/resources/db/migration/`（V1 基线 + V3~V10 增量）；应用启动时自动迁移，变更 = 新增 `V###__*.sql`。演示/测试种子数据**不在迁移链内**：唯一事实源为 `db/seed/dev/seed_demo_data.sql`，开发环境经 `scripts/seed-dev.sh` 显式执行（幂等；原 `V2__seed_test_data.sql` 已于 2026-08-18 退役，见 ADR 0019 §5）。
 
 ### 表清单
 
@@ -36,9 +37,9 @@
 | 4 | `device` | 设备 | is_deleted(CHECK), device_type(CHECK) |
 | 5 | `device_data` | 设备传感器数据 | DECIMAL(18,6), data_type(CHECK) |
 | 6 | `alarm` | 告警 | alarm_level(CHECK), status(CHECK) |
-| 7 | `operation_log` | 操作审计日志 | operation_type(CHECK 含 AI), target_type(CHECK 含 AI) |
+| 7 | `operation_log` | 操作审计日志 | operation_type(CHECK 含 AI/FUNCTION_CALL), target_type(CHECK 含 AI) |
 
-### 约束清单（8 个 CHECK，V9 扩展 AI 枚举）
+### 约束清单（8 个 CHECK，V9/V10 扩展 AI 与 FUNCTION_CALL 枚举）
 
 `chk_user_status`, `chk_device_type`, `chk_device_status`, `chk_data_type`, `chk_alarm_level`, `chk_alarm_status`, `chk_operation_type`, `chk_target_type`
 

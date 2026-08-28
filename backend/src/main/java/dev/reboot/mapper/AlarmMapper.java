@@ -1,5 +1,6 @@
 package dev.reboot.mapper;
 
+import dev.reboot.dto.AlarmSiteVO;
 import dev.reboot.entity.Alarm;
 import org.apache.ibatis.annotations.*;
 
@@ -30,6 +31,14 @@ public interface AlarmMapper {
 
     @Select("SELECT * FROM alarm WHERE device_id = #{deviceId} ORDER BY triggered_at DESC")
     List<Alarm> findByDeviceId(@Param("deviceId") Long deviceId);
+
+    /** 站点活动告警（status=0 未处理，仅未删除设备），按触发时间倒序，供 AI 工具查询。 */
+    @Select("SELECT a.id, a.device_id, a.alarm_type, a.alarm_level, a.alarm_message, a.status, a.triggered_at,"
+            + " d.device_name"
+            + " FROM alarm a JOIN device d ON a.device_id = d.id"
+            + " WHERE a.status = 0 AND d.site_id = #{siteId} AND d.is_deleted = 0"
+            + " ORDER BY a.triggered_at DESC LIMIT #{limit}")
+    List<AlarmSiteVO> findActiveBySiteId(@Param("siteId") Long siteId, @Param("limit") int limit);
 
     @Select("<script>SELECT a.* FROM alarm a JOIN device d ON a.device_id = d.id"
             + " WHERE a.status = #{status}"

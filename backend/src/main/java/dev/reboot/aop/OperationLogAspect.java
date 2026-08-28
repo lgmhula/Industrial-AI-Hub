@@ -36,21 +36,23 @@ public class OperationLogAspect {
     @Around("@annotation(dev.reboot.annotation.OperationLog)")
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
         boolean failed = false;
+        Object result = null;
         try {
-            return joinPoint.proceed();
+            result = joinPoint.proceed();
+            return result;
         } catch (Throwable e) {
             failed = true;
             throw e;
         } finally {
             try {
-                recordLog(joinPoint, failed);
+                recordLog(joinPoint, failed, result);
             } catch (Exception e) {
                 log.error("操作日志记录失败: {}", e.getMessage());
             }
         }
     }
 
-    private void recordLog(ProceedingJoinPoint joinPoint, boolean failed) {
+    private void recordLog(ProceedingJoinPoint joinPoint, boolean failed, Object result) {
         var annotation = getAnnotation(joinPoint);
         if (annotation == null) {
             return;
@@ -65,7 +67,7 @@ public class OperationLogAspect {
         Object userIdObj = request.getAttribute("userId");
         Long userId = userIdObj != null ? Long.valueOf(userIdObj.toString()) : null;
 
-        String desc = buildDescription(annotation.description(), joinPoint);
+        String desc = buildDescription(annotation.description(), joinPoint, result);
         if (failed) {
             desc = "[失败] " + desc;
         }
@@ -111,8 +113,12 @@ public class OperationLogAspect {
      * 构建日志描述，支持 {0} {1} 占位符按方法参数位置替换。
      *
      * <p>对非基本类型参数只输出类名短名，避免将整个 DTO 的 toString() 拼入日志。</p>
+     *
+     * <p>额外支持 {@code {ret}} 占位符：替换为方法返回值的紧凑摘要
+     * （如 {@code AiDeviceStatusResult{deviceId=1, rounds=2, calls=3, realtime=true}}，
+     * 用于 FUNCTION_CALL 审计记录轮次/调用数，见 ADR 0023）。</p>
      */
-    private String buildDescription(String template, ProceedingJoinPoint joinPoint) {
+    private String buildDescription(String template, ProceedingJoinPoint joinPoint, Object result) {
         if (template == null || template.isEmpty()) {
             return joinPoint.getSignature().toShortString();
         }
@@ -124,7 +130,19 @@ public class OperationLogAspect {
                 desc = desc.replace("{" + i + "}", val);
             }
         }
+        if (desc.contains("{ret}")) {
+            desc = desc.replace("{ret}", formatResult(result));
+        }
         return desc;
+    }
+
+    /** 返回值摘要：null → "null"，字符串截断 400 字，其余取 toString（description 列上限 512）。 */
+    private String formatResult(Object result) {
+        if (result == null) {
+            return "null";
+        }
+        String text = result instanceof String s ? s : result.toString();
+        return text.length() > 400 ? text.substring(0, 400) + "..." : text;
     }
 
     /** 格式化参数值：简单类型直接 toString，复杂类型输出类名或提取 ID。 */

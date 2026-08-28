@@ -517,7 +517,7 @@
 | Day 65 | Spring AI 集成：配置、ChatClient、Prompt Template |
 | Day 66 | DeepSeek API 基础 + 实战：AI 分析设备数据/告警生成摘要（已交付，ADR 0021） |
 | Day 67 | Spring AI ChatClient/PromptTemplate 抽象 + 前端告警摘要/设备诊断入口（ADR 0022） |
-| Day 68 | Function Calling：AI 自动调用项目接口查询设备状态 |
+| Day 68 | Function Calling：AI 自动调用项目接口查询设备状态 ✅（@Tool 三工具 + 3 轮硬限 Agent + 设备详情问答面板，ADR 0023） |
 | Day 69 | 前端集成：设备详情页加入"AI 分析"按钮 |
 | Day 70 | 周复盘 + AI 模块笔记 |
 

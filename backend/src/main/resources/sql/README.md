@@ -30,13 +30,14 @@ sql/
 | V7 | `V7__alarm_role_audit_fields.sql` | alarm 审计字段 + role 管理字段 + 复合唯一约束修复 |
 | V8 | `V8__update_admin_password.sql` | admin 默认弱密码升级 |
 | V9 | `V9__ai_operation_log_types.sql` | AI 操作日志类型扩展（CHAT/SUMMARY/DIAGNOSE + target_type=AI） |
+| V10 | `V10__function_call_operation_type.sql` | Function Calling 操作日志类型扩展（FUNCTION_CALL，Day 68，ADR 0023） |
 
 > ⚠️ **演示/测试种子数据不在迁移链内**（ADR 0019 §5，P0）：原 `V2__seed_test_data.sql` 已退役，
 > 唯一事实源为 `db/seed/dev/seed_demo_data.sql`，开发环境经 `scripts/seed-dev.sh` 显式执行（幂等）。
 
 ## 迁移机制（Flyway，ADR 0019）
 
-- **全新库**：backend 首次启动 → Flyway 自动执行 V1 → V9（**不产生任何 Demo 数据**）；
+- **全新库**：backend 首次启动 → Flyway 自动执行 V1 → V10（**不产生任何 Demo 数据**）；
 - **既有库**：`baseline-on-migrate + baseline-version=2` 基线到 2（跳过 V1 重放），零干预升级；
 - **既有已执行过旧 V2 的库**：`ignore-migration-patterns: "*:missing"` 容忍退役的 V2，正常启动；
 - **未来变更**：新增 `V###__描述.sql`，所有环境自动升级；
@@ -68,7 +69,7 @@ mysql --default-character-set=utf8mb4 -u root -p reboot < backend/src/main/resou
 
 ## 当前 Schema 版本
 
-**V9** — 9 张业务表 + login_audit；CHECK 约束含 AI 操作类型与 AI 目标类型
+**V10** — 9 张业务表 + login_audit；CHECK 约束含 AI 操作类型（含 FUNCTION_CALL）与 AI 目标类型
 
 详见 [Database Changelog](../../../../../docs/decision-log/0012-database-changelog.md)
 

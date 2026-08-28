@@ -4,6 +4,7 @@ import dev.reboot.config.CacheConfig;
 import dev.reboot.dto.UserUpdateDTO;
 import dev.reboot.dto.UserVO;
 import dev.reboot.entity.User;
+import dev.reboot.mapper.RoleMapper;
 import dev.reboot.mapper.UserMapper;
 import dev.reboot.mapper.UserRoleMapper;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,9 @@ class UserServiceCacheTest {
         UserRoleMapper userRoleMapper() { return mock(UserRoleMapper.class); }
 
         @Bean
+        RoleMapper roleMapper() { return mock(RoleMapper.class); }
+
+        @Bean
         BCryptPasswordEncoder passwordEncoder() { return mock(BCryptPasswordEncoder.class); }
 
         @Bean
@@ -58,10 +62,11 @@ class UserServiceCacheTest {
 
         @Bean
         UserService userService(UserMapper userMapper, UserRoleMapper userRoleMapper,
+                                RoleMapper roleMapper,
                                 BCryptPasswordEncoder passwordEncoder,
                                 AuthRateLimitService authRateLimitService,
                                 TokenBlacklistService tokenBlacklistService) {
-            return new UserService(userMapper, userRoleMapper, passwordEncoder,
+            return new UserService(userMapper, userRoleMapper, roleMapper, passwordEncoder,
                     authRateLimitService, tokenBlacklistService);
         }
     }

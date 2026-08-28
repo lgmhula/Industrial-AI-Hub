@@ -3,22 +3,42 @@
     <div class="page-header">
       <div>
         <div class="page-title"><el-icon><Bell /></el-icon>报警管理</div>
-        <div class="page-subtitle">共 {{ total }} 条报警记录</div>
+        <div class="page-subtitle">
+          {{ levelFilter || keyword ? `筛选结果 ${total} 条` : `共 ${total} 条报警记录` }}
+        </div>
       </div>
       <el-button :icon="Refresh" @click="fetchAlarms" :loading="loading">刷新</el-button>
     </div>
 
+    <div v-if="selectedIds.length > 0" class="card batch-bar">
+      <span class="batch-info">已选 {{ selectedIds.length }} 条</span>
+      <el-button type="primary" size="small" @click="handleBatchAck">批量确认</el-button>
+      <el-button type="success" size="small" @click="handleBatchResolve">批量解决</el-button>
+      <el-button size="small" @click="clearSelection">取消选择</el-button>
+    </div>
+
     <div class="card filter-bar">
-      <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 160px"
+      <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 140px"
         @change="handleFilterChange">
         <el-option label="未处理" :value="0" />
         <el-option label="已确认" :value="1" />
         <el-option label="已解决" :value="2" />
       </el-select>
+      <el-select v-model="levelFilter" placeholder="全部等级" clearable style="width: 140px"
+        @change="handleFilterChange">
+        <el-option label="一般" :value="1" />
+        <el-option label="重要" :value="2" />
+        <el-option label="紧急" :value="3" />
+      </el-select>
+      <el-input v-model="keyword" placeholder="搜索告警描述" clearable style="width: 200px"
+        @keyup.enter="handleFilterChange" @clear="handleFilterChange" />
+      <el-button :icon="Refresh" @click="handleReset">重置</el-button>
     </div>
 
     <div class="card">
-      <el-table :data="alarms" v-loading="loading" stripe style="width: 100%">
+      <el-table ref="tableRef" :data="alarms" v-loading="loading" stripe style="width: 100%"
+        @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="45" />
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="deviceId" label="设备ID" width="90" />
         <el-table-column prop="alarmType" label="告警类型" width="140">
@@ -66,38 +86,87 @@ import EmptyState from '../components/EmptyState.vue'
 
 const alarms = ref([])
 const statusFilter = ref('')
+const levelFilter = ref('')
+const keyword = ref('')
 const page = ref(1)
 const pageSize = 10
 const total = ref(0)
 const loading = ref(false)
+const tableRef = ref(null)
+const selectedIds = ref([])
+
+const handleSelectionChange = (rows) => { selectedIds.value = rows.map(r => r.id) }
+const clearSelection = () => { tableRef.value?.clearSelection() }
 
 const fetchAlarms = async () => {
   loading.value = true
   try {
+    const params = { page: page.value, size: pageSize }
+    if (keyword.value) params.keyword = keyword.value
+    if (levelFilter.value !== '' && levelFilter.value !== null) params.alarmLevel = levelFilter.value
     const api = statusFilter.value !== '' && statusFilter.value !== null
-      ? alarmApi.listByStatus(statusFilter.value, { page: page.value, size: pageSize })
-      : alarmApi.list({ page: page.value, size: pageSize })
+      ? alarmApi.listByStatus(statusFilter.value, params)
+      : alarmApi.list(params)
     const res = await api
     alarms.value = res.data?.list || []
     total.value = res.data?.total || 0
   } catch (e) {
-    ElMessage.error(e.message)
+    ElMessage.error(e.message || '加载报警列表失败')
   } finally {
     loading.value = false
   }
 }
 
 const handleFilterChange = () => { page.value = 1; fetchAlarms() }
+const handleReset = () => {
+  statusFilter.value = ''
+  levelFilter.value = ''
+  keyword.value = ''
+  page.value = 1
+  fetchAlarms()
+}
 const handlePageChange = (p) => { page.value = p; fetchAlarms() }
 
 const handleAck = async (id) => {
-  try { await alarmApi.acknowledge(id); await fetchAlarms(); ElMessage.success('告警已确认') }
-  catch (e) { ElMessage.error(e.message) }
+  try {
+    await alarmApi.acknowledge(id)
+    await fetchAlarms()
+    ElMessage.success('告警已确认')
+  } catch (e) {
+    ElMessage.error(e.message || '操作失败')
+  }
 }
 
 const handleResolve = async (id) => {
-  try { await alarmApi.resolve(id); await fetchAlarms(); ElMessage.success('告警已解决') }
-  catch (e) { ElMessage.error(e.message) }
+  try {
+    await alarmApi.resolve(id)
+    await fetchAlarms()
+    ElMessage.success('告警已解决')
+  } catch (e) {
+    ElMessage.error(e.message || '操作失败')
+  }
+}
+
+const handleBatchAck = async () => {
+  const ids = [...selectedIds.value]
+  let ok = 0, fail = 0
+  for (const id of ids) {
+    try { await alarmApi.acknowledge(id); ok++ } catch { fail++ }
+  }
+  clearSelection()
+  await fetchAlarms()
+  ElMessage.success(`批量确认完成：成功 ${ok}${fail > 0 ? `，失败 ${fail}` : ''}`)
+}
+
+const handleBatchResolve = async () => {
+  const ids = [...selectedIds.value]
+  let ok = 0, fail = 0
+  for (const id of ids) {
+    try { await alarmApi.resolve(id); ok++ } catch { fail++ }
+  }
+  clearSelection()
+  await fetchAlarms()
+  ElMessage.success(`批量解决完成：成功 ${ok}${fail > 0 ? `，失败 ${fail}` : ''}`)
 }
 
 const levelType = (l) => ({ 1: 'info', 2: 'warning', 3: 'danger' }[l] || 'info')
@@ -110,17 +179,20 @@ onMounted(fetchAlarms)
 </script>
 
 <style scoped>
-.filter-bar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.pager {
-  margin-top: 18px;
-  justify-content: flex-end;
-}
 .done-text {
   font-size: 13px;
   color: var(--iah-text-muted);
+}
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+}
+.batch-info {
+  font-size: 14px;
+  color: var(--iah-text);
+  font-weight: 500;
 }
 </style>

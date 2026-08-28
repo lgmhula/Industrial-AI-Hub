@@ -34,14 +34,16 @@ public class OperationLogController {
         this.operationLogService = operationLogService;
     }
 
-    /** 分页查询操作日志。 */
+    /** 分页查询操作日志（支持 keyword/operationType 服务端过滤）。 */
     @GetMapping
     @RequireRole(RoleEnum.ADMIN)
     @Operation(summary = "分页查询操作日志")
     public ApiResponse<PageInfo<OperationLog>> listPaged(
             @RequestParam(defaultValue = "1") @Min(1) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return ApiResponse.ok(operationLogService.listPaged(page, size));
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String operationType) {
+        return ApiResponse.ok(operationLogService.listPaged(page, size, keyword, operationType));
     }
 
     /** 按用户 ID 分页查询。 */

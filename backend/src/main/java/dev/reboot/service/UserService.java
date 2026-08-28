@@ -2,11 +2,15 @@ package dev.reboot.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import dev.reboot.dto.UserCreateDTO;
 import dev.reboot.dto.UserUpdateDTO;
 import dev.reboot.dto.UserVO;
+import dev.reboot.entity.Role;
 import dev.reboot.entity.User;
+import dev.reboot.entity.UserRole;
 import dev.reboot.enums.ErrorCode;
 import dev.reboot.exception.BusinessException;
+import dev.reboot.mapper.RoleMapper;
 import dev.reboot.mapper.UserMapper;
 import dev.reboot.mapper.UserRoleMapper;
 import dev.reboot.config.CacheConfig;
@@ -20,7 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * User 业务逻辑层。
@@ -36,27 +43,44 @@ public class UserService {
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
     private final UserMapper userMapper;
     private final UserRoleMapper userRoleMapper;
+    private final RoleMapper roleMapper;
     private final BCryptPasswordEncoder passwordEncoder;
     private final AuthRateLimitService authRateLimitService;
     private final TokenBlacklistService tokenBlacklistService;
 
-    public UserService(UserMapper userMapper, UserRoleMapper userRoleMapper,
+    public UserService(UserMapper userMapper, UserRoleMapper userRoleMapper, RoleMapper roleMapper,
                        BCryptPasswordEncoder passwordEncoder,
                        AuthRateLimitService authRateLimitService,
                        TokenBlacklistService tokenBlacklistService) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
+        this.roleMapper = roleMapper;
         this.passwordEncoder = passwordEncoder;
         this.authRateLimitService = authRateLimitService;
         this.tokenBlacklistService = tokenBlacklistService;
     }
 
-    /** 分页查询用户列表。 */
-    public PageInfo<UserVO> listPage(int page, int size) {
+    /** 分页查询用户列表（可选关键字搜索），批量填充角色编码。 */
+    public PageInfo<UserVO> listPage(int page, int size, String keyword) {
         PageHelper.startPage(page, size);
-        List<User> users = userMapper.findAll();
+        List<User> users = (keyword != null && !keyword.isBlank())
+                ? userMapper.search(keyword.trim())
+                : userMapper.findAll();
         PageInfo<User> rawPageInfo = new PageInfo<>(users);
         List<UserVO> voList = users.stream().map(UserVO::from).toList();
+
+        if (!voList.isEmpty()) {
+            List<Long> userIds = voList.stream().map(UserVO::getId).toList();
+            List<Map<String, Object>> rows = userRoleMapper.findRoleCodesByUserIds(userIds);
+            Map<Long, List<String>> roleMap = rows.stream().collect(
+                    Collectors.groupingBy(
+                            r -> ((Number) r.get("user_id")).longValue(),
+                            Collectors.mapping(r -> (String) r.get("role_code"), Collectors.toList())
+                    )
+            );
+            voList.forEach(vo -> vo.setRoleCodes(roleMap.getOrDefault(vo.getId(), List.of())));
+        }
+
         PageInfo<UserVO> result = new PageInfo<>();
         result.setList(voList);
         result.setTotal(rawPageInfo.getTotal());
@@ -211,5 +235,107 @@ public class UserService {
         authRateLimitService.clearLoginFailure(user.getUsername());
         log.info("用户被管理员解锁 userId={}", id);
         return true;
+    }
+
+    /**
+     * 管理员创建用户（后台管理，非注册流程）。
+     *
+     * @throws BusinessException 用户名已存在 → 409
+     */
+    @Transactional
+    public UserVO createUser(UserCreateDTO dto) {
+        if (userMapper.findByUsername(dto.getUsername()) != null) {
+            throw new BusinessException(ErrorCode.CONFLICT, "用户名已存在");
+        }
+        User user = new User();
+        user.setUsername(dto.getUsername());
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setEmail(dto.getEmail());
+        user.setPhone(dto.getPhone());
+        user.setStatus(1);
+        userMapper.insert(user);
+        if (dto.getRoleIds() != null && !dto.getRoleIds().isEmpty()) {
+            for (Long roleId : dto.getRoleIds()) {
+                UserRole ur = new UserRole();
+                ur.setUserId(user.getId());
+                ur.setRoleId(roleId);
+                userRoleMapper.insert(ur);
+            }
+        }
+        log.info("管理员创建用户 userId={} username={}", user.getId(), user.getUsername());
+        return UserVO.from(user);
+    }
+
+    /**
+     * 管理员重置用户密码（无需旧密码）。
+     *
+     * @throws BusinessException 用户不存在 → 404；新密码不合法 → 400
+     */
+    @CacheEvict(cacheNames = CacheConfig.CACHE_USER_DETAIL, key = "#id")
+    public void adminResetPassword(Long id, String newPassword) {
+        User user = userMapper.findById(id);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "新密码长度至少6位");
+        }
+        String encoded = passwordEncoder.encode(newPassword);
+        userMapper.updatePassword(id, encoded);
+        userMapper.updatePasswordChangedAt(id, LocalDateTime.now());
+        userMapper.resetLoginSecurity(id);
+        authRateLimitService.clearLoginFailure(user.getUsername());
+        tokenBlacklistService.revokeUser(id);
+        log.info("管理员重置用户密码 userId={}", id);
+    }
+
+    /**
+     * 给用户分配角色。
+     *
+     * @throws BusinessException 用户不存在 → 404；角色不存在 → 404
+     */
+    @CacheEvict(cacheNames = CacheConfig.CACHE_USER_DETAIL, key = "#userId")
+    public void assignRole(Long userId, Long roleId) {
+        User user = userMapper.findById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+        Role role = roleMapper.findById(roleId);
+        if (role == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "角色不存在");
+        }
+        List<UserRole> existing = userRoleMapper.findByUserId(userId);
+        boolean already = existing.stream().anyMatch(ur -> ur.getRoleId().equals(roleId));
+        if (already) {
+            throw new BusinessException(ErrorCode.CONFLICT, "用户已拥有该角色");
+        }
+        UserRole ur = new UserRole();
+        ur.setUserId(userId);
+        ur.setRoleId(roleId);
+        userRoleMapper.insert(ur);
+        log.info("角色已分配 userId={} roleId={}", userId, roleId);
+    }
+
+    /**
+     * 取消用户的角色。
+     *
+     * @throws BusinessException 用户不存在 → 404
+     */
+    @CacheEvict(cacheNames = CacheConfig.CACHE_USER_DETAIL, key = "#userId")
+    public void revokeRole(Long userId, Long roleId) {
+        User user = userMapper.findById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+        int rows = userRoleMapper.deleteByUserAndRole(userId, roleId);
+        if (rows == 0) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户未拥有该角色");
+        }
+        log.info("角色已取消 userId={} roleId={}", userId, roleId);
+    }
+
+    /** 查询用户的角色编码列表。 */
+    public List<String> getUserRoleCodes(Long userId) {
+        return userRoleMapper.findRoleCodesByUserId(userId);
     }
 }

@@ -43,15 +43,15 @@ class OperationLogServiceTest {
     @Test
     void listPaged_shouldReturnPage() {
         OperationLog ol = new OperationLog(); ol.setId(1L);
-        when(operationLogMapper.findAll()).thenReturn(List.of(ol));
-        var result = operationLogService.listPaged(1, 20);
+        when(operationLogMapper.findAll(null, null)).thenReturn(List.of(ol));
+        var result = operationLogService.listPaged(1, 20, null, null);
         assertEquals(1, result.getTotal());
     }
 
     @Test
     void listPaged_shouldReturnEmptyPage() {
-        when(operationLogMapper.findAll()).thenReturn(Collections.emptyList());
-        var result = operationLogService.listPaged(1, 20);
+        when(operationLogMapper.findAll(null, null)).thenReturn(Collections.emptyList());
+        var result = operationLogService.listPaged(1, 20, null, null);
         assertEquals(0, result.getTotal());
         assertTrue(result.getList().isEmpty());
     }

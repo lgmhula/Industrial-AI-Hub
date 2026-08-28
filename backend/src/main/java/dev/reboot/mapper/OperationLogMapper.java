@@ -14,13 +14,18 @@ import java.util.List;
 @Mapper
 public interface OperationLogMapper {
 
-    @Select("SELECT * FROM operation_log ORDER BY created_at DESC")
-    List<OperationLog> findAll();
+    @Select("<script>SELECT ol.*, u.username FROM operation_log ol "
+            + "LEFT JOIN user u ON ol.user_id = u.id"
+            + "<where>"
+            + "<if test='keyword != null and keyword != &quot;&quot;'> AND ol.description LIKE CONCAT('%',#{keyword},'%')</if>"
+            + "<if test='operationType != null and operationType != &quot;&quot;'> AND ol.operation_type = #{operationType}</if>"
+            + "</where> ORDER BY ol.created_at DESC</script>")
+    List<OperationLog> findAll(@Param("keyword") String keyword, @Param("operationType") String operationType);
 
-    @Select("SELECT * FROM operation_log ORDER BY created_at DESC LIMIT 100")
+    @Select("SELECT ol.*, u.username FROM operation_log ol LEFT JOIN user u ON ol.user_id = u.id ORDER BY ol.created_at DESC LIMIT 100")
     List<OperationLog> findRecent();
 
-    @Select("SELECT * FROM operation_log WHERE user_id = #{userId} ORDER BY created_at DESC")
+    @Select("SELECT ol.*, u.username FROM operation_log ol LEFT JOIN user u ON ol.user_id = u.id WHERE ol.user_id = #{userId} ORDER BY ol.created_at DESC")
     List<OperationLog> findByUserId(@Param("userId") Long userId);
 
     @Insert("INSERT INTO operation_log(user_id, operation_type, target_type, target_id, description, ip_address) "

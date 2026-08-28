@@ -37,15 +37,17 @@ public class AlarmController {
         this.alarmService = alarmService;
     }
 
-    /** 分页查询所有告警（当前用户可访问站点）。 */
+    /** 分页查询所有告警（当前用户可访问站点，支持 keyword/alarmLevel 服务端过滤）。 */
     @GetMapping
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
     @Operation(summary = "分页查询所有告警")
     public ApiResponse<PageInfo<AlarmVO>> listAllPaged(
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer alarmLevel,
             HttpServletRequest request) {
-        return ApiResponse.ok(alarmService.listAllPaged(page, size, currentUserId(request)));
+        return ApiResponse.ok(alarmService.listAllPaged(page, size, currentUserId(request), keyword, alarmLevel));
     }
 
     /** 按设备 ID 分页查询告警。 */
@@ -60,7 +62,7 @@ public class AlarmController {
         return ApiResponse.ok(alarmService.listByDevicePaged(deviceId, page, size, currentUserId(request)));
     }
 
-    /** 按状态分页查询告警（0=未处理, 1=已确认, 2=已解决）。 */
+    /** 按状态分页查询告警（0=未处理, 1=已确认, 2=已解决，支持 keyword/alarmLevel 服务端过滤）。 */
     @GetMapping("/status/{status}")
     @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
     @Operation(summary = "按状态分页查询告警")
@@ -68,8 +70,10 @@ public class AlarmController {
             @PathVariable Integer status,
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer alarmLevel,
             HttpServletRequest request) {
-        return ApiResponse.ok(alarmService.listByStatusPaged(status, page, size, currentUserId(request)));
+        return ApiResponse.ok(alarmService.listByStatusPaged(status, page, size, currentUserId(request), keyword, alarmLevel));
     }
 
     /** 确认告警。 */

@@ -62,7 +62,7 @@ class DeviceDataServiceCacheTest {
         @Bean
         DeviceDataService deviceDataService(DeviceDataMapper mapper, AlarmDetector detector,
                                             DeviceMapper deviceMapper, SiteAccessService siteAccess) {
-            return new DeviceDataService(mapper, detector, deviceMapper, siteAccess);
+            return new DeviceDataService(mapper, detector, deviceMapper, siteAccess, null, null);
         }
     }
 

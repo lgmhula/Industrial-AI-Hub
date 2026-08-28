@@ -92,7 +92,7 @@ class AuthRateLimitServiceTest {
     void fiveFailures_shouldLockAccount() {
         when(redis.opsForValue()).thenReturn(valueOps);
         when(valueOps.increment("login:fail:user:alice")).thenReturn(1L, 2L, 3L, 4L, 5L);
-        when(redis.hasKey("login:fail:user:alice")).thenReturn(true);
+        when(valueOps.get("login:fail:user:alice")).thenReturn("5");
 
         AuthRateLimitService svc = service();
         for (int i = 0; i < AuthRateLimitService.MAX_LOGIN_FAILURES; i++) {
@@ -106,7 +106,8 @@ class AuthRateLimitServiceTest {
 
     @Test
     void checkUserLoginLocked_shouldPassWhenNotLocked() {
-        when(redis.hasKey("login:fail:user:bob")).thenReturn(false);
+        when(redis.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get("login:fail:user:bob")).thenReturn(null);
         assertDoesNotThrow(() -> service().checkUserLoginLocked("bob"));
     }
 

@@ -6,8 +6,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -61,6 +63,22 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handleConstraintViolation(ConstraintViolationException e) {
         log.warn("参数校验失败: {}", e.getMessage());
         return ApiResponse.error(400, "参数校验失败: " + e.getMessage());
+    }
+
+    /** 缺少必填请求参数 — 返回 400。 */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleMissingParam(MissingServletRequestParameterException e) {
+        log.warn("缺少必填参数: {}", e.getParameterName());
+        return ApiResponse.error(400, "缺少必填参数: " + e.getParameterName());
+    }
+
+    /** 参数类型转换失败 — 返回 400。 */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        log.warn("参数类型错误: {}={}", e.getName(), e.getValue());
+        return ApiResponse.error(400, "参数类型错误: " + e.getName());
     }
 
     /** 兜底 — 所有未预期的异常。 */

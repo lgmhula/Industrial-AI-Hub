@@ -1,8 +1,10 @@
 package dev.reboot.controller;
 
 import com.github.pagehelper.PageInfo;
+import dev.reboot.annotation.OperationLog;
 import dev.reboot.annotation.RequireRole;
 import dev.reboot.dto.ApiResponse;
+import dev.reboot.dto.UserCreateDTO;
 import dev.reboot.dto.UserUpdateDTO;
 import dev.reboot.dto.UserVO;
 import dev.reboot.enums.ErrorCode;
@@ -12,10 +14,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+
+import java.util.List;
 
 
 /**
@@ -38,13 +43,14 @@ public class UserController {
         this.userService = userService;
     }
 
-    /** 分页查询用户列表。 */
+    /** 分页查询用户列表（可选关键字搜索）。 */
     @GetMapping
     @Operation(summary = "分页查询用户")
     public ApiResponse<PageInfo<UserVO>> list(
             @RequestParam(defaultValue = "1") @Min(1) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
-        return ApiResponse.ok(userService.listPage(page, size));
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) String keyword) {
+        return ApiResponse.ok(userService.listPage(page, size, keyword));
     }
 
     /** 按 ID 查询用户。 */
@@ -87,7 +93,7 @@ public class UserController {
     @Operation(summary = "锁定用户（持久锁定 15 分钟）")
     public ApiResponse<Void> lock(@PathVariable Long id) {
         if (!userService.lockUser(id)) {
-            return ApiResponse.error(ErrorCode.NOT_FOUND.getCode(), "用户不存在");
+            throw new dev.reboot.exception.BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
         return ApiResponse.ok("用户已锁定", null);
     }
@@ -97,8 +103,46 @@ public class UserController {
     @Operation(summary = "解锁用户（清除失败计数与锁定）")
     public ApiResponse<Void> unlock(@PathVariable Long id) {
         if (!userService.unlockUser(id)) {
-            return ApiResponse.error(ErrorCode.NOT_FOUND.getCode(), "用户不存在");
+            throw new dev.reboot.exception.BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
         return ApiResponse.ok("用户已解锁", null);
+    }
+
+    @OperationLog(operationType = "CREATE", targetType = "USER", description = "管理员创建用户")
+    @PostMapping
+    @Operation(summary = "管理员创建用户")
+    public ApiResponse<UserVO> create(@Valid @RequestBody UserCreateDTO dto) {
+        return ApiResponse.ok("用户创建成功", userService.createUser(dto));
+    }
+
+    @OperationLog(operationType = "UPDATE", targetType = "USER", description = "重置用户密码 {0}")
+    @PutMapping("/{id}/password")
+    @Operation(summary = "管理员重置用户密码")
+    public ApiResponse<Void> resetPassword(@PathVariable Long id,
+                                           @RequestBody dev.reboot.dto.ResetPasswordRequest request) {
+        userService.adminResetPassword(id, request.getNewPassword());
+        return ApiResponse.ok("密码已重置", null);
+    }
+
+    @OperationLog(operationType = "UPDATE", targetType = "USER", description = "分配角色 {0}")
+    @PostMapping("/{id}/roles/{roleId}")
+    @Operation(summary = "给用户分配角色")
+    public ApiResponse<Void> assignRole(@PathVariable Long id, @PathVariable Long roleId) {
+        userService.assignRole(id, roleId);
+        return ApiResponse.ok("角色已分配", null);
+    }
+
+    @OperationLog(operationType = "UPDATE", targetType = "USER", description = "取消角色 {0}")
+    @DeleteMapping("/{id}/roles/{roleId}")
+    @Operation(summary = "取消用户的角色")
+    public ApiResponse<Void> revokeRole(@PathVariable Long id, @PathVariable Long roleId) {
+        userService.revokeRole(id, roleId);
+        return ApiResponse.ok("角色已取消", null);
+    }
+
+    @GetMapping("/{id}/roles")
+    @Operation(summary = "查询用户的角色列表")
+    public ApiResponse<List<String>> getUserRoles(@PathVariable Long id) {
+        return ApiResponse.ok(userService.getUserRoleCodes(id));
     }
 }

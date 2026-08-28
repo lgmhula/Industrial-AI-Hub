@@ -17,6 +17,9 @@ public interface UserMapper {
     @Select("SELECT * FROM user WHERE is_deleted = 0 ORDER BY id DESC")
     List<User> findAll();
 
+    @Select("SELECT * FROM user WHERE is_deleted = 0 AND (username LIKE CONCAT('%',#{keyword},'%') OR email LIKE CONCAT('%',#{keyword},'%')) ORDER BY id DESC")
+    List<User> search(@Param("keyword") String keyword);
+
     @Select("SELECT * FROM user WHERE id = #{id} AND is_deleted = 0")
     User findById(Long id);
 

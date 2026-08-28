@@ -1,5 +1,6 @@
 /* ============================================================
  * Industrial AI Hub — 全局样式与设计 Token
+ * 统一设计语言：颜色 / 间距 / 圆角 / 阴影 / 响应式断点
  * ============================================================ */
 
 :root {
@@ -18,15 +19,29 @@
 
   /* 状态色 */
   --iah-success: #16a34a;
+  --iah-success-light: #f0fdf4;
   --iah-warning: #f59e0b;
+  --iah-warning-light: #fffbeb;
   --iah-danger: #dc2626;
+  --iah-danger-light: #fef2f2;
   --iah-info: #2563eb;
+  --iah-info-light: #eff6ff;
+
+  /* 侧边栏 */
+  --iah-sidebar-bg: #1e293b;
+  --iah-sidebar-width: 220px;
+  --iah-sidebar-collapsed: 64px;
 
   /* 布局 */
-  --iah-sidebar-width: 220px;
   --iah-radius: 10px;
+  --iah-radius-sm: 6px;
   --iah-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   --iah-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --iah-header-h: 60px;
+
+  /* 间距 */
+  --iah-gap: 16px;
+  --iah-gap-sm: 8px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -39,13 +54,24 @@ body {
   background: var(--iah-bg);
   color: var(--iah-text);
   -webkit-font-smoothing: antialiased;
+  font-size: 14px;
 }
+
+/* ---- 滚动条美化 ---- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 /* ---- 通用页面容器 ---- */
 .page {
   padding: 20px 24px;
-  max-width: 1280px;
+  max-width: 1440px;
   margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .page { padding: 12px 16px; }
 }
 
 .page-header {
@@ -66,6 +92,10 @@ body {
   gap: 10px;
 }
 
+@media (max-width: 768px) {
+  .page-header .page-title { font-size: 18px; }
+}
+
 .page-header .page-subtitle {
   font-size: 13px;
   color: var(--iah-text-secondary);
@@ -79,9 +109,28 @@ body {
   border-radius: var(--iah-radius);
   box-shadow: var(--iah-shadow);
   padding: 18px 20px;
+  margin-bottom: var(--iah-gap);
 }
 
-/* ---- 路由切换入场动画（纯 CSS animation，避免 transition 状态机卡死） ---- */
+/* ---- 筛选工具条 ---- */
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ---- 分页统一对齐 ---- */
+.pager {
+  margin-top: 18px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .pager { justify-content: center; }
+}
+
+/* ---- 路由切换入场动画 ---- */
 .page-fade {
   animation: page-in 0.28s ease both;
 }
@@ -90,9 +139,94 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ---- KPI 卡片 ---- */
+.kpi-card {
+  background: var(--iah-surface);
+  border-radius: var(--iah-radius);
+  padding: 20px;
+  border-left: 4px solid var(--iah-primary);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: default;
+}
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--iah-shadow-lg);
+}
+.kpi-card .kpi-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--iah-text);
+  line-height: 1.2;
+}
+.kpi-card .kpi-label {
+  font-size: 14px;
+  color: var(--iah-text-secondary);
+  margin-top: 4px;
+}
+.kpi-card .kpi-sub {
+  font-size: 12px;
+  color: var(--iah-text-muted);
+  margin-top: 2px;
+}
+.kpi-card.online { border-left-color: var(--iah-success); }
+.kpi-card.warning { border-left-color: var(--iah-warning); }
+.kpi-card.data { border-left-color: var(--iah-info); }
+.kpi-card.ops { border-left-color: var(--iah-text-muted); }
+
+/* ---- 告警条目 ---- */
+.alert-item {
+  padding: 10px 12px;
+  border-radius: var(--iah-radius-sm);
+  margin-bottom: 8px;
+  background: #f8f9fa;
+  border-left: 3px solid var(--iah-text-muted);
+}
+.alert-item.level-1 { border-left-color: var(--iah-warning); background: var(--iah-warning-light); }
+.alert-item.level-2 { border-left-color: var(--iah-danger); background: var(--iah-danger-light); }
+.alert-item.level-3 { border-left-color: #b91c1c; background: var(--iah-danger-light); }
+
+/* ---- 状态标签 ---- */
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.status-dot.online { background: var(--iah-success); }
+.status-dot.offline { background: var(--iah-text-muted); }
+.status-dot.maintenance { background: var(--iah-warning); }
+
+/* ---- 空状态 ---- */
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--iah-text-muted);
+}
+.empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state .empty-title { font-size: 15px; font-weight: 500; color: #6b7280; margin: 0 0 4px; }
+.empty-state .empty-desc { font-size: 13px; margin: 0; }
+
 /* ---- Element Plus 微调 ---- */
 .el-table th.el-table__cell {
   background: #f8fafc !important;
   color: var(--iah-text-secondary);
   font-weight: 600;
+}
+
+/* 表格行可点击 */
+.el-table__row { cursor: pointer; }
+
+/* 弹窗在小屏自适应 */
+@media (max-width: 768px) {
+  .el-dialog {
+    width: 92% !important;
+    margin: 16px auto !important;
+  }
+}
+
+/* 表格在小屏横向滚动 */
+.el-table {
+  overflow-x: auto;
 }

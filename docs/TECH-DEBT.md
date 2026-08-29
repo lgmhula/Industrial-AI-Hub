@@ -1,7 +1,7 @@
 # 技术债务清单（Technical Debt）
 
 > **SSOT**：本文档是技术债务的唯一权威清单（迁移自 `backend/REVIEW/Phase2-Summary.md` §四，并持续更新）。
-> **最后更新**：2026-08-28（Day 67：AI 操作日志治理）
+> **最后更新**：2026-08-29（Day 68 验收后：TD-032/033 修复）
 
 ---
 
@@ -21,6 +21,8 @@
 | 22 | Phase 3 决策无 ADR | 2026-08-16 新增 ADR 0014 |
 | 23 | DAILY_ROADMAP Phase 2 复选框未勾 | 2026-08-16 勾选 |
 | 28 | AI 端点无操作日志（TD-028） | 2026-08-28（Day 67：Flyway V9 扩展 `CHAT/SUMMARY/DIAGNOSE` + `target_type=AI`，AiController 三端点补 `@OperationLog`） |
+| 32 | OperationLogAspect 失败场景 `{ret}` 输出 "null"（TD-032） | 2026-08-29（`formatResult` 接收 `Throwable error`，失败时替换为异常消息而非 "null"；`around` 捕获异常传入 `recordLog`） |
+| 33 | DeviceStatusAgentService 校验顺序：AI 可用性检查先于资源校验（TD-033） | 2026-08-29（调整为 requireDevice → assertSiteAccess → ensureAvailable，避免 503 掩盖 404/403） |
 
 ---
 

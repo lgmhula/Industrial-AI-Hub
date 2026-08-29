@@ -85,7 +85,7 @@ class OperationLogAspectTest {
     }
 
     @Test
-    void around_whenMethodThrows_shouldPrefixFailureAndRecordNullResult() throws Throwable {
+    void around_whenMethodThrows_shouldPrefixFailureAndRecordExceptionMessage() throws Throwable {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getAttribute("userId")).thenReturn(1L);
         when(request.getRemoteAddr()).thenReturn("127.0.0.1");
@@ -109,7 +109,10 @@ class OperationLogAspectTest {
         ArgumentCaptor<dev.reboot.entity.OperationLog> captor =
                 ArgumentCaptor.forClass(dev.reboot.entity.OperationLog.class);
         verify(operationLogMapper).insert(captor.capture());
-        assertTrue(captor.getValue().getDescription().startsWith("[失败] AI 设备状态问答（工具调用） null"));
+        String desc = captor.getValue().getDescription();
+        assertTrue(desc.startsWith("[失败] AI 设备状态问答（工具调用） "), "应以 [失败] 开头: " + desc);
+        assertTrue(desc.contains("boom"), "失败时 {ret} 应替换为异常消息: " + desc);
+        assertTrue(!desc.endsWith(" null"), "不应以 null 结尾: " + desc);
     }
 
     private AiDeviceStatusResult deviceStatusResult() {

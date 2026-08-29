@@ -1,8 +1,5 @@
 <template>
   <div class="register-page">
-    <div class="bg-animation">
-      <div v-for="i in 20" :key="i" class="particle" :style="particleStyle(i)"></div>
-    </div>
     <div class="register-card">
       <h1>用户注册</h1>
       <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleRegister" label-width="0">
@@ -80,17 +77,6 @@ async function handleRegister() {
     error.value = e.message || '注册失败'
   } finally { loading.value = false }
 }
-
-function particleStyle(i) {
-  return {
-    left: Math.random() * 100 + '%',
-    top: Math.random() * 100 + '%',
-    animationDelay: Math.random() * 5 + 's',
-    animationDuration: (3 + Math.random() * 4) + 's',
-    width: (2 + Math.random() * 4) + 'px',
-    height: (2 + Math.random() * 4) + 'px',
-  }
-}
 </script>
 
 <style scoped>
@@ -99,21 +85,23 @@ function particleStyle(i) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+  background-color: #0f1117;
+  background-image:
+    linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
   position: relative;
   overflow: hidden;
 }
-.bg-animation { position: absolute; inset: 0; pointer-events: none; }
-.particle { position: absolute; border-radius: 50%; background: rgba(59, 130, 246, 0.15); animation: floatUp 8s infinite ease-in-out; }
-@keyframes floatUp { 0%,100% { transform: translateY(0); opacity: 0.3; } 50% { transform: translateY(-30px); opacity: 0.8; } }
 .register-card {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(26, 29, 38, 0.94);
+  border: 1px solid var(--iah-border);
   backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 40px;
+  border-radius: 8px;
+  padding: 36px;
   width: 400px;
   max-width: 90vw;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
   z-index: 1;
 }
 .register-card h1 { text-align: center; color: var(--iah-text); font-size: 24px; margin-bottom: 28px; }

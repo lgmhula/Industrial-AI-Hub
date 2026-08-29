@@ -96,13 +96,15 @@ public class DeviceStatusAgentService {
     /**
      * 设备状态问答主入口。
      *
-     * @throws BusinessException 403 无站点访问权 / 404 设备不存在 / 503 AI 未启用（先于任何 LLM 调用）
+     * <p>校验顺序（TD-033 修复）：先校验请求参数与资源访问权（404/403），
+     * 再检查 AI 可用性（503），避免 AI 未启用时掩盖资源访问错误。</p>
+     *
+     * @throws BusinessException 404 设备不存在 / 403 无站点访问权 / 503 AI 未启用
      */
     public AiDeviceStatusResult answer(AiDeviceStatusRequest request, Long userId) {
-        deepSeekClient.ensureAvailable();
-
         Device device = requireDevice(request.getDeviceId());
         siteAccessService.assertSiteAccess(userId, device.getSiteId(), RoleEnum.VIEWER);
+        deepSeekClient.ensureAvailable();
 
         Map<String, Object> context = new HashMap<>();
         context.put(DeviceAiTools.CONTEXT_USER_ID, userId);

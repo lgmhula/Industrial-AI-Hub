@@ -39,8 +39,8 @@
       <el-table ref="tableRef" :data="alarms" v-loading="loading" stripe style="width: 100%"
         @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="deviceId" label="设备ID" width="90" />
+        <el-table-column prop="id" label="ID" width="70" class-name="mono" />
+        <el-table-column prop="deviceId" label="设备ID" width="90" class-name="mono" />
         <el-table-column prop="alarmType" label="告警类型" width="140">
           <template #default="{ row }"><el-tag size="small" effect="plain">{{ row.alarmType }}</el-tag></template>
         </el-table-column>
@@ -55,12 +55,12 @@
             <el-tag size="small" :type="statusType(row.status)">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="触发时间" width="170">
+        <el-table-column label="触发时间" width="170" class-name="mono">
           <template #default="{ row }">{{ fmtTime(row.triggeredAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="230" fixed="right">
           <template #default="{ row }">
-            <el-button link type="warning" size="small" :loading="aiLoadingId === row.id"
+            <el-button link type="warning" size="small" :icon="MagicStick" :loading="aiLoadingId === row.id"
               @click="openAiSummary(row)">AI 摘要</el-button>
             <el-button v-if="row.status === 0" link type="primary" size="small" @click="handleAck(row.id)">确认</el-button>
             <el-button v-if="row.status !== 2" link type="success" size="small" @click="handleResolve(row.id)">解决</el-button>
@@ -110,7 +110,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, MagicStick } from '@element-plus/icons-vue'
 import { alarmApi, aiApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
 

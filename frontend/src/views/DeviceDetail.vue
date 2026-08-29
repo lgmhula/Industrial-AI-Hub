@@ -55,13 +55,18 @@
       <!-- AI 健康诊断 -->
       <div class="card ai-card">
         <div class="ai-card-header">
-          <div>
-            <h3 class="section-title">AI 健康诊断</h3>
-            <div class="ai-card-subtitle">基于设备数据与最近告警生成评估</div>
+          <div class="ai-card-title">
+            <el-icon :size="18"><MagicStick /></el-icon>
+            <div>
+              <h3>AI 健康诊断</h3>
+              <div class="ai-card-subtitle">基于设备数据与最近告警生成评估</div>
+            </div>
           </div>
-          <el-button type="primary" :icon="MagicStick" :loading="aiLoading" @click="runAiDiagnosis">
-            生成诊断
-          </el-button>
+          <div class="ai-card-action">
+            <el-button type="primary" :icon="MagicStick" :loading="aiLoading" @click="runAiDiagnosis">
+              生成诊断
+            </el-button>
+          </div>
         </div>
         <el-alert v-if="aiError" :title="aiError" type="error" show-icon :closable="false" />
         <template v-else-if="aiDiagnosis">
@@ -90,7 +95,10 @@
       <!-- AI 设备问答（Function Calling 折叠面板） -->
       <div class="card ai-card">
         <el-collapse v-model="qaOpen">
-          <el-collapse-item name="qa" title="AI 设备问答（自动查询实时数据）">
+          <el-collapse-item name="qa">
+            <template #title>
+              <span class="qa-title"><el-icon :size="18"><ChatDotRound /></el-icon>AI 设备问答（自动查询实时数据）</span>
+            </template>
             <div class="qa-tip">AI 将自动调用项目工具查询设备基础信息、最近告警与站点未处理告警后再回答（最多 3 轮工具调用）。</div>
             <div class="qa-input-row">
               <el-input v-model="qaQuestion" placeholder="例如：这台设备最近有什么告警？运行是否正常？"
@@ -207,11 +215,33 @@ const buildChartOption = (data, type, color) => {
   const filtered = data.filter(d => d.dataType === type).sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt))
   if (!filtered.length) return null
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#242831',
+      borderColor: '#2a2e3a',
+      textStyle: { color: '#e8eaed' },
+    },
     grid: { left: 50, right: 20, top: 20, bottom: 40 },
-    xAxis: { type: 'category', data: filtered.map(d => d.recordedAt?.slice(11, 16)), axisLabel: { fontSize: 11 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 11 } },
-    series: [{ data: filtered.map(d => d.dataValue), type: 'line', smooth: true, lineStyle: { color, width: 2 }, itemStyle: { color }, areaStyle: { color: `${color}15` } }],
+    xAxis: {
+      type: 'category',
+      data: filtered.map(d => d.recordedAt?.slice(11, 16)),
+      axisLabel: { fontSize: 11, color: '#9aa0ac' },
+      axisLine: { lineStyle: { color: '#2a2e3a' } },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { fontSize: 11, color: '#9aa0ac' },
+      splitLine: { lineStyle: { color: '#242831' } },
+    },
+    series: [{
+      data: filtered.map(d => d.dataValue),
+      type: 'line',
+      smooth: true,
+      lineStyle: { color, width: 2 },
+      itemStyle: { color },
+      areaStyle: { color: `${color}15` },
+    }],
   }
 }
 
@@ -317,7 +347,7 @@ onMounted(fetchDetail)
 .stat-card { margin-bottom: 16px; }
 .chart-card { margin-bottom: 16px; }
 .section-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--iah-text);
   margin-bottom: 14px;
@@ -329,56 +359,13 @@ onMounted(fetchDetail)
   gap: 16px;
   margin-bottom: 14px;
 }
-.ai-card-subtitle {
-  font-size: 13px;
-  color: var(--iah-text-muted);
-  margin-top: -8px;
-}
-.ai-placeholder {
-  padding: 18px 0 6px;
-  font-size: 13px;
-  color: var(--iah-text-muted);
-}
-.qa-tip {
-  font-size: 13px;
-  color: var(--iah-text-muted);
-  margin-bottom: 10px;
-}
-.qa-input-row {
-  display: flex;
+.ai-card-action { flex: none; }
+.ai-diagnosis-head { margin-bottom: 12px; }
+.qa-title {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
 }
-.qa-error {
-  margin-bottom: 12px;
-}
-.qa-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.ai-diagnosis-head {
-  margin-bottom: 12px;
-}
-.ai-summary {
-  font-size: 14px;
-  line-height: 1.8;
-  color: var(--iah-text);
-}
-.ai-section {
-  margin-top: 14px;
-}
-.ai-section h4 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--iah-text);
-  margin-bottom: 8px;
-}
-.ai-section ul {
-  margin: 0;
-  padding-left: 20px;
-  color: var(--iah-text-secondary);
-  line-height: 1.9;
-}
+.qa-title .el-icon { color: var(--iah-primary-light); }
+.qa-error { margin-bottom: 12px; }
 </style>

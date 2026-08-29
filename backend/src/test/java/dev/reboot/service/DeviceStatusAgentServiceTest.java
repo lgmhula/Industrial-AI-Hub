@@ -170,16 +170,21 @@ class DeviceStatusAgentServiceTest {
 
         assertThrows(BusinessException.class, () -> agentService.answer(request(1L, "查询设备"), 7L));
         verify(chatModel, never()).call(any(Prompt.class));
+        // TD-033: 站点权限校验先于 AI 可用性检查 → ensureAvailable 不应被调用
+        verify(deepSeekClient, never()).ensureAvailable();
     }
 
     @Test
-    void answer_aiDisabled_shouldFailFast() {
+    void answer_aiDisabled_shouldFailFastAfterResourceCheck() {
+        // TD-033: 先校验设备存在 → 再校验站点权限 → 最后检查 AI 可用性
+        when(deviceMapper.findById(1L)).thenReturn(device());
         doThrow(new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "DeepSeek AI 服务未启用"))
                 .when(deepSeekClient).ensureAvailable();
 
         assertThrows(BusinessException.class, () -> agentService.answer(request(1L, "查询设备"), 7L));
         verify(chatModel, never()).call(any(Prompt.class));
-        verify(deviceMapper, never()).findById(any());
+        verify(deviceMapper).findById(1L);
+        verify(deepSeekClient).ensureAvailable();
     }
 
     private AiDeviceStatusRequest request(Long deviceId, String question) {

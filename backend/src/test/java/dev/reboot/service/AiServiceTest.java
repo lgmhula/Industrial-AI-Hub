@@ -7,6 +7,8 @@ import dev.reboot.dto.ai.AiAlarmSummary;
 import dev.reboot.dto.ai.AiChatRequest;
 import dev.reboot.dto.ai.AiChatResult;
 import dev.reboot.dto.ai.AiDeviceDiagnosis;
+import dev.reboot.dto.ai.KnowledgeChunk;
+import dev.reboot.dto.ai.RagAnswerResult;
 import dev.reboot.dto.ai.DeepSeekChatRequest;
 import dev.reboot.dto.ai.DeepSeekChatResponse;
 import dev.reboot.dto.ai.DeepSeekChoice;
@@ -39,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.doThrow;
@@ -63,6 +66,7 @@ class AiServiceTest {
     @Mock private DeviceMapper deviceMapper;
     @Mock private DeviceDataMapper deviceDataMapper;
     @Mock private SiteAccessService siteAccessService;
+    @Mock private RagRetrievalService ragRetrievalService;
 
     private DeepSeekProperties properties;
     private AiService aiService;
@@ -74,7 +78,7 @@ class AiServiceTest {
         properties.setMaxTokens(1024);
         properties.setTemperature(0.3);
         aiService = new AiService(chatClient, deepSeekClient, properties, new ObjectMapper(),
-                alarmMapper, deviceMapper, deviceDataMapper, siteAccessService);
+                alarmMapper, deviceMapper, deviceDataMapper, siteAccessService, ragRetrievalService);
     }
 
     @Test
@@ -201,6 +205,34 @@ class AiServiceTest {
         assertEquals(ErrorCode.SERVICE_UNAVAILABLE, e.getErrorCode());
     }
 
+    @Test
+    void answerWithRag_shouldInjectRetrievedContextAndReturnAnswer() {
+        stubChatClient();
+        when(ragRetrievalService.retrieve("设备手册", 5))
+                .thenReturn(List.of(knowledgeChunk()));
+        when(callSpec.content()).thenReturn("请检查散热片并重新校准传感器。");
+
+        RagAnswerResult result = aiService.answerWithRag("设备手册");
+
+        assertEquals("请检查散热片并重新校准传感器。", result.getAnswer());
+        assertEquals(1, result.getSources().size());
+        verify(deepSeekClient).ensureAvailable();
+        verify(requestSpec).system(contains("工业设备运维"));
+        verify(requestSpec).user(contains("设备温度过高"));
+    }
+
+    @Test
+    void answerWithRag_noChunks_shouldReturnFallbackWithoutCallingAi() {
+        when(ragRetrievalService.retrieve(anyString(), anyInt())).thenReturn(List.of());
+
+        RagAnswerResult result = aiService.answerWithRag("设备手册");
+
+        assertEquals("知识库中未找到相关内容，请先导入设备手册或运维资料。", result.getAnswer());
+        assertEquals(0, result.getSources().size());
+        verify(chatClient, never()).prompt();
+        verify(deepSeekClient, never()).ensureAvailable();
+    }
+
     private void stubChatClient() {
         when(chatClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.system(any(String.class))).thenReturn(requestSpec);
@@ -258,5 +290,15 @@ class AiServiceTest {
         usage.setTotalTokens(17);
         response.setUsage(usage);
         return response;
+    }
+
+    private KnowledgeChunk knowledgeChunk() {
+        KnowledgeChunk chunk = new KnowledgeChunk();
+        chunk.setSource("device-manual");
+        chunk.setChunkIndex(0);
+        chunk.setChunkCount(1);
+        chunk.setContent("设备温度过高时请检查散热片并重新校准传感器。");
+        chunk.setScore(0.95);
+        return chunk;
     }
 }

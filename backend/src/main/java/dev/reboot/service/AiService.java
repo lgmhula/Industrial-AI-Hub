@@ -8,6 +8,8 @@ import dev.reboot.dto.ai.AiAlarmSummary;
 import dev.reboot.dto.ai.AiChatRequest;
 import dev.reboot.dto.ai.AiChatResult;
 import dev.reboot.dto.ai.AiDeviceDiagnosis;
+import dev.reboot.dto.ai.KnowledgeChunk;
+import dev.reboot.dto.ai.RagAnswerResult;
 import dev.reboot.dto.ai.DeepSeekChatRequest;
 import dev.reboot.dto.ai.DeepSeekChatResponse;
 import dev.reboot.dto.ai.DeepSeekChoice;
@@ -85,6 +87,19 @@ public class AiService {
             最近告警（最多 5 条）：
             {recentAlarms}""";
 
+    private static final String RAG_SYSTEM_PROMPT = "你是工业设备运维 AI 助手。"
+            + "请仅根据提供的知识库片段回答用户问题，不要编造知识库之外的内容。"
+            + "如果片段不足以回答，请明确说明知识库中缺少相关信息。";
+
+    private static final String RAG_USER_TEMPLATE = """
+            知识库片段：
+            {sources}
+
+            用户问题：
+            {question}""";
+
+    private static final int RAG_TOP_K = 5;
+
     private final ChatClient chatClient;
     private final DeepSeekClient deepSeekClient;
     private final DeepSeekProperties properties;
@@ -93,6 +108,7 @@ public class AiService {
     private final DeviceMapper deviceMapper;
     private final DeviceDataMapper deviceDataMapper;
     private final SiteAccessService siteAccessService;
+    private final RagRetrievalService ragRetrievalService;
 
     public AiService(ChatClient chatClient,
                      DeepSeekClient deepSeekClient,
@@ -101,7 +117,8 @@ public class AiService {
                      AlarmMapper alarmMapper,
                      DeviceMapper deviceMapper,
                      DeviceDataMapper deviceDataMapper,
-                     SiteAccessService siteAccessService) {
+                     SiteAccessService siteAccessService,
+                     RagRetrievalService ragRetrievalService) {
         this.chatClient = chatClient;
         this.deepSeekClient = deepSeekClient;
         this.properties = properties;
@@ -110,6 +127,7 @@ public class AiService {
         this.deviceMapper = deviceMapper;
         this.deviceDataMapper = deviceDataMapper;
         this.siteAccessService = siteAccessService;
+        this.ragRetrievalService = ragRetrievalService;
     }
 
     /** 通用文本补全（可自定义 system prompt / 模型）。 */
@@ -188,6 +206,35 @@ public class AiService {
         }
     }
 
+    /** RAG 知识问答：检索相关片段注入上下文后由 ChatClient 回答。 */
+    public RagAnswerResult answerWithRag(String question) {
+        if (!StringUtils.hasText(question)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "问题不能为空");
+        }
+        List<KnowledgeChunk> chunks = ragRetrievalService.retrieve(question.trim(), RAG_TOP_K);
+        RagAnswerResult result = new RagAnswerResult();
+        result.setSources(chunks);
+        if (chunks.isEmpty()) {
+            result.setAnswer("知识库中未找到相关内容，请先导入设备手册或运维资料。");
+            return result;
+        }
+
+        deepSeekClient.ensureAvailable();
+        String userPrompt = new PromptTemplate(RAG_USER_TEMPLATE).render(Map.of(
+                "sources", renderSources(chunks),
+                "question", question.trim()));
+        String content = chatClient.prompt()
+                .system(RAG_SYSTEM_PROMPT)
+                .user(userPrompt)
+                .call()
+                .content();
+        if (!StringUtils.hasText(content)) {
+            throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "AI 服务返回空结果");
+        }
+        result.setAnswer(content);
+        return result;
+    }
+
     private String callJson(String systemPrompt, String userPrompt) {
         deepSeekClient.ensureAvailable();
         String content = chatClient.prompt()
@@ -222,6 +269,20 @@ public class AiService {
                 .append(a.getAlarmType()).append("/等级").append(a.getAlarmLevel())
                 .append("/状态").append(a.getStatus()).append("] ")
                 .append(a.getAlarmMessage()).append(" @ ").append(a.getTriggeredAt()).append('\n'));
+        return sb.toString().stripTrailing();
+    }
+
+    private String renderSources(List<KnowledgeChunk> chunks) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < chunks.size(); i++) {
+            KnowledgeChunk chunk = chunks.get(i);
+            String source = chunk.getSource() == null ? "未知来源" : chunk.getSource();
+            Integer chunkIndex = chunk.getChunkIndex();
+            sb.append("[").append(i + 1).append("] ")
+                    .append(source)
+                    .append(chunkIndex == null ? "" : " 片段" + (chunkIndex + 1))
+                    .append(": ").append(chunk.getContent()).append('\n');
+        }
         return sb.toString().stripTrailing();
     }
 

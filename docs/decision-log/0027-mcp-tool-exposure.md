@@ -62,7 +62,7 @@ MCP 1.0 的 resources / prompts / completion 能力在本项目无对应数据�
 
 - 代码：`McpDeviceTools` / `McpToolConfig` / `application.yml` MCP 段；
 - 测试：`McpDeviceToolsTest` 8 用例覆盖 limit/默认上限/未知设备/缺 ID/数据/告警；
-- 回归：后端 241 tests 0 failures；
+- 回归：后端 243 tests 0 failures（Day 81 治理修正，以 Day80 全量运行为准）；
 - 文档：`docs/ai/mcp-learning-notes.md`、AGENTS/DAILY_ROADMAP 同步。
 
 ## 5. 风险

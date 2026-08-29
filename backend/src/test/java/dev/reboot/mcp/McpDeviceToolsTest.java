@@ -15,16 +15,21 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * McpDeviceTools 单元测试 —— MCP 只读工具 JSON 输出 + 缺失资源降级（ADR 0027）。
+ * McpDeviceTools 单元测试 —— MCP 只读工具 JSON 输出 + 缺失资源降级（ADR 0027 / ADR 0028）。
  *
  * @author AI 助手
  * @since 2026-08-29
@@ -131,6 +136,119 @@ class McpDeviceToolsTest {
         assertTrue(result.contains("\"alarmType\":\"OVER_TEMP\""));
         assertFalse(result.contains("\"alarmLevel\":3"));
         verify(alarmMapper).findByDeviceId(1L);
+    }
+
+    @Test
+    void getDeviceDataRange_shouldReturnFilteredDataJson() {
+        when(deviceMapper.findById(1L)).thenReturn(device(1L));
+        when(deviceDataMapper.findByTimeRange(1L, "TEMPERATURE",
+                LocalDateTime.of(2026, 8, 29, 8, 0), LocalDateTime.of(2026, 8, 29, 10, 0)))
+                .thenReturn(List.of(
+                        deviceData(1L, "TEMPERATURE", "82.5", "°C"),
+                        deviceData(2L, "TEMPERATURE", "83.0", "°C")));
+
+        String result = tools.getDeviceDataRange(1L, "TEMPERATURE",
+                "2026-08-29T08:00:00", "2026-08-29T10:00:00", 2);
+
+        assertTrue(result.contains("\"count\":2"));
+        assertTrue(result.contains("\"dataType\":\"TEMPERATURE\""));
+        verify(deviceDataMapper).findByTimeRange(1L, "TEMPERATURE",
+                LocalDateTime.of(2026, 8, 29, 8, 0), LocalDateTime.of(2026, 8, 29, 10, 0));
+    }
+
+    @Test
+    void getDeviceDataRange_shouldAcceptSpaceTimeFormatAndDefaultLimit() {
+        when(deviceMapper.findById(1L)).thenReturn(device(1L));
+        when(deviceDataMapper.findByTimeRange(eq(1L), isNull(),
+                any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(java.util.stream.IntStream.rangeClosed(1, 30)
+                        .mapToObj(id -> deviceData((long) id, "TEMPERATURE", "80", "°C"))
+                        .toList());
+
+        String result = tools.getDeviceDataRange(1L, " ",
+                "2026-08-29 08:00:00", "2026-08-29 10:00:00", null);
+
+        assertTrue(result.contains("\"count\":20"));
+        verify(deviceDataMapper).findByTimeRange(eq(1L), isNull(),
+                eq(LocalDateTime.of(2026, 8, 29, 8, 0)),
+                eq(LocalDateTime.of(2026, 8, 29, 10, 0)));
+    }
+
+    @Test
+    void getDeviceDataRange_invalidTime_shouldReturnErrorJson() {
+        when(deviceMapper.findById(1L)).thenReturn(device(1L));
+
+        String result = tools.getDeviceDataRange(1L, null, "not-a-time", null, 10);
+
+        assertTrue(result.contains("\"error\""));
+        assertTrue(result.contains("时间格式无效"));
+        verify(deviceDataMapper, never()).findByTimeRange(any(), any(), any(), any());
+    }
+
+    @Test
+    void getDeviceDataRange_reversedRange_shouldReturnErrorJson() {
+        when(deviceMapper.findById(1L)).thenReturn(device(1L));
+
+        String result = tools.getDeviceDataRange(1L, null,
+                "2026-08-29T10:00:00", "2026-08-29T08:00:00", 10);
+
+        assertTrue(result.contains("开始时间不能晚于结束时间"));
+        verify(deviceDataMapper, never()).findByTimeRange(any(), any(), any(), any());
+    }
+
+    @Test
+    void getDeviceDataStats_shouldReturnNormalizedStatsJson() {
+        Map<String, Object> raw = new HashMap<>();
+        raw.put("avg", new BigDecimal("82.50"));
+        raw.put("min", new BigDecimal("80.00"));
+        raw.put("max", new BigDecimal("85.00"));
+        raw.put("cnt", 3L);
+        when(deviceMapper.findById(1L)).thenReturn(device(1L));
+        when(deviceDataMapper.aggregate(1L, "TEMPERATURE",
+                LocalDateTime.of(2026, 8, 29, 8, 0), LocalDateTime.of(2026, 8, 29, 10, 0)))
+                .thenReturn(raw);
+
+        String result = tools.getDeviceDataStats(1L, "TEMPERATURE",
+                "2026-08-29T08:00:00", "2026-08-29T10:00:00");
+
+        assertTrue(result.contains("\"avg\":82.50"));
+        assertTrue(result.contains("\"max\":85.00"));
+        assertTrue(result.contains("\"count\":3"));
+        verify(deviceDataMapper).aggregate(1L, "TEMPERATURE",
+                LocalDateTime.of(2026, 8, 29, 8, 0), LocalDateTime.of(2026, 8, 29, 10, 0));
+    }
+
+    @Test
+    void getDeviceDataStats_missingDataType_shouldReturnErrorJson() {
+        when(deviceMapper.findById(1L)).thenReturn(device(1L));
+
+        String result = tools.getDeviceDataStats(1L, " ", null, null);
+
+        assertTrue(result.contains("缺少数据类型"));
+        verify(deviceDataMapper, never()).aggregate(any(), any(), any(), any());
+    }
+
+    @Test
+    void searchDevices_shouldReturnSearchJsonAndApplyLimit() {
+        when(deviceMapper.searchDevices("PLC", "PLC", 1, null))
+                .thenReturn(List.of(device(1L), device(2L), device(3L)));
+
+        String result = tools.searchDevices("PLC", "PLC", 1, 2);
+
+        assertTrue(result.contains("\"count\":2"));
+        assertTrue(result.contains("\"deviceName\":\"测试设备\""));
+        verify(deviceMapper).searchDevices("PLC", "PLC", 1, null);
+    }
+
+    @Test
+    void searchDevices_blankFilters_shouldPassNullToMapper() {
+        when(deviceMapper.searchDevices(null, null, null, null))
+                .thenReturn(List.of(device(1L)));
+
+        String result = tools.searchDevices(" ", " ", null, null);
+
+        assertTrue(result.contains("\"count\":1"));
+        verify(deviceMapper).searchDevices(null, null, null, null);
     }
 
     private Device device(Long id) {

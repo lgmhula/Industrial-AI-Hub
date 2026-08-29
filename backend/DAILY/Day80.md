@@ -4,7 +4,7 @@
 > **阶段**：Phase 4 AI 集成 · Week 12（Agent + MCP）
 > **分支**：`feat/agent-mcp`
 > **配套 ADR**：[0027-mcp-tool-exposure.md](file:///Users/air/Documents/%E9%87%8D%E5%90%AF%EF%BC%9A%E8%BD%AF%E4%BB%B6%E5%B7%A5%E7%A8%8B%E5%B8%88%EF%BC%88Industrial%20AI%20Hub%EF%BC%89/docs/decision-log/0027-mcp-tool-exposure.md)
-> **验收结果**：✅ **GO**（MCP Server SSE 端点落地 + 只读设备工具暴露，后端 241 tests 0 failures）
+> **验收结果**：✅ **GO**（MCP Server SSE 端点落地 + 只读设备工具暴露，后端 243 tests 0 failures）
 
 ---
 

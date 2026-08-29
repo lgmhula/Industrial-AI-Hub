@@ -16,12 +16,15 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * MCP 只读设备查询工具（Day 80，ADR 0027）。
+ * MCP 只读设备查询工具（Day 80-81，ADR 0027 / ADR 0028）。
  *
  * <p>与内部 Agent 工具（{@link dev.reboot.tool.DeviceAiTools}）分离：MCP 端点不携带
  * 用户身份（MCP 1.0 规范未定义鉴权头，Spring AI 传输也未透传 HTTP Header），
@@ -40,6 +43,8 @@ public class McpDeviceTools {
     private static final Logger log = LoggerFactory.getLogger(McpDeviceTools.class);
 
     private static final int MAX_LIST_LIMIT = 50;
+    private static final DateTimeFormatter SPACE_DATE_TIME =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final DeviceMapper deviceMapper;
     private final DeviceDataMapper deviceDataMapper;
@@ -125,6 +130,96 @@ public class McpDeviceTools {
         }
     }
 
+    /**
+     * 按时间范围查询设备运行数据（只读，默认 20 条，最多 50 条）。
+     *
+     * <p>时间格式与 REST 层保持一致：支持 ISO {@code 2026-08-29T09:00:00}
+     * 或空格分隔 {@code 2026-08-29 09:00:00}。dataType 为空时查询全部类型。</p>
+     */
+    @Tool(name = "mcp_get_device_data_range",
+            description = "查询指定设备在时间范围内的运行数据（温度/压力/湿度/转速等）。"
+                    + "dataType 可选；startTime/endTime 支持 ISO（2026-08-29T09:00:00）"
+                    + "或 yyyy-MM-dd HH:mm:ss；limit 1-50 默认 20。")
+    public String getDeviceDataRange(
+            @ToolParam(description = "设备 ID") Long deviceId,
+            @ToolParam(description = "数据类型，可选（如 TEMPERATURE）") String dataType,
+            @ToolParam(description = "开始时间，可选") String startTime,
+            @ToolParam(description = "结束时间，可选") String endTime,
+            @ToolParam(description = "返回条数上限（1-50，默认 20）") Integer limit) {
+        try {
+            requireDevice(deviceId);
+            LocalDateTime start = parseDateTime(startTime, "startTime");
+            LocalDateTime end = parseDateTime(endTime, "endTime");
+            assertRange(start, end);
+            List<DeviceData> dataList = deviceDataMapper.findByTimeRange(
+                            deviceId, blankToNull(dataType), start, end).stream()
+                    .limit(clampLimit(limit, 20))
+                    .toList();
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("deviceId", deviceId);
+            data.put("count", dataList.size());
+            data.put("data", dataList.stream().map(this::deviceDataSummary).toList());
+            return toJson(data);
+        } catch (BusinessException e) {
+            return errorJson(e.getMessage());
+        }
+    }
+
+    /** 聚合统计指定设备某类数据在时间范围内的 avg/min/max/count（只读）。 */
+    @Tool(name = "mcp_get_device_data_stats",
+            description = "聚合统计指定设备某类数据在时间范围内的平均值/最小值/最大值/记录数。"
+                    + "dataType 必填；startTime/endTime 可选，格式同 mcp_get_device_data_range。")
+    public String getDeviceDataStats(
+            @ToolParam(description = "设备 ID") Long deviceId,
+            @ToolParam(description = "数据类型（必填，如 TEMPERATURE）") String dataType,
+            @ToolParam(description = "开始时间，可选") String startTime,
+            @ToolParam(description = "结束时间，可选") String endTime) {
+        try {
+            requireDevice(deviceId);
+            String type = blankToNull(dataType);
+            if (type == null) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少数据类型 dataType");
+            }
+            LocalDateTime start = parseDateTime(startTime, "startTime");
+            LocalDateTime end = parseDateTime(endTime, "endTime");
+            assertRange(start, end);
+            Map<String, Object> raw = deviceDataMapper.aggregate(deviceId, type, start, end);
+            Map<String, Object> stats = new LinkedHashMap<>();
+            stats.put("deviceId", deviceId);
+            stats.put("dataType", type);
+            stats.put("avg", raw.get("avg"));
+            stats.put("min", raw.get("min"));
+            stats.put("max", raw.get("max"));
+            stats.put("count", raw.get("cnt"));
+            return toJson(stats);
+        } catch (BusinessException e) {
+            return errorJson(e.getMessage());
+        }
+    }
+
+    /** 按关键字/类型/状态搜索设备（只读，默认 20 条，最多 50 条）。 */
+    @Tool(name = "mcp_search_devices",
+            description = "按关键字/类型/状态搜索设备。keyword 模糊匹配名称或编码；"
+                    + "deviceType 精确匹配；status 1=在线 0=离线 2=维护中；limit 1-50 默认 20。")
+    public String searchDevices(
+            @ToolParam(description = "搜索关键字（匹配名称或编码），可选") String keyword,
+            @ToolParam(description = "设备类型（精确匹配），可选") String deviceType,
+            @ToolParam(description = "设备状态（1=在线 0=离线 2=维护中），可选") Integer status,
+            @ToolParam(description = "返回条数上限（1-50，默认 20）") Integer limit) {
+        try {
+            List<Device> devices = deviceMapper.searchDevices(
+                            blankToNull(keyword), blankToNull(deviceType), status, null).stream()
+                    .limit(clampLimit(limit, 20))
+                    .toList();
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("count", devices.size());
+            data.put("devices", devices.stream().map(this::deviceSummary).toList());
+            return toJson(data);
+        } catch (BusinessException e) {
+            return errorJson(e.getMessage());
+        }
+    }
+
     private Device requireDevice(Long deviceId) {
         if (deviceId == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少设备 ID");
@@ -141,6 +236,37 @@ public class McpDeviceTools {
             return defaultValue;
         }
         return Math.max(1, Math.min(limit, MAX_LIST_LIMIT));
+    }
+
+    private LocalDateTime parseDateTime(String value, String paramName) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String v = value.trim();
+        try {
+            return LocalDateTime.parse(v);
+        } catch (DateTimeParseException e) {
+            try {
+                return LocalDateTime.parse(v, SPACE_DATE_TIME);
+            } catch (DateTimeParseException e2) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST,
+                        paramName + " 时间格式无效，支持 ISO（2026-08-29T09:00:00）"
+                                + "或 yyyy-MM-dd HH:mm:ss");
+            }
+        }
+    }
+
+    private void assertRange(LocalDateTime start, LocalDateTime end) {
+        if (start != null && end != null && start.isAfter(end)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "开始时间不能晚于结束时间");
+        }
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private Map<String, Object> deviceSummary(Device device) {

@@ -1,6 +1,6 @@
 # Week 12 MCP 学习笔记：协议、传输与工具暴露边界
 
-> 日期：2026-08-29 | 覆盖：Day 80（ADR 0027）
+> 日期：2026-08-29 | 覆盖：Day 80-81（ADR 0027 / ADR 0028）
 
 ---
 
@@ -48,6 +48,12 @@ Spring AI MCP Server 自动配置会收集容器内**所有** `ToolCallbackProvi
 
 内部 Agent 工具不会被自动漏给外部客户端。
 
+Day 81（ADR 0028）在同一个工具类内补充数据查询能力，共 7 个只读工具：
+
+- `mcp_get_device_data_range` — 按时间范围查询运行数据（dataType 可选）
+- `mcp_get_device_data_stats` — 聚合统计 avg/min/max/count
+- `mcp_search_devices` — 按关键字/类型/状态搜索设备
+
 ## 4. 与 Function Calling 的区别
 
 | | Function Calling | MCP |
@@ -78,8 +84,25 @@ spring.ai.mcp.server:
 工具返回统一是 JSON 字符串，错误降级为 `{"error":"..."}`，limit 用 `clampLimit` 夹到 1-50。
 授权上当前视为内网可信通道，Day 82 客户端集成时再补传输层鉴权与 RBAC。
 
-## 6. 关键文件
+## 6. Day 81：数据查询工具契约
 
-- [McpDeviceTools.java](../../backend/src/main/java/dev/reboot/mcp/McpDeviceTools.java) — 4 个只读 @Tool
+| `@Tool` name | 参数 | 底层能力 |
+| --- | --- | --- |
+| `mcp_get_device_data_range` | `deviceId, dataType?, startTime?, endTime?, limit?` | `DeviceDataMapper.findByTimeRange` |
+| `mcp_get_device_data_stats` | `deviceId, dataType, startTime?, endTime?` | `DeviceDataMapper.aggregate`（`cnt` 归一化为 `count`） |
+| `mcp_search_devices` | `keyword?, deviceType?, status?, limit?` | `DeviceMapper.searchDevices`（无站点过滤） |
+
+约定：
+
+- `limit` clamp 到 `1-50`，范围查询与搜索默认 20。
+- 时间支持 ISO `2026-08-29T09:00:00` 与 `2026-08-29 09:00:00` 两种格式；
+  `startTime > endTime` 拒绝，错误信息给出正确格式示例。
+- 可选文本参数空白视为未传，避免拼出 `data_type = ''`。
+- 无用户身份（MCP 1.0），搜索保持全量只读；Day 82 传输鉴权落地前不开放公网。
+
+## 7. 关键文件
+
+- [McpDeviceTools.java](../../backend/src/main/java/dev/reboot/mcp/McpDeviceTools.java) — 7 个只读 @Tool
 - [McpToolConfig.java](../../backend/src/main/java/dev/reboot/mcp/McpToolConfig.java) — 显式注册边界
 - [ADR 0027](../decision-log/0027-mcp-tool-exposure.md) — 暴露边界决策表
+- [ADR 0028](../decision-log/0028-mcp-data-tools.md) — 数据查询工具契约

@@ -3,7 +3,7 @@
 > **Status:** Active
 > **Version:** 2.3
 > **Updated:** 2026-08-29
-> **Based on:** Phase 3 收官 + 安全治理合并（站点授权 / 用户安全状态 / JWT 生命周期 / 登录审计 / 限流 / 注册治理 + V7-V10 迁移）+ Phase 4 Day 66-80（DeepSeek / Spring AI / Function Calling / RAG / Agent / MCP Server）
+> **Based on:** Phase 3 收官 + 安全治理合并（站点授权 / 用户安全状态 / JWT 生命周期 / 登录审计 / 限流 / 注册治理 + V7-V10 迁移）+ Phase 4 Day 66-81（DeepSeek / Spring AI / Function Calling / RAG / Agent / MCP Server）
 > **Governs:** All application-layer decisions for Industrial AI Hub Backend
 
 ---
@@ -69,7 +69,7 @@
 | DeepSeekClient | 保留为通用 `chat()` 协议层（RestClient + token 用量 + 503 语义，ADR 0021） |
 | JSON 输出 | `OpenAiChatModel` 默认 `response_format=json_object`：告警摘要 / 设备健康诊断 |
 | Function Calling | `@Tool` 声明式工具注册（零手写 JSON Schema，ADR 0023）：get_device_basic / list_device_recent_alarms / list_active_alarms_by_site / list_device_recent_data；`DeviceStatusAgentService` + `ToolCallingAgent` 手动工具循环（3/4 轮硬限 + 未参考实时数据标注，ADR 0026） |
-| MCP Server | `spring-ai-starter-mcp-server-webmvc:1.0.3`（ADR 0027）：SSE `/mcp/sse` + `/mcp/message`，仅 tools 能力，`McpDeviceTools` 4 个只读设备查询工具显式注册 |
+| MCP Server | `spring-ai-starter-mcp-server-webmvc:1.0.3`（ADR 0027 / ADR 0028）：SSE `/mcp/sse` + `/mcp/message`，仅 tools 能力，`McpDeviceTools` 7 个只读设备/数据查询工具显式注册 |
 
 ### Observability & 部署 (Baseline V2.1)
 
@@ -143,7 +143,7 @@ HTTP Request
 | `service/DeviceStatusAgentService` | Function Calling 手动工具循环：最大 3 轮硬限、强制收尾、未参考实时数据标注、FUNCTION_CALL 审计元数据 |
 | `service/DeviceAnalysisAgentService` | 多步推理 Agent：先查设备 → 再查数据 → 再分析，最大 4 轮硬限（ADR 0026） |
 | `controller/AiController` | `/api/ai/*`（VIEWER+），设备状态问答端点带 `@OperationLog(FUNCTION_CALL, {ret} 轮次/调用数)` |
-| `mcp/` | `McpDeviceTools` 4 个只读 @Tool + `McpToolConfig` 显式 ToolCallbackProvider（不暴露内部 Agent 工具，ADR 0027） |
+| `mcp/` | `McpDeviceTools` 7 个只读 @Tool + `McpToolConfig` 显式 ToolCallbackProvider（不暴露内部 Agent 工具，ADR 0027 / ADR 0028） |
 
 ### 横切关注点
 
@@ -191,5 +191,5 @@ HTTP Request
 | Phase 1 | 第 1-3 周 | Day 1-21 | Java 复苏 | ✅ |
 | Phase 2 | 第 4-6 周 | Day 22-42 | 项目 V1：CRUD / JWT / RBAC / 告警 / 前端 | ✅ v1.0 + Baseline V2.1 |
 | Phase 3 | 第 7-9 周 | Day 43-63 | 中间件武装：Redis + RabbitMQ + Docker + Linux | ✅ 2026-08-16 |
-| Phase 4 | 第 10-13 周 | Day 64-91 | AI 集成：DeepSeek → RAG → Agent/MCP | 🔨 Day 66-80 已完成 DeepSeek + ChatClient + Function Calling + RAG + Agent + MCP Server |
+| Phase 4 | 第 10-13 周 | Day 64-91 | AI 集成：DeepSeek → RAG → Agent/MCP | 🔨 Day 66-81 已完成 DeepSeek + ChatClient + Function Calling + RAG + Agent + MCP Server（含数据工具） |
 | Phase 5 | 第 14-16 周 | Day 92-112 | PLC + MQTT + 完整系统 | 📅 计划 |

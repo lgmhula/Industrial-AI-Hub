@@ -104,6 +104,15 @@ deepseek:
   temperature: 0.3
 
 # ========================
+# RAG 知识库（Week 11，ADR 0024）
+# 第一版使用离线哈希向量 + 内存向量库；后续替换真实 embedding 与 Qdrant。
+# ========================
+rag:
+  embedding-dimensions: 256
+  chunk-size: 500
+  chunk-overlap: 50
+
+# ========================
 # 注册治理（P1-02-A-3）
 # enabled=false（默认）：POST /api/auth/register 返回 403（统一错误语义）
 # enabled=true：必须携带与 invite-code 匹配的邀请码；每日注册上限 daily-limit（Redis 计数）

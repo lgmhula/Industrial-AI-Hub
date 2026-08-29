@@ -524,8 +524,8 @@
 ### 第 11 周：RAG + 知识库
 | 天 | 任务 |
 |----|------|
-| Day 71 | RAG 概念 + 向量数据库选型（Milvus/Chroma/Qdrant） |
-| Day 72 | 文档切片 + 向量化（embedding）+ 存入向量库 |
+| Day 71 | RAG 概念 + 向量数据库选型（Milvus/Chroma/Qdrant）✅（ADR 0024：Qdrant 生产目标 + 内存向量库第一阶段 + 本地哈希 Embedding） |
+| Day 72 | 文档切片 + 向量化（embedding）+ 存入向量库 ✅（TextChunker + LocalHashEmbeddingModel + SimpleVectorStore + RagIngestionService，11 tests） |
 | Day 73 | 知识检索实现：根据用户问题检索相关文档 |
 | Day 74 | 实战：设备手册知识库——导入 PDF 设备说明书 |
 | Day 75 | 实战：AI 运维助手——根据知识库回答设备运维问题 |

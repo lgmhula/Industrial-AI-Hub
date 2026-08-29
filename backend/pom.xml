@@ -172,6 +172,13 @@
             <version>1.0.3</version>
         </dependency>
 
+        <!-- MCP Server (Day 80, ADR 0027): SSE 传输 + 显式只读工具暴露 -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+            <version>1.0.3</version>
+        </dependency>
+
         <!-- RAG PDF 解析 (Day 74, ADR 0025): PDFBox 纯 Java 文本提取 -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>

@@ -537,7 +537,7 @@
 |----|------|
 | Day 78 | Agent 概念：ReAct 模式、工具调用循环 ✅（ADR 0026：手动循环 + 3 轮硬限 + 可观测性） |
 | Day 79 | 实现简单 Agent：多步推理（先查设备→再查数据→再分析）✅（ToolCallingAgent + list_device_recent_data + DeviceAnalysisAgentService + /api/ai/agents/device-analysis） |
-| Day 80 | MCP 协议概念 + MCP Server 开发 |
+| Day 80 | MCP 协议概念 + MCP Server 开发 ✅（ADR 0027：spring-ai-starter-mcp-server-webmvc + SSE + McpDeviceTools 4 只读工具 + 显式暴露边界） |
 | Day 81 | 开发 Device MCP Server：暴露设备查询、数据查询工具 |
 | Day 82 | Codex/MCP 客户端集成：让 AI 通过 MCP 调用项目接口 |
 | Day 83 | Agent + MCP 联调：AI 自动巡检设备并生成日报 |

@@ -22,7 +22,7 @@
 | ★★★ | 应用架构         | `docs/Architecture/Application-Architecture.md`        | 技术栈 + 分层 + API                                                |
 | ★★☆ | 从零复刻指南       | `docs/SETUP.md`                                        | 克隆 → 配置 → 运行 → 验证 全流程                                         |
 | ★★☆ | 基础设施基线       | `docs/Architecture/Infrastructure-Baseline.md`         | Docker/网络/端口规范                                                |
-| ★★☆ | 架构决策记录       | `docs/decision-log/0001~0023`                          | 关键技术决策理由（含 0015 密钥 SSOT / 0016 charset / 0017 分支策略 / 0018 CI / 0021 DeepSeek / 0022 Spring AI / 0023 Function Calling） |
+| ★★☆ | 架构决策记录       | `docs/decision-log/0001~0027`                          | 关键技术决策理由（含 0015 密钥 SSOT / 0016 charset / 0017 分支策略 / 0018 CI / 0021 DeepSeek / 0022 Spring AI / 0023 Function Calling / 0026 Agent 循环 / 0027 MCP 边界） |
 | ★★☆ | Phase 3-A 计划 | `docs/plans/phase3-a-infrastructure-stabilization.md`  | 基础设施稳定化任务分解 + 验收标准                                            |
 | ★★☆ | 新设备部署手册      | `docs/reports/deploy-runbook-new-device.md`            | 全量坑位 + 一键部署指令（副本免扫描）                                          |
 | ★★☆ | 参与贡献指南       | `CONTRIBUTING.md`                                      | 分支流程 + 自测清单 + 工程约束摘要                                          |
@@ -42,7 +42,7 @@
 
 * **上一基线**：v2.2.0（Tag: `v2.2.0`，Commit: `892c4a5`）——含 ADR 0015 密钥 SSOT / ADR 0016 charset-safe init / 跨平台交接修复；Release Gate: GO
 
-* **阶段**：Phase 3 学习路线与稳定化全部收官（Redis/RabbitMQ/Docker/Linux + Day 64 质量加固 + Day 65 pc\_hula 合并验收）；**Phase 4 AI 集成进行中**（Day 66：DeepSeek API 基础 + 告警摘要/设备诊断，ADR 0021；Day 67：Spring AI ChatClient/PromptTemplate 抽象 + 前端 AI 入口 + AI 操作日志，ADR 0022 / TD-028；Day 68：Function Calling @Tool 声明式工具 + 3 轮硬限 Agent + 设备详情问答面板，ADR 0023；Day 69：前端工业化视觉升级落地，DESIGN.md 设计系统；Day 70：Week 10 复盘 + Phase 4 AI 模块学习笔记；Day 71：RAG 概念 + 向量库选型，ADR 0024；Day 72：文档切片 + 哈希向量 + 内存向量库入库；Day 73：知识检索服务 + KnowledgeChunk 结果映射；Day 74：PDFBox 知识文档导入 + Flyway V11；Day 75：RAG AI 运维助手问答；Day 76：前端 AI 助手对话页面；Day 77：Week 11 复盘 + RAG 笔记；Day 78：Agent 概念 + ReAct 循环治理，ADR 0026；Day 79：多步推理 Agent + ToolCallingAgent 通用循环）
+* **阶段**：Phase 3 学习路线与稳定化全部收官（Redis/RabbitMQ/Docker/Linux + Day 64 质量加固 + Day 65 pc\_hula 合并验收）；**Phase 4 AI 集成进行中**（Day 66：DeepSeek API 基础 + 告警摘要/设备诊断，ADR 0021；Day 67：Spring AI ChatClient/PromptTemplate 抽象 + 前端 AI 入口 + AI 操作日志，ADR 0022 / TD-028；Day 68：Function Calling @Tool 声明式工具 + 3 轮硬限 Agent + 设备详情问答面板，ADR 0023；Day 69：前端工业化视觉升级落地，DESIGN.md 设计系统；Day 70：Week 10 复盘 + Phase 4 AI 模块学习笔记；Day 71：RAG 概念 + 向量库选型，ADR 0024；Day 72：文档切片 + 哈希向量 + 内存向量库入库；Day 73：知识检索服务 + KnowledgeChunk 结果映射；Day 74：PDFBox 知识文档导入 + Flyway V11；Day 75：RAG AI 运维助手问答；Day 76：前端 AI 助手对话页面；Day 77：Week 11 复盘 + RAG 笔记；Day 78：Agent 概念 + ReAct 循环治理，ADR 0026；Day 79：多步推理 Agent + ToolCallingAgent 通用循环；Day 80：MCP Server + SSE 端点 + 只读设备工具 + ADR 0027）
 
 * **Phase 3 收官治理（P0）**：演示/测试种子数据已与生产 Flyway 迁移链隔离（`V2__seed_test_data.sql` 退役 → `db/seed/dev/seed_demo_data.sql` + `scripts/seed-dev.sh` 显式执行，幂等；全新生产库不再自动灌入 Demo 数据，见 ADR 0019 §5）
 
@@ -54,11 +54,11 @@
 
 * **已完成**：Phase 3 中间件武装全部收官（Redis + RabbitMQ + Docker + Linux 部署，89/89 测试全绿，第三阶段检查点达成）；**Day 65 合并验收**（后端 195 tests 0 failures 3 skipped；前端 build 875ms 0 errors；浏览器 6 页面 0 控制台错误；三角色 API 冒烟 48/48 全绿）
 
-* **下一步**：Day 80 — MCP 协议概念 + MCP Server 开发，起草 ADR 0027
+* **下一步**：Day 81 — 开发 Device MCP Server：暴露设备查询、数据查询工具
 
-* **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限 + 站点资源作用域（ADR 0020）、分页查询、全局异常处理、@Valid 校验、报警规则引擎（8 规则）、AOP 操作日志、Postman 测试集、Vue 3 前端（登录/仪表盘/设备/告警/日志/用户/角色 9 页面 + Register/NotFound）、Redis 缓存（Spring Cache + Redisson 分布式锁）、RabbitMQ 消息（工作队列/发布订阅/DLQ/延迟队列）、Docker 容器化 + Nginx 反代、Linux 部署（systemd）、**Day 66 DeepSeek AI**（/api/ai/chat 文本补全 + 告警摘要 + 设备健康诊断，token 用量 + 结构化 JSON，ADR 0021）、**Day 67 Spring AI**（ChatClient/PromptTemplate 抽象 + 告警列表 AI 摘要 Dialog + 设备详情 AI 健康诊断卡片 + Flyway V9 AI 操作日志，ADR 0022）、**Day 68 Function Calling**（@Tool 声明式三工具 + 3 轮硬限 Agent + POST /api/ai/agents/device-status + 设备详情问答折叠面板 + Flyway V10 FUNCTION_CALL 审计，ADR 0023）、**Day 69 前端视觉升级**（DESIGN.md 深色工业控制中心 + Element Plus 暗色覆盖 + 表格/AI 卡/认证页统一 + ECharts 按需注册）、**Day 70 复盘/笔记**（Week10 周复盘 + docs/ai/phase4-ai-learning-notes.md）、**Day 71/72 RAG 入库**（Qdrant 选型 ADR 0024 + TextChunker + LocalHashEmbeddingModel + SimpleVectorStore + RagIngestionService）、**Day 73 RAG 检索**（RagRetrievalService + KnowledgeChunk，Top-K 余弦相似度检索）、**Day 74 RAG PDF 导入**（PDFBox 3.0.8 + RagController 上传 + Flyway V11 INGEST/KNOWLEDGE 审计）、**Day 75 RAG 运维助手**（AiService.answerWithRag + POST /api/rag/ask）、**Day 76 RAG 前端**（RagAssistant 对话页 + /assistant 路由 + Sidebar AI 助手入口）、**Day 77 复盘/笔记**（Week11 周复盘 + docs/ai/rag-learning-notes.md）、**Day 78 Agent 概念**（ReAct 手动循环 + 3 轮硬限 + 可观测性，ADR 0026）、**Day 79 多步 Agent**（ToolCallingAgent 通用循环 + list_device_recent_data 工具 + DeviceAnalysisAgentService + /api/ai/agents/device-analysis）
+* **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限 + 站点资源作用域（ADR 0020）、分页查询、全局异常处理、@Valid 校验、报警规则引擎（8 规则）、AOP 操作日志、Postman 测试集、Vue 3 前端（登录/仪表盘/设备/告警/日志/用户/角色 9 页面 + Register/NotFound）、Redis 缓存（Spring Cache + Redisson 分布式锁）、RabbitMQ 消息（工作队列/发布订阅/DLQ/延迟队列）、Docker 容器化 + Nginx 反代、Linux 部署（systemd）、**Day 66 DeepSeek AI**（/api/ai/chat 文本补全 + 告警摘要 + 设备健康诊断，token 用量 + 结构化 JSON，ADR 0021）、**Day 67 Spring AI**（ChatClient/PromptTemplate 抽象 + 告警列表 AI 摘要 Dialog + 设备详情 AI 健康诊断卡片 + Flyway V9 AI 操作日志，ADR 0022）、**Day 68 Function Calling**（@Tool 声明式三工具 + 3 轮硬限 Agent + POST /api/ai/agents/device-status + 设备详情问答折叠面板 + Flyway V10 FUNCTION_CALL 审计，ADR 0023）、**Day 69 前端视觉升级**（DESIGN.md 深色工业控制中心 + Element Plus 暗色覆盖 + 表格/AI 卡/认证页统一 + ECharts 按需注册）、**Day 70 复盘/笔记**（Week10 周复盘 + docs/ai/phase4-ai-learning-notes.md）、**Day 71/72 RAG 入库**（Qdrant 选型 ADR 0024 + TextChunker + LocalHashEmbeddingModel + SimpleVectorStore + RagIngestionService）、**Day 73 RAG 检索**（RagRetrievalService + KnowledgeChunk，Top-K 余弦相似度检索）、**Day 74 RAG PDF 导入**（PDFBox 3.0.8 + RagController 上传 + Flyway V11 INGEST/KNOWLEDGE 审计）、**Day 75 RAG 运维助手**（AiService.answerWithRag + POST /api/rag/ask）、**Day 76 RAG 前端**（RagAssistant 对话页 + /assistant 路由 + Sidebar AI 助手入口）、**Day 77 复盘/笔记**（Week11 周复盘 + docs/ai/rag-learning-notes.md）、**Day 78 Agent 概念**（ReAct 手动循环 + 3 轮硬限 + 可观测性，ADR 0026）、**Day 79 多步 Agent**（ToolCallingAgent 通用循环 + list_device_recent_data 工具 + DeviceAnalysisAgentService + /api/ai/agents/device-analysis）、**Day 80 MCP Server**（spring-ai-starter-mcp-server-webmvc + SSE 端点 + McpDeviceTools 4 只读工具 + McpToolConfig 显式暴露边界，ADR 0027）
 
-* **待实现**：ELK 日志（Day 101，可选）、Phase 4 AI 集成（RAG 真实向量库/Embedding 替换、Agent/MCP 协议、MCP Server）、Phase 5 PLC + MQTT
+* **待实现**：ELK 日志（Day 101，可选）、Phase 4 AI 集成（RAG 真实向量库/Embedding 替换、MCP 客户端集成 + 鉴权、Agent/MCP 联调）、Phase 5 PLC + MQTT
 
 ***
 
@@ -166,6 +166,7 @@ Industrial-AI-Hub/
 │           ├── controller/    # REST 控制器
 │           ├── service/       # 业务逻辑
 │           ├── client/        # DeepSeek HTTP 客户端（Phase 4）
+│           ├── mcp/           # MCP Server 工具 + 显式注册（Phase 4）
 │           ├── mapper/        # MyBatis Mapper
 │           ├── entity/        # 实体类
 │           ├── dto/           # DTO + ApiResponse

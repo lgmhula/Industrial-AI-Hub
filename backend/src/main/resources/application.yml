@@ -22,6 +22,8 @@ spring:
       - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration
       - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration
       - org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration
+      # 本项目固定 WebMVC 传输；排除 WebFlux MCP 自动配置，避免双路由注册（ADR 0027）
+      - org.springframework.ai.mcp.server.autoconfigure.McpWebFluxServerAutoConfiguration
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3307}/reboot?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER:root}
@@ -62,6 +64,27 @@ spring:
       simple:
         acknowledge-mode: auto
         prefetch: 10
+  ai:
+    mcp:
+      server:
+        enabled: true
+        name: industrial-ai-hub-mcp
+        version: 1.0.0
+        type: sync
+        stdio: false
+        sse-endpoint: /mcp/sse
+        sse-message-endpoint: /mcp/message
+        capabilities:
+          tool: true
+          resource: false
+          prompt: false
+          completion: false
+        tool-change-notification: false
+        resource-change-notification: false
+        prompt-change-notification: false
+        instructions: >-
+          Industrial AI Hub 只读设备查询服务。工具返回 JSON；
+          当前仅对内部可信 AI 客户端开放，请勿将端点暴露到公网。
 
 server:
   port: 8080

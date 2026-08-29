@@ -25,7 +25,7 @@ Week 12 要把“简单单目标 Agent”升级为“多步推理 Agent”（Day
 |----|------|
 | Agent 范式 | **ReAct（Reasoning + Acting）**，显式手动循环；不采用 Spring AI 自动工具循环 |
 | 循环实现 | 参考 `DeviceStatusAgentService`：`while + 手动执行 + 结果回填对话`，每轮 `internalToolExecutionEnabled(false)` |
-| 轮次硬限 | 默认最大 3 轮工具调用；达到硬限后追加收尾提示、无工具再调用一次，`truncated=true` |
+| 轮次硬限 | 默认最大 3 轮工具调用；多步分析 Agent 显式放宽至 4（不超过 4）；达到硬限后追加收尾提示、无工具再调用一次，`truncated=true` |
 | 调用计数 | 单轮内多个工具调用分别计数；结果携带 `toolRounds` / `toolCalls` / `toolTrace` |
 | 工具约束 | 第一版工具只读（查询），禁止副作用；每个工具内部执行站点资源作用域（ADR 0020） |
 | 未参考实时数据 | 零工具调用直接回答时 `referencedRealTime=false`，前端显式标注 |

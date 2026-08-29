@@ -28,6 +28,9 @@
               </span>
             </template>
           </el-menu-item>
+          <el-menu-item index="/assistant">
+            <el-icon><ChatDotRound /></el-icon><template #title>AI 助手</template>
+          </el-menu-item>
           <el-menu-item v-if="isAdmin" index="/logs">
             <el-icon><Document /></el-icon><template #title>操作日志</template>
           </el-menu-item>
@@ -155,6 +158,7 @@ const envLabel = computed(() => {
 const titleMap = {
   '/dashboard': '仪表盘',
   '/devices': '设备管理',
+  '/assistant': 'AI 助手',
   '/alarms': '报警管理',
   '/logs': '操作日志',
   '/users': '用户管理',

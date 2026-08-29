@@ -15,10 +15,10 @@ import java.lang.annotation.*;
 @Documented
 public @interface OperationLog {
 
-    /** 操作类型：CREATE / UPDATE / DELETE / LOGIN / EXPORT / ACKNOWLEDGE / RESOLVE / CHAT / SUMMARY / DIAGNOSE / FUNCTION_CALL。 */
+    /** 操作类型：CREATE / UPDATE / DELETE / LOGIN / EXPORT / ACKNOWLEDGE / RESOLVE / CHAT / SUMMARY / DIAGNOSE / FUNCTION_CALL / INGEST。 */
     String operationType();
 
-    /** 目标类型：USER / DEVICE / ALARM / ROLE / DEVICE_DATA / AI。 */
+    /** 目标类型：USER / DEVICE / ALARM / ROLE / DEVICE_DATA / AI / KNOWLEDGE。 */
     String targetType();
 
     /** 目标 ID 参数下标（方法参数从 0 开始）；-1 表示不记录 targetId。 */

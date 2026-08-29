@@ -97,7 +97,8 @@ jwt:
 deepseek:
   enabled: ${DEEPSEEK_ENABLED:false}
   base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
-  api-key: ${DEEPSEEK_API_KEY:}
+  # ADR 0015 §8.3：敏感变量禁止空默认，未配置时 fail-fast（运行时才需，启动不强制，业务 ensureAvailable 兜底 503）
+  api-key: ${DEEPSEEK_API_KEY}
   model: ${DEEPSEEK_MODEL:deepseek-chat}
   timeout-seconds: ${DEEPSEEK_TIMEOUT_SECONDS:30}
   max-tokens: ${DEEPSEEK_MAX_TOKENS:1024}

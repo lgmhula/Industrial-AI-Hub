@@ -171,6 +171,13 @@
             <artifactId>spring-ai-starter-model-openai</artifactId>
             <version>1.0.3</version>
         </dependency>
+
+        <!-- RAG PDF 解析 (Day 74, ADR 0025): PDFBox 纯 Java 文本提取 -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.8</version>
+        </dependency>
     </dependencies>
 
     <!-- ===== Build Plugins ===== -->

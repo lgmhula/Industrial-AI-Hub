@@ -119,4 +119,10 @@ export const aiApi = {
   deviceStatus: (deviceId, question) => api.post('/ai/agents/device-status', { deviceId, question }, { timeout: 60000 }),
 }
 
+// ---------- RAG 知识库 ----------
+export const ragApi = {
+  // Day 75 AI 运维助手：根据知识库回答设备运维问题
+  ask: (data) => api.post('/rag/ask', data, { timeout: 60000 }),
+}
+
 export default api

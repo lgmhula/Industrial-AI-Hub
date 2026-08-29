@@ -76,6 +76,7 @@ public class DeviceAnalysisAgentService {
                 + "，站点ID=" + device.getSiteId()
                 + "。\n用户问题：" + request.getQuestion();
 
+        // ADR 0026 §2③：默认 3 轮，多步分析 Agent 显式放宽至 4
         AgentRunResult run = toolCallingAgent.run(SYSTEM_PROMPT, userPrompt, toolContext,
                 toolCallbacks, 4);
         return toResult(device.getId(), run);

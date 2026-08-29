@@ -535,7 +535,7 @@
 ### 第 12 周：Agent + MCP
 | 天 | 任务 |
 |----|------|
-| Day 78 | Agent 概念：ReAct 模式、工具调用循环 |
+| Day 78 | Agent 概念：ReAct 模式、工具调用循环 ✅（ADR 0026：手动循环 + 3 轮硬限 + 可观测性） |
 | Day 79 | 实现简单 Agent：多步推理（先查设备→再查数据→再分析） |
 | Day 80 | MCP 协议概念 + MCP Server 开发 |
 | Day 81 | 开发 Device MCP Server：暴露设备查询、数据查询工具 |

@@ -9,12 +9,14 @@ const OperationLogList = () => import('../views/OperationLogList.vue')
 const UserList = () => import('../views/UserList.vue')
 const RoleList = () => import('../views/RoleList.vue')
 const Register = () => import('../views/Register.vue')
+const RagAssistant = () => import('../views/RagAssistant.vue')
 
 const routes = [
   { path: '/login', name: 'Login', component: Login, meta: { guest: true } },
   { path: '/register', name: 'Register', component: Register, meta: { guest: true } },
   { path: '/', redirect: '/dashboard' },
   { path: '/dashboard', name: 'Dashboard', component: Dashboard },
+  { path: '/assistant', name: 'RagAssistant', component: RagAssistant },
   { path: '/devices', name: 'DeviceList', component: DeviceList },
   { path: '/devices/:id', name: 'DeviceDetail', component: DeviceDetail, props: true },
   { path: '/alarms', name: 'AlarmList', component: AlarmList },

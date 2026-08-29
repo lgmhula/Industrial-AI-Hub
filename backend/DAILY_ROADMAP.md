@@ -519,7 +519,7 @@
 | Day 67 | Spring AI ChatClient/PromptTemplate 抽象 + 前端告警摘要/设备诊断入口（ADR 0022） |
 | Day 68 | Function Calling：AI 自动调用项目接口查询设备状态 ✅（@Tool 三工具 + 3 轮硬限 Agent + 设备详情问答面板，ADR 0023） |
 | Day 69 | 前端工业化视觉升级（DESIGN.md 设计系统落地）✅（深色控制中心 Token + Element Plus 暗色覆盖 + 表格/AI 卡/认证页统一 + ECharts 按需注册消除 >500kB 告警） |
-| Day 70 | 周复盘 + AI 模块笔记 |
+| Day 70 | 周复盘 + AI 模块笔记 ✅（Week10 复盘 + docs/ai/phase4-ai-learning-notes.md，整理 feat/phase4-function-calling 分支准备 PR） |
 
 ### 第 11 周：RAG + 知识库
 | 天 | 任务 |

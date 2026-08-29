@@ -1,6 +1,6 @@
 # Week 11 RAG 学习笔记：从私有文档到可检索知识
 
-> 日期：2026-08-29 | 覆盖：Day 71 ~ Day 72（ADR 0024）
+> 日期：2026-08-29 | 覆盖：Day 71 ~ Day 77（ADR 0024 / ADR 0025）
 
 ---
 
@@ -25,12 +25,15 @@ RAG 的做法是：
 加载文档 → 切片 chunk → 向量化 embed → 存入向量库 → 查询向量检索 → 拼接上下文 → LLM 回答
 ```
 
-| 阶段 | 本项目实现（Day 72） |
+| 阶段 | 本项目实现 |
 |------|---------------------|
-| 切片 | `TextChunker`：按句子聚合 + max-chars + overlap |
+| 加载 | `PdfIngestionService`：PDFBox 提取 PDF 文本（Day 74） |
+| 切片 | `TextChunker`：按句子聚合 + max-chars + overlap（Day 72） |
 | 向量化 | `LocalHashEmbeddingModel`：字符 n-gram + 哈希投影 + L2 归一化 |
 | 向量库 | `SimpleVectorStore`：内存实现 + 余弦相似度检索 |
-| 编排 | `RagIngestionService.ingest(source, content)` |
+| 检索 | `RagRetrievalService`：Top-K 余弦相似度（Day 73） |
+| 问答 | `AiService.answerWithRag`：检索片段注入 ChatClient（Day 75） |
+| 前端 | `RagAssistant.vue` + `/assistant`（Day 76） |
 
 ---
 
@@ -75,8 +78,25 @@ DeepSeek 目前不提供 `/embeddings` 端点。为了离线可测，第一版�
 
 ---
 
-## 6. 下一步（Day 73+）
+## 6. 完整链路
 
-- 检索服务：把 `similaritySearch` 暴露为业务检索能力；
-- PDF 导入：Day 74 设备手册；
-- AI 运维助手：Day 75 用检索片段作为 ChatClient 上下文回答。
+```text
+PDF 上传 → PDFBox 文本提取 → TextChunker 切片
+  → LocalHashEmbeddingModel 向量化 → SimpleVectorStore 入库
+  → RagRetrievalService Top-K 检索 → answerWithRag 注入上下文
+  → ChatClient 回答 + 前端展示引用片段
+```
+
+关键边界：
+
+- 检索结果为空时不调用 LLM，直接返回“知识库中未找到相关内容”；
+- 系统提示词限定“仅依据知识库片段回答”，降低编造；
+- 上传与问答都走 RBAC（上传 ADMIN，问答 VIEWER+）。
+
+## 7. 工程经验
+
+1. **先用抽象接口打通链路，再替换具体实现**：内存向量库/哈希 embedding 是“可工作的占位”，
+   接口稳定后换 Qdrant/真实 embedding 成本低；
+2. **overlap 不是可选项**：跨块语义断裂会直接损害召回；
+3. **AI 的边界要由代码守住**：空上下文、超长回答、异常解析都要有降级；
+4. **RAG 是“引用”不是“记忆”**：来源片段要展示给用户，才能审计 AI 是否胡说。

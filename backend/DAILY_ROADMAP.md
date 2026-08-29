@@ -530,7 +530,7 @@
 | Day 74 | 实战：设备手册知识库——导入 PDF 设备说明书 ✅（PDFBox 3.0.8 + RagController 上传 + Flyway V11 INGEST/KNOWLEDGE，2 tests） |
 | Day 75 | 实战：AI 运维助手——根据知识库回答设备运维问题 ✅（AiService.answerWithRag + POST /api/rag/ask，检索片段注入上下文） |
 | Day 76 | 前端：AI 助手对话页面（侧边栏或独立页面）✅（RagAssistant.vue + /assistant 路由 + Sidebar AI 助手入口 + 引用片段展示） |
-| Day 77 | 周复盘 + RAG 笔记 |
+| Day 77 | 周复盘 + RAG 笔记 ✅（Week11 复盘 + docs/ai/rag-learning-notes.md 更新，整理 feat/rag-retrieval 准备 PR） |
 
 ### 第 12 周：Agent + MCP
 | 天 | 任务 |

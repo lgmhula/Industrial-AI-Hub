@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -41,7 +42,7 @@ class FlywayProductionSeedIsolationTest {
             "operator01", "TEMP-001", "13800001001", "Test123456"
     );
 
-    /** 契约 1：迁移目录只允许正式迁移（V1/V3~V8；演示种子已移出，V2 退役）。 */
+    /** 契约 1：迁移目录只允许正式迁移（V1/V3~V10；演示种子已移出，V2 退役）。 */
     @Test
     void migrationDirectory_containsOnlyFormalMigrations() throws IOException {
         Path migrationDir = new ClassPathResource("db/migration").getFile().toPath();
@@ -49,7 +50,7 @@ class FlywayProductionSeedIsolationTest {
             List<String> names = files
                     .filter(Files::isRegularFile)
                     .map(p -> p.getFileName().toString())
-                    .sorted()
+                    .sorted(Comparator.comparingInt(FlywayProductionSeedIsolationTest::migrationVersion))
                     .toList();
             assertEquals(
                     List.of("V1__baseline.sql",
@@ -58,11 +59,19 @@ class FlywayProductionSeedIsolationTest {
                             "V5__add_user_security_status.sql",
                             "V6__add_login_audit.sql",
                             "V7__alarm_role_audit_fields.sql",
-                            "V8__update_admin_password.sql"),
+                            "V8__update_admin_password.sql",
+                            "V9__ai_operation_log_types.sql",
+                            "V10__function_call_operation_type.sql"),
                     names,
                     "db/migration 只允许正式迁移；演示种子已移出（V2__seed_test_data.sql 退役）"
             );
         }
+    }
+
+    /** Flyway 版本号提取：V10__xxx.sql → 10（供迁移清单按版本而非字典序排序）。 */
+    private static int migrationVersion(String fileName) {
+        String version = fileName.replaceFirst("^V(\\d+)__.*\\.sql$", "$1");
+        return Integer.parseInt(version);
     }
 
     /** 契约 2：正式迁移文件内容不得包含演示数据标记。 */

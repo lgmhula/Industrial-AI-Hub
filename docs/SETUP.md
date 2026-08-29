@@ -50,6 +50,8 @@ cp .env.example .env
 | `REDIS_PASSWORD` | Redis 密码 |
 | `RABBITMQ_DEFAULT_PASS` | RabbitMQ 密码 |
 | `JWT_SECRET` | **≥32 字符**（HS256 需 256 bits），否则后端启动即失败 |
+| `DEEPSEEK_ENABLED` | 是否启用 DeepSeek AI（默认 `false`，可选） |
+| `DEEPSEEK_API_KEY` | DeepSeek API Key（启用时必填；未启用可留空） |
 
 > `.env` 已被 `.gitignore` 排除，不会入库；`.env.example` 是唯一提交的模板（只含变量名与占位值，禁止真实密钥）。
 >
@@ -60,6 +62,10 @@ cp .env.example .env
 > - **test**：使用 `application-test.yml` 隔离占位密钥，不读 `.env`。
 > - **prod**：由容器环境变量注入（`compose.yml`），不依赖本地 `.env`。
 > - 优先级：**OS 环境变量 > .env > application.yml 默认值**。
+
+> **DeepSeek AI（Phase 4，可选）**：默认关闭。启用方式：`.env` 中填写真实 `DEEPSEEK_API_KEY`，
+> 并设 `DEEPSEEK_ENABLED=true` 后重启后端；未启用或未配 Key 时 `/api/ai/*` 返回 503（见 ADR 0021）。
+> 相关变量：`DEEPSEEK_BASE_URL`（默认 `https://api.deepseek.com`）、`DEEPSEEK_MODEL`（默认 `deepseek-chat`）。
 
 ---
 
@@ -172,6 +178,7 @@ mysql --default-character-set=utf8mb4 -u root -p reboot < backend/src/main/resou
 | 现象 | 原因 | 解法 |
 |------|------|------|
 | 后端启动即崩 | `JWT_SECRET` 为空或 <32 字符 | `.env` 里设置 ≥32 字符密钥 |
+| `/api/ai/*` 返回 503 | DeepSeek 未启用或未配 Key | `.env` 设 `DEEPSEEK_ENABLED=true` + `DEEPSEEK_API_KEY=真实Key`，重启后端 |
 | IDEA 启动报 `Redis WRONGPASS` / `Unable to connect to Redis` | 旧 Run Configuration 手填的密钥与 `.env` 漂移，或漏配 `REDIS_PASSWORD` | 见 §3.2：删除 Run Configuration 中手填的环境变量 → File → Reload All from Disk → 重新 Run（dev 自动读 `.env`） |
 | IDEA / 命令行启动报缺密钥（`Could not resolve placeholder`） | `.env` 缺失，或工作目录不是 `backend/` | `cp .env.example .env` 并填真实值；确认在 `backend/` 下启动（`.env` 相对路径 `../.env`） |
 | 端口被占用 | 3307/6379/5672/8080/5173 冲突 | `lsof -i :端口` 排查，或改 `.env`/compose 端口映射 |

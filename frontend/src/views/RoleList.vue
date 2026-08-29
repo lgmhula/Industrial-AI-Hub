@@ -10,14 +10,14 @@
 
     <div class="card">
       <el-table :data="roles" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column prop="id" label="ID" width="70" class-name="mono" />
         <el-table-column prop="roleName" label="角色名称" min-width="140">
           <template #default="{ row }">
             <span class="role-name">{{ row.roleName }}</span>
             <el-tag v-if="isBuiltin(row)" size="small" type="warning" effect="dark" class="builtin-tag">内置</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="roleCode" label="编码" width="140">
+        <el-table-column prop="roleCode" label="编码" width="140" class-name="mono">
           <template #default="{ row }"><el-tag size="small" effect="plain">{{ row.roleCode }}</el-tag></template>
         </el-table-column>
         <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip>
@@ -30,7 +30,7 @@
               @change="handleToggleStatus(row)" />
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" width="170">
+        <el-table-column label="创建时间" width="170" class-name="mono">
           <template #default="{ row }">{{ fmtTime(row.createdAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="130" fixed="right">

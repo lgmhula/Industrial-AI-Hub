@@ -37,6 +37,9 @@ public enum ErrorCode {
     /** 请求过于频繁 — 认证入口限流（P1-02-A-1）。 */
     TOO_MANY_REQUESTS(429, "请求过于频繁"),
 
+    /** 第三方服务暂不可用 — DeepSeek API 超时/限流/未配置等。 */
+    SERVICE_UNAVAILABLE(503, "第三方服务暂不可用"),
+
     /** 服务器内部未预期的错误。 */
     INTERNAL_ERROR(500, "服务器内部错误");
 

@@ -36,21 +36,25 @@ public class OperationLogAspect {
     @Around("@annotation(dev.reboot.annotation.OperationLog)")
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
         boolean failed = false;
+        Object result = null;
+        Throwable error = null;
         try {
-            return joinPoint.proceed();
+            result = joinPoint.proceed();
+            return result;
         } catch (Throwable e) {
             failed = true;
+            error = e;
             throw e;
         } finally {
             try {
-                recordLog(joinPoint, failed);
+                recordLog(joinPoint, failed, result, error);
             } catch (Exception e) {
                 log.error("操作日志记录失败: {}", e.getMessage());
             }
         }
     }
 
-    private void recordLog(ProceedingJoinPoint joinPoint, boolean failed) {
+    private void recordLog(ProceedingJoinPoint joinPoint, boolean failed, Object result, Throwable error) {
         var annotation = getAnnotation(joinPoint);
         if (annotation == null) {
             return;
@@ -65,7 +69,7 @@ public class OperationLogAspect {
         Object userIdObj = request.getAttribute("userId");
         Long userId = userIdObj != null ? Long.valueOf(userIdObj.toString()) : null;
 
-        String desc = buildDescription(annotation.description(), joinPoint);
+        String desc = buildDescription(annotation.description(), joinPoint, result, error);
         if (failed) {
             desc = "[失败] " + desc;
         }
@@ -74,12 +78,27 @@ public class OperationLogAspect {
         entity.setUserId(userId);
         entity.setOperationType(annotation.operationType());
         entity.setTargetType(annotation.targetType());
+        entity.setTargetId(resolveTargetId(annotation.targetIdArg(), joinPoint.getArgs()));
         entity.setDescription(desc);
         entity.setIpAddress(getClientIp(request));
 
         operationLogMapper.insert(entity);
         log.info("操作日志: userId={}, op={}, target={}, failed={}",
                 userId, annotation.operationType(), annotation.targetType(), failed);
+    }
+
+    private Long resolveTargetId(int targetIdArg, Object[] args) {
+        if (targetIdArg < 0 || args == null || targetIdArg >= args.length) {
+            return null;
+        }
+        Object value = args[targetIdArg];
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && text.matches("\\d+")) {
+            return Long.valueOf(text);
+        }
+        return null;
     }
 
     private OperationLog getAnnotation(ProceedingJoinPoint joinPoint) {
@@ -96,8 +115,13 @@ public class OperationLogAspect {
      * 构建日志描述，支持 {0} {1} 占位符按方法参数位置替换。
      *
      * <p>对非基本类型参数只输出类名短名，避免将整个 DTO 的 toString() 拼入日志。</p>
+     *
+     * <p>额外支持 {@code {ret}} 占位符：成功时替换为方法返回值的紧凑摘要
+     * （如 {@code AiDeviceStatusResult{deviceId=1, rounds=2, calls=3, realtime=true}}），
+     * 失败时替换为异常消息（如 {@code DeepSeek AI 服务未启用}），
+     * 用于 FUNCTION_CALL 审计记录轮次/调用数或失败原因，见 ADR 0023 / TD-032。</p>
      */
-    private String buildDescription(String template, ProceedingJoinPoint joinPoint) {
+    private String buildDescription(String template, ProceedingJoinPoint joinPoint, Object result, Throwable error) {
         if (template == null || template.isEmpty()) {
             return joinPoint.getSignature().toShortString();
         }
@@ -109,7 +133,31 @@ public class OperationLogAspect {
                 desc = desc.replace("{" + i + "}", val);
             }
         }
+        if (desc.contains("{ret}")) {
+            desc = desc.replace("{ret}", formatResult(result, error));
+        }
         return desc;
+    }
+
+    /**
+     * 返回值摘要：成功时取返回值 toString（截断 400 字），失败时取异常消息。
+     *
+     * <p>TD-032 修复：失败场景 {@code result=null} 且 {@code error!=null} 时，
+     * 替换为异常消息而非字面量 "null"，使审计日志可读（如 "DeepSeek AI 服务未启用"）。</p>
+     */
+    private String formatResult(Object result, Throwable error) {
+        if (result != null) {
+            String text = result instanceof String s ? s : result.toString();
+            return text.length() > 400 ? text.substring(0, 400) + "..." : text;
+        }
+        if (error != null) {
+            String msg = error.getMessage();
+            if (msg != null && !msg.isEmpty()) {
+                return msg.length() > 400 ? msg.substring(0, 400) + "..." : msg;
+            }
+            return error.getClass().getSimpleName();
+        }
+        return "null";
     }
 
     /** 格式化参数值：简单类型直接 toString，复杂类型输出类名或提取 ID。 */

@@ -1,13 +1,13 @@
 <template>
-  <div class="dashboard">
+  <div class="page dashboard">
     <!-- 头部 -->
     <div class="dashboard-header">
       <div>
-        <h1>工业控制中心</h1>
-        <span class="subtitle">实时监控面板 · 最后更新 {{ updateTime || '加载中...' }}</span>
+        <div class="page-title"><el-icon><Odometer /></el-icon>工业控制中心</div>
+        <div class="page-subtitle">实时监控面板 · 最后更新 {{ updateTime || '加载中...' }}</div>
       </div>
       <div class="header-actions">
-        <el-tag :type="systemStatus === '正常' ? 'success' : 'danger'" effect="dark">
+        <el-tag :type="systemStatus === '正常' ? 'success' : 'danger'" effect="light">
           {{ systemStatus }}
         </el-tag>
         <el-button :icon="Refresh" size="small" :loading="loading" @click="loadStats">刷新</el-button>
@@ -19,20 +19,20 @@
       <el-col :xs="12" :sm="12" :md="6">
         <div class="kpi-card online">
           <div class="kpi-value">{{ stats.onlineDevices }}<span class="kpi-unit">/ {{ stats.totalDevices }}</span></div>
-          <div class="kpi-label">在线设备</div>
+          <div class="kpi-label"><span class="status-dot online"></span>在线设备</div>
         </div>
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
         <div class="kpi-card warning">
           <div class="kpi-value">{{ stats.pendingAlarms }}</div>
-          <div class="kpi-label">待处理告警</div>
+          <div class="kpi-label"><span class="status-dot maintenance"></span>待处理告警</div>
           <div class="kpi-sub">共 {{ stats.totalAlarms }} 条</div>
         </div>
       </el-col>
       <el-col :xs="12" :sm="12" :md="6">
         <div class="kpi-card data">
           <div class="kpi-value">{{ stats.totalDevices }}</div>
-          <div class="kpi-label">设备总数</div>
+          <div class="kpi-label"><span class="status-dot offline"></span>设备总数</div>
           <div class="kpi-sub">含离线/维护</div>
         </div>
       </el-col>
@@ -64,9 +64,9 @@
           <div v-if="recentAlarms.length === 0" class="empty">暂无告警</div>
           <div v-for="alarm in recentAlarms" :key="alarm.id" class="alert-item"
                :class="'level-' + alarm.alarmLevel">
-            <div class="alert-type">{{ alarm.alarmType }}</div>
+            <div class="alert-type">{{ alarm.alarmType }}<span v-if="alarm.deviceName" class="alert-source"> · {{ alarm.deviceName }}</span></div>
             <div class="alert-msg">{{ alarm.alarmMessage }}</div>
-            <div class="alert-time">{{ formatTime(alarm.triggeredAt) }}</div>
+            <div class="alert-time">{{ relativeTime(alarm.triggeredAt) }}</div>
           </div>
         </div>
       </el-col>
@@ -74,7 +74,7 @@
 
     <!-- 快捷操作 -->
     <div class="card quick-actions">
-      <h3>快捷操作</h3>
+      <div class="card-header"><h3>快捷操作</h3></div>
       <div class="actions-row">
         <el-button type="primary" @click="$router.push('/devices')">设备管理</el-button>
         <el-button type="warning" @click="$router.push('/alarms')">告警中心</el-button>
@@ -91,7 +91,12 @@ import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { deviceApi, alarmApi, operationLogApi } from '../api/index.js'
 import { useAuth } from '../composables/useAuth.js'
-import * as echarts from 'echarts'
+import { init, use } from 'echarts/core'
+import { PieChart } from 'echarts/charts'
+import { TooltipComponent, LegendComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+
+use([PieChart, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const { isAdmin } = useAuth()
 
@@ -108,8 +113,13 @@ const statusChart = ref(null)
 let chartInstance = null
 let refreshTimer = null
 
-function formatTime(t) {
-  return t ? new Date(t).toLocaleString('zh-CN') : ''
+function relativeTime(t) {
+  if (!t) return ''
+  const diff = Date.now() - new Date(t).getTime()
+  if (diff < 60_000) return '刚刚'
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
+  return new Date(t).toLocaleDateString('zh-CN')
 }
 
 async function loadStats() {
@@ -118,7 +128,7 @@ async function loadStats() {
     const [devices, alarms, logs, pending] = await Promise.all([
       deviceApi.list({ page: 1, size: 100 }),
       alarmApi.list({ page: 1, size: 1 }),
-      operationLogApi.listRecent().catch(() => ({ data: [] })),
+      isAdmin.value ? operationLogApi.listRecent().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
       alarmApi.listByStatus(0, { page: 1, size: 1 }),
     ])
 
@@ -154,18 +164,30 @@ async function renderChart() {
   if (chartInstance) {
     chartInstance.dispose()
   }
-  chartInstance = echarts.init(statusChart.value)
+  chartInstance = init(statusChart.value)
   chartInstance.setOption({
-    tooltip: { trigger: 'item' },
-    legend: { bottom: 0, left: 'center' },
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#242831',
+      borderColor: '#2a2e3a',
+      textStyle: { color: '#e8eaed' },
+    },
+    legend: {
+      bottom: 0,
+      left: 'center',
+      textStyle: { color: '#9aa0ac' },
+      itemWidth: 10,
+      itemHeight: 10,
+    },
     series: [{
       type: 'pie',
       radius: ['45%', '70%'],
       center: ['50%', '45%'],
-      label: { show: true, formatter: '{b}\n{d}%' },
+      label: { show: true, formatter: '{b}\n{d}%', color: '#9aa0ac', fontSize: 11 },
+      labelLine: { lineStyle: { color: '#2a2e3a' } },
       data: [
-        { value: stats.onlineDevices, name: '在线', itemStyle: { color: '#16a34a' } },
-        { value: Math.max(0, stats.totalDevices - stats.onlineDevices), name: '离线/维护', itemStyle: { color: '#9ca3af' } },
+        { value: stats.onlineDevices, name: '在线', itemStyle: { color: '#22c55e' } },
+        { value: Math.max(0, stats.totalDevices - stats.onlineDevices), name: '离线/维护', itemStyle: { color: '#6b7280' } },
       ]
     }]
   })
@@ -201,32 +223,20 @@ onUnmounted(() => {
 
 <style scoped>
 .dashboard {
-  padding: 20px 24px;
-  max-width: 1440px;
-  margin: 0 auto;
+  padding: 16px 20px;
 }
 
 @media (max-width: 768px) {
-  .dashboard { padding: 12px 16px; }
+  .dashboard { padding: 12px 14px; }
 }
 
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
   gap: 12px;
-}
-.dashboard-header h1 {
-  margin: 0;
-  font-size: 22px;
-  color: var(--iah-text);
-}
-.subtitle {
-  color: var(--iah-text-muted);
-  font-size: 13px;
-  margin-left: 8px;
 }
 .header-actions {
   display: flex;
@@ -236,54 +246,28 @@ onUnmounted(() => {
 
 .kpi-row { margin-bottom: 16px; }
 .kpi-unit {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--iah-text-muted);
   margin-left: 4px;
 }
 
 .content-row { margin-bottom: 0; }
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-.card-header h3 {
-  margin: 0;
-  font-size: 16px;
-  color: var(--iah-text);
-}
 .chart {
   width: 100%;
   height: 280px;
 }
 
 .alerts-panel { max-height: 380px; overflow-y: auto; }
-.alert-type {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--iah-text);
-}
-.alert-msg {
-  font-size: 12px;
-  color: var(--iah-text-secondary);
-  margin: 2px 0;
-}
-.alert-time {
-  font-size: 11px;
-  color: var(--iah-text-muted);
-}
 .empty {
   color: var(--iah-text-muted);
   padding: 20px;
   text-align: center;
 }
 
-.quick-actions h3 {
-  margin: 0 0 14px 0;
-  font-size: 16px;
-  color: var(--iah-text);
+.alert-source {
+  color: var(--iah-text-muted);
+  font-weight: 400;
 }
 .actions-row {
   display: flex;

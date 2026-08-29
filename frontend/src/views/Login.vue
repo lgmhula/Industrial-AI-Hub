@@ -1,19 +1,15 @@
 <template>
   <div class="login-wrapper">
     <div class="login-bg">
-      <div class="bg-overlay"></div>
-      <div class="bg-particles">
-        <div v-for="i in 20" :key="i" class="particle" :style="particleStyle(i)"></div>
-      </div>
     </div>
     <div class="login-card">
       <div class="logo-section">
         <div class="logo-icon">
           <svg viewBox="0 0 48 48" width="48" height="48">
-            <rect x="4" y="20" width="8" height="24" rx="2" fill="#409EFF"/>
-            <rect x="16" y="12" width="8" height="32" rx="2" fill="#67C23A"/>
-            <rect x="28" y="16" width="8" height="28" rx="2" fill="#E6A23C"/>
-            <rect x="40" y="8" width="4" height="36" rx="2" fill="#F56C6C"/>
+            <rect x="4" y="20" width="8" height="24" rx="2" fill="#3b82f6"/>
+            <rect x="16" y="12" width="8" height="32" rx="2" fill="#22c55e"/>
+            <rect x="28" y="16" width="8" height="28" rx="2" fill="#f59e0b"/>
+            <rect x="40" y="8" width="4" height="36" rx="2" fill="#ef4444"/>
           </svg>
         </div>
         <h2>Industrial AI Hub</h2>
@@ -70,43 +66,35 @@ async function handleLogin() {
   } finally { loading.value = false }
 }
 
-function particleStyle(i) {
-  return {
-    left: Math.random() * 100 + '%',
-    top: Math.random() * 100 + '%',
-    animationDelay: Math.random() * 5 + 's',
-    animationDuration: (3 + Math.random() * 4) + 's',
-    width: (2 + Math.random() * 4) + 'px',
-    height: (2 + Math.random() * 4) + 'px',
-  }
-}
 </script>
 
 <style scoped>
 .login-wrapper { position: relative; min-height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .login-bg {
   position: absolute; inset: 0;
-  background: linear-gradient(135deg, #0a1628 0%, #132347 30%, #1a3a5c 60%, #0d2137 100%);
+  background-color: #0f1117;
+  background-image:
+    linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
-.bg-overlay { position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 50%, rgba(64,158,255,0.08) 0%, transparent 70%); }
-.particle { position: absolute; background: rgba(64,158,255,0.3); border-radius: 50%; animation: float linear infinite; }
-@keyframes float { 0%, 100% { transform: translateY(0); opacity: 0.3; } 50% { transform: translateY(-20px); opacity: 0.8; } }
-
 .login-card {
   position: relative; z-index: 2;
-  background: rgba(255,255,255,0.95); backdrop-filter: blur(16px);
-  border-radius: 12px; padding: 48px 40px; width: 400px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  background: rgba(26, 29, 38, 0.94);
+  border: 1px solid var(--iah-border);
+  backdrop-filter: blur(16px);
+  border-radius: 8px; padding: 40px 36px; width: 400px; max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
 }
 .logo-section { text-align: center; margin-bottom: 32px; }
 .logo-icon { margin-bottom: 12px; }
-.logo-section h2 { margin: 0; font-size: 22px; color: #1a1a2e; letter-spacing: 1px; }
-.subtitle { color: #909399; font-size: 14px; margin: 4px 0 0; }
+.logo-section h2 { margin: 0; font-size: 20px; color: var(--iah-text); letter-spacing: 1px; }
+.subtitle { color: var(--iah-text-secondary); font-size: 13px; margin: 4px 0 0; }
 .input-group { margin-bottom: 16px; }
-.error-msg { color: #F56C6C; font-size: 13px; margin: 0 0 8px; text-align: center; }
+.error-msg { color: var(--iah-danger); font-size: 13px; margin: 0 0 8px; text-align: center; }
 .login-btn { width: 100%; margin-top: 8px; }
 .register-link { text-align: center; margin-top: 16px; }
-.register-link a { color: #409eff; font-size: 13px; text-decoration: none; }
+.register-link a { color: var(--iah-primary-light); font-size: 13px; text-decoration: none; }
 .register-link a:hover { text-decoration: underline; }
-.footer-text { text-align: center; color: #c0c4cc; font-size: 12px; margin-top: 24px; }
+.footer-text { text-align: center; color: var(--iah-text-muted); font-size: 12px; margin-top: 24px; }
 </style>

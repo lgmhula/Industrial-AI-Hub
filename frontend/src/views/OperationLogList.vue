@@ -25,7 +25,7 @@
 
     <div class="card">
       <el-table :data="logs" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column prop="id" label="ID" width="70" class-name="mono" />
         <el-table-column label="用户" width="120">
           <template #default="{ row }">{{ row.username || `#${row.userId}` }}</template>
         </el-table-column>
@@ -38,10 +38,10 @@
         <el-table-column prop="description" label="描述" min-width="220" show-overflow-tooltip>
           <template #default="{ row }">{{ row.description || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="ipAddress" label="IP" width="140">
+        <el-table-column prop="ipAddress" label="IP" width="140" class-name="mono">
           <template #default="{ row }"><el-tag size="small" effect="plain">{{ row.ipAddress }}</el-tag></template>
         </el-table-column>
-        <el-table-column label="时间" width="170">
+        <el-table-column label="时间" width="170" class-name="mono">
           <template #default="{ row }">{{ fmtTime(row.createdAt) }}</template>
         </el-table-column>
         <template #empty>

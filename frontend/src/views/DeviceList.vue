@@ -26,9 +26,9 @@
     <div class="card">
       <el-table :data="devices" v-loading="loading" stripe row-key="id"
         @row-click="(row) => $router.push(`/devices/${row.id}`)" style="width: 100%">
-        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column prop="id" label="ID" width="70" class-name="mono" />
         <el-table-column prop="deviceName" label="设备名称" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="deviceCode" label="编码" width="140">
+        <el-table-column prop="deviceCode" label="编码" width="140" class-name="mono">
           <template #default="{ row }"><el-tag size="small" effect="plain">{{ row.deviceCode }}</el-tag></template>
         </el-table-column>
         <el-table-column prop="deviceType" label="类型" width="110" />
@@ -42,7 +42,7 @@
         <el-table-column prop="location" label="位置" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.location || '-' }}</template>
         </el-table-column>
-        <el-table-column label="更新时间" width="170">
+        <el-table-column label="更新时间" width="170" class-name="mono">
           <template #default="{ row }">{{ fmtTime(row.updatedAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="150" fixed="right">

@@ -16,8 +16,17 @@ defineProps({
 </script>
 
 <style scoped>
-.empty-state { text-align: center; padding: 48px 20px; color: #9ca3af; }
-.empty-icon { font-size: 40px; margin-bottom: 12px; }
-.empty-title { font-size: 15px; font-weight: 500; color: #6b7280; margin: 0 0 4px; }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--iah-text-muted); }
+.empty-icon {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  margin: 0 auto 12px;
+  background: var(--iah-panel-hover);
+  border: 1px solid var(--iah-border);
+  border-radius: var(--radius-lg);
+  font-size: 20px;
+}
+.empty-title { font-size: 14px; font-weight: 600; color: var(--iah-text-secondary); margin: 0 0 4px; }
 .empty-desc { font-size: 13px; margin: 0; }
 </style>

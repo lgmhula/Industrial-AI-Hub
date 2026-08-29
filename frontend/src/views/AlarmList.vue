@@ -39,8 +39,8 @@
       <el-table ref="tableRef" :data="alarms" v-loading="loading" stripe style="width: 100%"
         @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="45" />
-        <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="deviceId" label="设备ID" width="90" />
+        <el-table-column prop="id" label="ID" width="70" class-name="mono" />
+        <el-table-column prop="deviceId" label="设备ID" width="90" class-name="mono" />
         <el-table-column prop="alarmType" label="告警类型" width="140">
           <template #default="{ row }"><el-tag size="small" effect="plain">{{ row.alarmType }}</el-tag></template>
         </el-table-column>
@@ -55,11 +55,13 @@
             <el-tag size="small" :type="statusType(row.status)">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="触发时间" width="170">
+        <el-table-column label="触发时间" width="170" class-name="mono">
           <template #default="{ row }">{{ fmtTime(row.triggeredAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="230" fixed="right">
           <template #default="{ row }">
+            <el-button link type="warning" size="small" :icon="MagicStick" :loading="aiLoadingId === row.id"
+              @click="openAiSummary(row)">AI 摘要</el-button>
             <el-button v-if="row.status === 0" link type="primary" size="small" @click="handleAck(row.id)">确认</el-button>
             <el-button v-if="row.status !== 2" link type="success" size="small" @click="handleResolve(row.id)">解决</el-button>
             <span v-if="row.status === 2" class="done-text">已完成</span>
@@ -75,13 +77,41 @@
         :total="total" :page-size="pageSize" :current-page="page"
         @current-change="handlePageChange" />
     </div>
+
+    <el-dialog v-model="aiDialogVisible" title="AI 告警摘要" width="620px" destroy-on-close>
+      <div v-if="aiLoading" v-loading="true" class="ai-dialog-loading">AI 正在分析告警上下文...</div>
+      <el-alert v-else-if="aiError" :title="aiError" type="error" show-icon :closable="false" />
+      <template v-else-if="aiSummary">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="优先级">
+            <el-tag :type="aiPriorityType(aiSummary.priority)" effect="light">{{ aiSummary.priority || '-' }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="摘要">{{ aiSummary.summary || '-' }}</el-descriptions-item>
+        </el-descriptions>
+        <div v-if="aiSummary.possibleCauses?.length" class="ai-section">
+          <h4>可能原因</h4>
+          <ul>
+            <li v-for="(item, i) in aiSummary.possibleCauses" :key="i">{{ item }}</li>
+          </ul>
+        </div>
+        <div v-if="aiSummary.suggestedActions?.length" class="ai-section">
+          <h4>建议动作</h4>
+          <ul>
+            <li v-for="(item, i) in aiSummary.suggestedActions" :key="i">{{ item }}</li>
+          </ul>
+        </div>
+      </template>
+      <template #footer>
+        <el-button @click="aiDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Refresh } from '@element-plus/icons-vue'
-import { alarmApi } from '../api/index.js'
+import { Refresh, MagicStick } from '@element-plus/icons-vue'
+import { alarmApi, aiApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
 
 const alarms = ref([])
@@ -94,6 +124,11 @@ const total = ref(0)
 const loading = ref(false)
 const tableRef = ref(null)
 const selectedIds = ref([])
+const aiDialogVisible = ref(false)
+const aiLoading = ref(false)
+const aiLoadingId = ref(null)
+const aiSummary = ref(null)
+const aiError = ref('')
 
 const handleSelectionChange = (rows) => { selectedIds.value = rows.map(r => r.id) }
 const clearSelection = () => { tableRef.value?.clearSelection() }
@@ -169,6 +204,24 @@ const handleBatchResolve = async () => {
   ElMessage.success(`批量解决完成：成功 ${ok}${fail > 0 ? `，失败 ${fail}` : ''}`)
 }
 
+const openAiSummary = async (row) => {
+  aiDialogVisible.value = true
+  aiLoading.value = true
+  aiLoadingId.value = row.id
+  aiSummary.value = null
+  aiError.value = ''
+  try {
+    const res = await aiApi.alarmSummary(row.id)
+    aiSummary.value = res.data || res
+  } catch (e) {
+    aiError.value = e.message || 'AI 摘要生成失败'
+  } finally {
+    aiLoading.value = false
+    aiLoadingId.value = null
+  }
+}
+
+const aiPriorityType = (p) => ({ 高: 'danger', 中: 'warning', 低: 'info' }[p] || 'info')
 const levelType = (l) => ({ 1: 'info', 2: 'warning', 3: 'danger' }[l] || 'info')
 const levelLabel = (l) => ({ 1: '一般', 2: '重要', 3: '紧急' }[l] || '-')
 const statusType = (s) => ({ 0: 'danger', 1: 'primary', 2: 'success' }[s] || 'info')
@@ -194,5 +247,27 @@ onMounted(fetchAlarms)
   font-size: 14px;
   color: var(--iah-text);
   font-weight: 500;
+}
+.ai-dialog-loading {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--iah-text-muted);
+}
+.ai-section {
+  margin-top: 16px;
+}
+.ai-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--iah-text);
+  margin-bottom: 8px;
+}
+.ai-section ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--iah-text-secondary);
+  line-height: 1.9;
 }
 </style>

@@ -19,9 +19,10 @@ defineProps({
 }
 .spinner {
   width: 36px; height: 36px;
-  border: 3px solid #e5e7eb; border-top-color: #3b82f6;
+  border: 3px solid var(--iah-border);
+  border-top-color: var(--iah-primary);
   border-radius: 50%; animation: spin 0.7s linear infinite;
 }
-.spinner-text { font-size: 14px; color: #6b7280; margin: 0; }
+.spinner-text { font-size: 13px; color: var(--iah-text-secondary); margin: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

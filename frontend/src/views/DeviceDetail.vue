@@ -52,6 +52,79 @@
         </el-col>
       </el-row>
 
+      <!-- AI 健康诊断 -->
+      <div class="card ai-card">
+        <div class="ai-card-header">
+          <div class="ai-card-title">
+            <el-icon :size="18"><MagicStick /></el-icon>
+            <div>
+              <h3>AI 健康诊断</h3>
+              <div class="ai-card-subtitle">基于设备数据与最近告警生成评估</div>
+            </div>
+          </div>
+          <div class="ai-card-action">
+            <el-button type="primary" :icon="MagicStick" :loading="aiLoading" @click="runAiDiagnosis">
+              生成诊断
+            </el-button>
+          </div>
+        </div>
+        <el-alert v-if="aiError" :title="aiError" type="error" show-icon :closable="false" />
+        <template v-else-if="aiDiagnosis">
+          <div class="ai-diagnosis-head">
+            <el-tag :type="healthType(aiDiagnosis.healthLevel)" effect="light" size="large">
+              {{ aiDiagnosis.healthLevel || '未知' }}
+            </el-tag>
+          </div>
+          <p class="ai-summary">{{ aiDiagnosis.summary || '-' }}</p>
+          <div v-if="aiDiagnosis.issues?.length" class="ai-section">
+            <h4>发现的问题</h4>
+            <ul>
+              <li v-for="(item, i) in aiDiagnosis.issues" :key="i">{{ item }}</li>
+            </ul>
+          </div>
+          <div v-if="aiDiagnosis.suggestedActions?.length" class="ai-section">
+            <h4>建议动作</h4>
+            <ul>
+              <li v-for="(item, i) in aiDiagnosis.suggestedActions" :key="i">{{ item }}</li>
+            </ul>
+          </div>
+        </template>
+        <div v-else class="ai-placeholder">点击「生成诊断」，让 AI 基于设备基础信息、最近采集数据和未处理告警给出健康评估。</div>
+      </div>
+
+      <!-- AI 设备问答（Function Calling 折叠面板） -->
+      <div class="card ai-card">
+        <el-collapse v-model="qaOpen">
+          <el-collapse-item name="qa">
+            <template #title>
+              <span class="qa-title"><el-icon :size="18"><ChatDotRound /></el-icon>AI 设备问答（自动查询实时数据）</span>
+            </template>
+            <div class="qa-tip">AI 将自动调用项目工具查询设备基础信息、最近告警与站点未处理告警后再回答（最多 3 轮工具调用）。</div>
+            <div class="qa-input-row">
+              <el-input v-model="qaQuestion" placeholder="例如：这台设备最近有什么告警？运行是否正常？"
+                        :disabled="qaLoading" clearable @keyup.enter="askQuestion" />
+              <el-button type="primary" :icon="ChatDotRound" :loading="qaLoading" @click="askQuestion">提问</el-button>
+            </div>
+            <el-alert v-if="qaError" :title="qaError" type="error" show-icon :closable="false" class="qa-error" />
+            <template v-else-if="qaResult">
+              <div class="qa-meta">
+                <el-tag size="small" :type="qaResult.referencedRealTime ? 'success' : 'warning'" effect="light">
+                  {{ qaResult.referencedRealTime ? '已参考实时数据' : '未参考实时数据' }}
+                </el-tag>
+                <el-tag size="small" type="info" effect="plain">工具调用 {{ qaResult.toolCalls }} 次 / {{ qaResult.toolRounds }} 轮</el-tag>
+                <el-tag v-if="qaResult.truncated" size="small" type="warning" effect="dark">已达 3 轮工具上限</el-tag>
+                <el-tag v-for="(t, i) in qaResult.toolTrace || []" :key="i" size="small" effect="plain"
+                        :type="t.success ? 'success' : 'danger'">
+                  {{ t.toolName }}{{ t.success ? '' : ' ✗' }}
+                </el-tag>
+              </div>
+              <p class="ai-summary">{{ qaResult.answer }}</p>
+            </template>
+            <div v-else class="ai-placeholder">输入问题后，AI 将基于实时数据回答设备状态。</div>
+          </el-collapse-item>
+        </el-collapse>
+      </div>
+
       <!-- 趋势图 -->
       <el-row :gutter="16">
         <el-col v-for="chart in charts" :key="chart.type" :xs="24" :md="12">
@@ -88,13 +161,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, MagicStick, ChatDotRound } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { deviceApi, deviceDataApi } from '../api/index.js'
+import { deviceApi, deviceDataApi, aiApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
 
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
@@ -106,6 +179,16 @@ const stats = ref(null)
 const allData = ref([])
 const recentData = ref([])
 const loading = ref(false)
+const aiLoading = ref(false)
+const aiError = ref('')
+const aiDiagnosis = ref(null)
+
+// AI 设备问答（Function Calling）
+const qaOpen = ref([])
+const qaQuestion = ref('')
+const qaLoading = ref(false)
+const qaError = ref('')
+const qaResult = ref(null)
 
 const CHART_CONFIGS = [
   { type: 'TEMPERATURE', label: '温度', unit: '°C', color: '#3b82f6', icon: '🌡️' },
@@ -132,11 +215,33 @@ const buildChartOption = (data, type, color) => {
   const filtered = data.filter(d => d.dataType === type).sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt))
   if (!filtered.length) return null
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#242831',
+      borderColor: '#2a2e3a',
+      textStyle: { color: '#e8eaed' },
+    },
     grid: { left: 50, right: 20, top: 20, bottom: 40 },
-    xAxis: { type: 'category', data: filtered.map(d => d.recordedAt?.slice(11, 16)), axisLabel: { fontSize: 11 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 11 } },
-    series: [{ data: filtered.map(d => d.dataValue), type: 'line', smooth: true, lineStyle: { color, width: 2 }, itemStyle: { color }, areaStyle: { color: `${color}15` } }],
+    xAxis: {
+      type: 'category',
+      data: filtered.map(d => d.recordedAt?.slice(11, 16)),
+      axisLabel: { fontSize: 11, color: '#9aa0ac' },
+      axisLine: { lineStyle: { color: '#2a2e3a' } },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { fontSize: 11, color: '#9aa0ac' },
+      splitLine: { lineStyle: { color: '#242831' } },
+    },
+    series: [{
+      data: filtered.map(d => d.dataValue),
+      type: 'line',
+      smooth: true,
+      lineStyle: { color, width: 2 },
+      itemStyle: { color },
+      areaStyle: { color: `${color}15` },
+    }],
   }
 }
 
@@ -190,6 +295,40 @@ const primaryStats = computed(() => {
   return stats.value[tempKey] || Object.values(stats.value)[0] || null
 })
 
+const runAiDiagnosis = async () => {
+  aiLoading.value = true
+  aiError.value = ''
+  aiDiagnosis.value = null
+  try {
+    const res = await aiApi.deviceDiagnosis(deviceId)
+    aiDiagnosis.value = res.data || res
+  } catch (e) {
+    aiError.value = e.message || 'AI 健康诊断失败'
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+const askQuestion = async () => {
+  const question = qaQuestion.value?.trim()
+  if (!question) {
+    ElMessage.warning('请输入问题')
+    return
+  }
+  qaLoading.value = true
+  qaError.value = ''
+  qaResult.value = null
+  try {
+    const res = await aiApi.deviceStatus(deviceId, question)
+    qaResult.value = res.data || res
+  } catch (e) {
+    qaError.value = e.message || 'AI 设备问答失败'
+  } finally {
+    qaLoading.value = false
+  }
+}
+
+const healthType = (level) => ({ 健康: 'success', 关注: 'warning', 异常: 'danger' }[level] || 'info')
 const statusType = (s) => ({ 1: 'success', 0: 'info', 2: 'warning' }[s] || 'info')
 const statusLabel = (s) => ({ 1: '在线', 0: '离线', 2: '维护中' }[s] || '未知')
 const fmtTime = (t) => t ? new Date(t).toLocaleString('zh-CN') : '-'
@@ -208,9 +347,25 @@ onMounted(fetchDetail)
 .stat-card { margin-bottom: 16px; }
 .chart-card { margin-bottom: 16px; }
 .section-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--iah-text);
   margin-bottom: 14px;
 }
+.ai-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.ai-card-action { flex: none; }
+.ai-diagnosis-head { margin-bottom: 12px; }
+.qa-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.qa-title .el-icon { color: var(--iah-primary-light); }
+.qa-error { margin-bottom: 12px; }
 </style>

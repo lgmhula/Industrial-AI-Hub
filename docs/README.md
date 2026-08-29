@@ -9,13 +9,13 @@
 | 目录 | 用途 | 入口 |
 |------|------|------|
 | [Architecture/](Architecture/README.md) | 应用架构、系统架构、API、ER、基础设施基线 | 6 份核心架构文档 |
-| [decision-log/](decision-log/) | ADR 决策记录（编号 0001-0023） | 23 份 ADR |
+| [decision-log/](decision-log/) | ADR 决策记录（编号 0001-0024） | 24 份 ADR |
 | [reports/](reports/README.md) | 审计报告、Release Note、部署手册 | 当前有效 + 历史归档 |
 | [security/](security/) | 安全治理设计与审计（P1-01/P1-02 系列） | 6 份安全文档 |
 | [plans/](plans/) | 阶段计划（Phase 3-A 已收官） | 1 份归档计划 |
 | [docker/](docker/docker-basics.md) | Docker 学习笔记 | 1 份笔记 |
 | [linux/](linux/linux-basics.md) | Linux + Nginx 学习笔记 | 2 份笔记 |
-| [ai/](ai/phase4-ai-learning-notes.md) | Phase 4 AI 学习笔记 | 1 份笔记 |
+| [ai/](ai/phase4-ai-learning-notes.md) | Phase 4 AI + RAG 学习笔记 | 2 份笔记（`phase4-ai-learning-notes.md` / `rag-learning-notes.md`） |
 
 ## 根级文档
 

@@ -4,10 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.reboot.dto.AlarmSiteVO;
 import dev.reboot.entity.Alarm;
 import dev.reboot.entity.Device;
+import dev.reboot.entity.DeviceData;
 import dev.reboot.enums.ErrorCode;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.AlarmMapper;
+import dev.reboot.mapper.DeviceDataMapper;
 import dev.reboot.mapper.DeviceMapper;
 import dev.reboot.service.SiteAccessService;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.model.ToolContext;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +43,7 @@ class DeviceAiToolsTest {
 
     @Mock private DeviceMapper deviceMapper;
     @Mock private AlarmMapper alarmMapper;
+    @Mock private DeviceDataMapper deviceDataMapper;
     @Mock private SiteAccessService siteAccessService;
 
     private DeviceAiTools tools;
@@ -47,7 +51,7 @@ class DeviceAiToolsTest {
 
     @BeforeEach
     void setUp() {
-        tools = new DeviceAiTools(deviceMapper, alarmMapper, siteAccessService, new ObjectMapper());
+        tools = new DeviceAiTools(deviceMapper, alarmMapper, deviceDataMapper, siteAccessService, new ObjectMapper());
         toolContext = new ToolContext(Map.of(DeviceAiTools.CONTEXT_USER_ID, 7L));
     }
 
@@ -141,6 +145,21 @@ class DeviceAiToolsTest {
         assertFalse(result.contains("\"alarms\""));
     }
 
+    @Test
+    void listDeviceRecentData_shouldReturnDataJson() {
+        when(deviceMapper.findById(1L)).thenReturn(device());
+        when(deviceDataMapper.findByDeviceId(1L)).thenReturn(List.of(
+                deviceData(1L, "TEMPERATURE", "82.5", "°C"),
+                deviceData(2L, "PRESSURE", "0.6", "MPa")));
+
+        String result = tools.listDeviceRecentData(1L, 2, toolContext);
+
+        assertTrue(result.contains("\"count\":2"));
+        assertTrue(result.contains("\"dataType\":\"TEMPERATURE\""));
+        verify(siteAccessService).assertSiteAccess(7L, 10L, RoleEnum.VIEWER);
+        verify(deviceDataMapper).findByDeviceId(1L);
+    }
+
     private Device device() {
         Device d = new Device();
         d.setId(1L);
@@ -166,5 +185,16 @@ class DeviceAiToolsTest {
         a.setStatus(0);
         a.setTriggeredAt(LocalDateTime.of(2026, 8, 29, 9, 0));
         return a;
+    }
+
+    private DeviceData deviceData(Long id, String type, String value, String unit) {
+        DeviceData d = new DeviceData();
+        d.setId(id);
+        d.setDeviceId(1L);
+        d.setDataType(type);
+        d.setDataValue(new BigDecimal(value));
+        d.setUnit(unit);
+        d.setRecordedAt(LocalDateTime.of(2026, 8, 29, 9, 0));
+        return d;
     }
 }

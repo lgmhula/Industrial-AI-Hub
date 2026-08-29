@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.reboot.dto.AlarmSiteVO;
 import dev.reboot.entity.Alarm;
 import dev.reboot.entity.Device;
+import dev.reboot.entity.DeviceData;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.AlarmMapper;
+import dev.reboot.mapper.DeviceDataMapper;
 import dev.reboot.mapper.DeviceMapper;
 import dev.reboot.service.SiteAccessService;
 import org.slf4j.Logger;
@@ -49,15 +51,18 @@ public class DeviceAiTools {
 
     private final DeviceMapper deviceMapper;
     private final AlarmMapper alarmMapper;
+    private final DeviceDataMapper deviceDataMapper;
     private final SiteAccessService siteAccessService;
     private final ObjectMapper objectMapper;
 
     public DeviceAiTools(DeviceMapper deviceMapper,
                          AlarmMapper alarmMapper,
+                         DeviceDataMapper deviceDataMapper,
                          SiteAccessService siteAccessService,
                          ObjectMapper objectMapper) {
         this.deviceMapper = deviceMapper;
         this.alarmMapper = alarmMapper;
+        this.deviceDataMapper = deviceDataMapper;
         this.siteAccessService = siteAccessService;
         this.objectMapper = objectMapper;
     }
@@ -130,6 +135,29 @@ public class DeviceAiTools {
         }
     }
 
+    /** 查询指定设备最近的运行数据（默认 10 条，最多 20 条）。 */
+    @Tool(name = "list_device_recent_data", description = "查询指定设备最近的运行数据（温度/压力/湿度/转速等）。传入设备 ID 与可选条数 limit（1-20，默认 10）。")
+    public String listDeviceRecentData(
+            @ToolParam(description = "设备 ID") Long deviceId,
+            @ToolParam(description = "返回条数上限（1-20，默认 10）") Integer limit,
+            ToolContext toolContext) {
+        try {
+            Device device = requireDevice(deviceId);
+            assertViewerAccess(device.getSiteId(), toolContext);
+
+            List<DeviceData> dataList = deviceDataMapper.findByDeviceId(deviceId).stream()
+                    .limit(clampLimit(limit, 10))
+                    .toList();
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("deviceId", deviceId);
+            data.put("count", dataList.size());
+            data.put("data", dataList.stream().map(this::deviceDataSummary).toList());
+            return toJson(data);
+        } catch (BusinessException e) {
+            return errorJson(e.getMessage());
+        }
+    }
+
     // ==================== 内部工具 ====================
 
     private Device requireDevice(Long deviceId) {
@@ -187,6 +215,16 @@ public class DeviceAiTools {
         m.put("alarmLevel", alarm.getAlarmLevel());
         m.put("alarmMessage", alarm.getAlarmMessage());
         m.put("triggeredAt", String.valueOf(alarm.getTriggeredAt()));
+        return m;
+    }
+
+    private Map<String, Object> deviceDataSummary(DeviceData deviceData) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", deviceData.getId());
+        m.put("dataType", deviceData.getDataType());
+        m.put("value", deviceData.getDataValue());
+        m.put("unit", deviceData.getUnit());
+        m.put("recordedAt", String.valueOf(deviceData.getRecordedAt()));
         return m;
     }
 

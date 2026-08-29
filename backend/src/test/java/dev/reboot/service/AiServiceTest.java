@@ -208,6 +208,7 @@ class AiServiceTest {
     @Test
     void answerWithRag_shouldInjectRetrievedContextAndReturnAnswer() {
         stubChatClient();
+        when(requestSpec.options(any())).thenReturn(requestSpec);
         when(ragRetrievalService.retrieve("设备手册", 5))
                 .thenReturn(List.of(knowledgeChunk()));
         when(callSpec.content()).thenReturn("请检查散热片并重新校准传感器。");

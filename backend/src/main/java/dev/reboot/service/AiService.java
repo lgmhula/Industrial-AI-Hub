@@ -27,6 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -226,6 +228,11 @@ public class AiService {
         String content = chatClient.prompt()
                 .system(RAG_SYSTEM_PROMPT)
                 .user(userPrompt)
+                .options(OpenAiChatOptions.builder()
+                        .responseFormat(ResponseFormat.builder()
+                                .type(ResponseFormat.Type.TEXT)
+                                .build())
+                        .build())
                 .call()
                 .content();
         if (!StringUtils.hasText(content)) {

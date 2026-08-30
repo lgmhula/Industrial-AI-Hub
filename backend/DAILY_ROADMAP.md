@@ -539,7 +539,7 @@
 | Day 79 | 实现简单 Agent：多步推理（先查设备→再查数据→再分析）✅（ToolCallingAgent + list_device_recent_data + DeviceAnalysisAgentService + /api/ai/agents/device-analysis） |
 | Day 80 | MCP 协议概念 + MCP Server 开发 ✅（ADR 0027：spring-ai-starter-mcp-server-webmvc + SSE + McpDeviceTools 4 只读工具 + 显式暴露边界） |
 | Day 81 | 开发 Device MCP Server：暴露设备查询、数据查询工具 ✅（ADR 0028：mcp_get_device_data_range / mcp_get_device_data_stats / mcp_search_devices，7 个只读 MCP 工具） |
-| Day 82 | Codex/MCP 客户端集成：让 AI 通过 MCP 调用项目接口 |
+| Day 82 | Codex/MCP 客户端集成：让 AI 通过 MCP 调用项目接口 ✅（ADR 0029：MCP Java SDK 0.10.0 客户端 + SSE 握手/工具清单/只读探针 + /api/mcp/smoke ADMIN 入口 + X-MCP-Token 传输鉴权，257 tests） |
 | Day 83 | Agent + MCP 联调：AI 自动巡检设备并生成日报 |
 | Day 84 | 周复盘 + Agent/MCP 笔记 |
 

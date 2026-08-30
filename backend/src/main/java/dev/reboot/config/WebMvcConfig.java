@@ -3,6 +3,7 @@ package dev.reboot.config;
 import dev.reboot.security.AuthInterceptor;
 import dev.reboot.security.JwtAuthFilter;
 import dev.reboot.security.RateLimitInterceptor;
+import dev.reboot.mcp.McpAccessFilter;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,13 +25,16 @@ public class WebMvcConfig implements WebMvcConfigurer {
     private final JwtAuthFilter jwtAuthFilter;
     private final AuthInterceptor authInterceptor;
     private final RateLimitInterceptor rateLimitInterceptor;
+    private final McpAccessFilter mcpAccessFilter;
 
     public WebMvcConfig(JwtAuthFilter jwtAuthFilter,
                         AuthInterceptor authInterceptor,
-                        RateLimitInterceptor rateLimitInterceptor) {
+                        RateLimitInterceptor rateLimitInterceptor,
+                        McpAccessFilter mcpAccessFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.authInterceptor = authInterceptor;
         this.rateLimitInterceptor = rateLimitInterceptor;
+        this.mcpAccessFilter = mcpAccessFilter;
     }
 
     /** JWT Filter 注册 — 对所有 /api/* 生效。 */
@@ -40,6 +44,16 @@ public class WebMvcConfig implements WebMvcConfigurer {
         bean.setFilter(jwtAuthFilter);
         bean.addUrlPatterns("/api/*");
         bean.setOrder(1);
+        return bean;
+    }
+
+    /** MCP 传输层令牌过滤器（ADR 0029）— 仅保护 /mcp/sse 与 /mcp/message。 */
+    @Bean
+    public FilterRegistrationBean<McpAccessFilter> mcpAccessFilterRegistration() {
+        FilterRegistrationBean<McpAccessFilter> bean = new FilterRegistrationBean<>();
+        bean.setFilter(mcpAccessFilter);
+        bean.addUrlPatterns("/mcp/sse", "/mcp/message");
+        bean.setOrder(0);
         return bean;
     }
 

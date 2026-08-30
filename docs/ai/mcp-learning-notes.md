@@ -1,6 +1,6 @@
 # Week 12 MCP 学习笔记：协议、传输与工具暴露边界
 
-> 日期：2026-08-29 | 覆盖：Day 80-81（ADR 0027 / ADR 0028）
+> 日期：2026-08-30 | 覆盖：Day 80-82（ADR 0027 / ADR 0028 / ADR 0029）
 
 ---
 
@@ -82,7 +82,8 @@ spring.ai.mcp.server:
 ```
 
 工具返回统一是 JSON 字符串，错误降级为 `{"error":"..."}`，limit 用 `clampLimit` 夹到 1-50。
-授权上当前视为内网可信通道，Day 82 客户端集成时再补传输层鉴权与 RBAC。
+授权上当前视为内网可信通道；Day 82 已补 `X-MCP-Token` 传输鉴权（见 §7，ADR 0029），
+RBAC 仍不进入工具上下文。
 
 ## 6. Day 81：数据查询工具契约
 
@@ -98,11 +99,49 @@ spring.ai.mcp.server:
 - 时间支持 ISO `2026-08-29T09:00:00` 与 `2026-08-29 09:00:00` 两种格式；
   `startTime > endTime` 拒绝，错误信息给出正确格式示例。
 - 可选文本参数空白视为未传，避免拼出 `data_type = ''`。
-- 无用户身份（MCP 1.0），搜索保持全量只读；Day 82 传输鉴权落地前不开放公网。
+- 无用户身份（MCP 1.0），搜索保持全量只读；Day 82 已落地传输鉴权（§7），
+  公网开放前必须配置 `MCP_ACCESS_TOKEN`。
 
-## 7. 关键文件
+## 7. Day 82：客户端集成与传输鉴权
+
+MCP Server 建好后，还需要一个进程内客户端来验证链路（Day 82，ADR 0029）。
+项目直接引入 MCP Java SDK `io.modelcontextprotocol.sdk:mcp:0.10.0`（与 Spring AI
+1.0.3 传递版本一致），用同步 API 三步冒烟：
+
+```text
+McpClientService.smoke()
+  ├ 1. HttpClientSseClientTransport 连接 /mcp/sse
+  ├ 2. initialize()   → 协议握手，读 Server name / version / instructions
+  ├ 3. listTools()    → 工具清单（断言 7 个只读工具）
+  └ 4. callTool(mcp_list_devices, limit=1) → 真实只读探针
+```
+
+管理入口 `POST /api/mcp/smoke` 挂 `@RequireRole(ADMIN)`，结果经 `McpSmokeResult`
+返回。失败统一转 `BusinessException(SERVICE_UNAVAILABLE)`。
+
+### 7.1 传输层鉴权：X-MCP-Token
+
+MCP 1.0 未定义 HTTP 鉴权，Spring AI 不透传 Header 到工具上下文。ADR 0029 采用
+**可选的共享令牌门**：
+
+- 配置 `app.mcp.access-token`（`MCP_ACCESS_TOKEN`）非空时，`/mcp/sse` 与
+  `/mcp/message` 必须携带一致的 `X-MCP-Token`，否则 401 JSON。
+- 比较用 `MessageDigest.isEqual`（常量时间），客户端在 `customizeRequest` 注入同一头。
+- 本地开发默认空 = 内网可信直连，不加配置负担；公网/跨机房必须启用。
+
+### 7.2 RBAC 边界
+
+- MCP 工具只读、无用户身份，不做站点级授权（沿用 ADR 0027 语义）。
+- 写/管理操作继续走 JWT REST；MCP 通道不获得写能力。
+- MCP 1.1 OAuth / 身份头协议就绪后，用标准协议替换自定义 Filter，不手造协议。
+
+## 8. 关键文件
 
 - [McpDeviceTools.java](../../backend/src/main/java/dev/reboot/mcp/McpDeviceTools.java) — 7 个只读 @Tool
 - [McpToolConfig.java](../../backend/src/main/java/dev/reboot/mcp/McpToolConfig.java) — 显式注册边界
+- [McpClientService.java](../../backend/src/main/java/dev/reboot/mcp/McpClientService.java) — SSE 握手 + 工具清单 + 只读探针
+- [McpAccessFilter.java](../../backend/src/main/java/dev/reboot/mcp/McpAccessFilter.java) — X-MCP-Token 传输鉴权门
+- [McpController.java](../../backend/src/main/java/dev/reboot/mcp/McpController.java) — POST /api/mcp/smoke（ADMIN）
 - [ADR 0027](../decision-log/0027-mcp-tool-exposure.md) — 暴露边界决策表
 - [ADR 0028](../decision-log/0028-mcp-data-tools.md) — 数据查询工具契约
+- [ADR 0029](../decision-log/0029-mcp-client-auth-smoke.md) — 客户端集成 + 传输鉴权

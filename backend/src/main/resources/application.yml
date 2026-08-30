@@ -86,6 +86,16 @@ spring:
           Industrial AI Hub 只读设备查询服务。工具返回 JSON；
           当前仅对内部可信 AI 客户端开放，请勿将端点暴露到公网。
 
+app:
+  mcp:
+    # 传输层共享令牌（ADR 0029）：配置后 /mcp/* 要求 X-MCP-Token 一致；
+    # 留空表示本机/内网可信场景不启用令牌校验（本地开发默认）。
+    access-token: ${MCP_ACCESS_TOKEN:}
+    client:
+      # 进程内 MCP 客户端冒烟连接目标（默认指向本服务）。
+      base-url: ${MCP_CLIENT_BASE_URL:http://localhost:8080}
+      sse-endpoint: ${MCP_CLIENT_SSE_ENDPOINT:/mcp/sse}
+
 server:
   port: 8080
 

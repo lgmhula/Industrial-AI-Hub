@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>测试 Profile 默认排除 MCP 自动配置，本测试通过
  * {@code spring.autoconfigure.exclude=} 清空排除清单，单独验证：
  * Spring AI 能创建 {@link McpSyncServer}，且 {@link McpDeviceTools} 的
- * 4 个只读工具被注册为 MCP tools。</p>
+ * 7 个只读工具被注册为 MCP tools。</p>
  *
  * @author AI 助手
  * @since 2026-08-29
@@ -69,7 +69,10 @@ class McpServerContextTest {
                 Arrays.asList("mcp_list_devices",
                         "mcp_get_device_basic",
                         "mcp_list_device_recent_data",
-                        "mcp_list_device_recent_alarms")),
-                "4 个 MCP 只读工具应全部注册");
+                        "mcp_list_device_recent_alarms",
+                        "mcp_get_device_data_range",
+                        "mcp_get_device_data_stats",
+                        "mcp_search_devices")),
+                "7 个 MCP 只读工具应全部注册");
     }
 }

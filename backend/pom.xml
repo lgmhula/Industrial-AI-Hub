@@ -179,6 +179,13 @@
             <version>1.0.3</version>
         </dependency>
 
+        <!-- MCP Client SDK (Day 82, ADR 0029): 内置 HttpClient SSE 传输，做连接冒烟与工具清单验证 -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp</artifactId>
+            <version>0.10.0</version>
+        </dependency>
+
         <!-- RAG PDF 解析 (Day 74, ADR 0025): PDFBox 纯 Java 文本提取 -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>

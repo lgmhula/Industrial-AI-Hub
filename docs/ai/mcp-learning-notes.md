@@ -1,6 +1,6 @@
 # Week 12 MCP 学习笔记：协议、传输与工具暴露边界
 
-> 日期：2026-08-30 | 覆盖：Day 80-82（ADR 0027 / ADR 0028 / ADR 0029）
+> 日期：2026-08-30 | 覆盖：Day 80-83（ADR 0027 / ADR 0028 / ADR 0029 / ADR 0030）
 
 ---
 
@@ -135,13 +135,74 @@ MCP 1.0 未定义 HTTP 鉴权，Spring AI 不透传 Header 到工具上下文。
 - 写/管理操作继续走 JWT REST；MCP 通道不获得写能力。
 - MCP 1.1 OAuth / 身份头协议就绪后，用标准协议替换自定义 Filter，不手造协议。
 
-## 8. 关键文件
+## 8. Day 83：Agent + MCP 联调——从"冒烟"到"巡检日报"
+
+Day 82 的客户端只做三步冒烟。Day 83（ADR 0030）让 Agent 真正通过 MCP 工具完成
+设备巡检并生成中文日报。这是本周 MCP 的"收官联调"，要解决的核心问题是两个生态
+的接口差异：MCP Server 暴露 `McpSchema.Tool`，而 Agent 循环消费的是 Spring AI
+`ToolCallback`。
+
+### 8.1 单 SSE 会话复用，不逐工具重连
+
+一次巡检要列设备 + 逐台查基础/数据/告警，工具调用 10+ 次。如果每次重连 SSE，
+握手成本与失败面都放大。`McpClientService.openInspectionSession()` 建立连接 →
+`initialize()` 握手 → `listTools()` 读清单，封装为 `McpInspectionSession`（`AutoCloseable`）。
+Agent 在会话内复用同一个 `McpSyncClient`，结束 `close()` 统一释放；握手失败也会
+关闭已建客户端，避免连接泄漏。这是"真实客户端"的用法，不是冒烟。
+
+### 8.2 `McpToolCallbackAdapter`：协议适配器
+
+适配器把 MCP 工具转成 `ToolCallback`，关键三点：
+
+- **定义透传**：`getToolDefinition()` 直接取 MCP 工具的 name / description / inputSchema，
+  模型零配置就能调用，不需要在应用侧重新声明工具。
+- **调用转发**：`call()` 把模型生成的 JSON 参数转发到 `McpSyncClient.callTool`，
+  文本结果原样返回给 Agent 对话。
+- **错误同构**：MCP 工具返回 `isError` 或抛异常时，降级为 `{"error":"..."}` JSON——
+  这与内部 Agent 工具的失败语义完全一致（§3、agent 笔记 §6）。所以 Agent 循环代码
+  完全不用感知"工具来自哪个生态"，这是两个生态能拼在一起的真正原因。
+
+### 8.3 复用 Agent 循环，不重造
+
+`McpInspectionAgentService` 不写循环，直接调 Day 79 的 `ToolCallingAgent.run(...)`，
+传入 `session.toolCallbacks()`（MCP 工具经适配器而来）与 6 轮硬限。会话同时统计
+去重设备数与告警数，随 `AiInspectionReportResult` 返回。`truncated` 标记是否触达
+硬限，prompt 要求超过 10 台时优先巡检离线/告警设备并注明未逐台覆盖。
+
+### 8.4 权限与审计
+
+MCP 通道仍只读、无用户身份（§7.2）。巡检权限不放进 MCP 工具上下文，而是收敛在
+`POST /api/ai/agents/inspection-report` 的 `@RequireRole(ADMIN)`——只有 ADMIN 能
+触发全量巡检。审计走 `@OperationLog(operationType=INSPECTION, targetType=MCP)`，
+Flyway V13 扩展 `chk_operation_type` 放行 `INSPECTION`（`target_type=MCP` 已由 V12 放行）。
+
+```text
+Day 82  POST /api/mcp/smoke              ADMIN  MCP_SMOKE/MCP   单次冒烟
+Day 83  POST /api/ai/agents/inspection-report  ADMIN  INSPECTION/MCP  6 轮巡检日报
+```
+
+### 8.5 边界不变
+
+联调没有给 MCP 通道新增任何写能力或身份参数。Agent 巡检权限收敛在 JWT REST 层，
+MCP 工具本身仍是 §3 那组只读查询。MCP 1.1 OAuth 就绪后再用标准协议替换自定义令牌，
+不手造身份头——这条边界从 Day 80 到 Day 83 始终一致。
+
+## 9. 关键文件
 
 - [McpDeviceTools.java](../../backend/src/main/java/dev/reboot/mcp/McpDeviceTools.java) — 7 个只读 @Tool
 - [McpToolConfig.java](../../backend/src/main/java/dev/reboot/mcp/McpToolConfig.java) — 显式注册边界
-- [McpClientService.java](../../backend/src/main/java/dev/reboot/mcp/McpClientService.java) — SSE 握手 + 工具清单 + 只读探针
+- [McpClientService.java](../../backend/src/main/java/dev/reboot/mcp/McpClientService.java) — SSE 握手 + 工具清单 + 只读探针 + openInspectionSession
 - [McpAccessFilter.java](../../backend/src/main/java/dev/reboot/mcp/McpAccessFilter.java) — X-MCP-Token 传输鉴权门
 - [McpController.java](../../backend/src/main/java/dev/reboot/mcp/McpController.java) — POST /api/mcp/smoke（ADMIN）
+- [McpInspectionSession.java](../../backend/src/main/java/dev/reboot/mcp/McpInspectionSession.java) — 单 SSE 会话 + 设备/告警指标统计
+- [McpToolCallbackAdapter.java](../../backend/src/main/java/dev/reboot/mcp/McpToolCallbackAdapter.java) — MCP→ToolCallback 适配器
+- [McpInspectionAgentService.java](../../backend/src/main/java/dev/reboot/service/McpInspectionAgentService.java) — 巡检日报 Agent（6 轮）
 - [ADR 0027](../decision-log/0027-mcp-tool-exposure.md) — 暴露边界决策表
 - [ADR 0028](../decision-log/0028-mcp-data-tools.md) — 数据查询工具契约
 - [ADR 0029](../decision-log/0029-mcp-client-auth-smoke.md) — 客户端集成 + 传输鉴权
+- [ADR 0030](../decision-log/0030-mcp-agent-inspection.md) — Agent + MCP 联调巡检日报
+
+---
+
+> Week 12 MCP 收官。从"Server 暴露工具"→"客户端冒烟"→"Agent 联调巡检日报"，
+> 下一阶段（Week 13）把日报经 RabbitMQ 推送到前端，并让 AI 异常自动生成告警闭环。

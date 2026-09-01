@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Profile;
 /**
  * RabbitMQ 配置 —— 全架构 Exchange / Queue / Binding 声明。
  *
- * <h3>完整架构（Day 50-55）</h3>
+ * <h3>完整架构（Day 50-55 + Day 85）</h3>
  * <pre>
  * DeviceDataService.report()
  *  │
@@ -22,10 +22,15 @@ import org.springframework.context.annotation.Profile;
  *  ├─ [Direct "alarm.exchange"]       ← Day 51 工作队列
  *  │    └→ alarm.queue (DLX→alarm.dlq) → AlarmConsumer (手动ACK+重试)
  *  │
- *  └─ [Direct "alarm.delay.exchange"] ← Day 54 延迟队列
- *       └→ alarm.delay.queue (TTL 30s, 无消费者)
- *            → alarm.delay.dlx
- *              └→ alarm.escalation.queue → AlarmEscalationConsumer
+ *  ├─ [Direct "alarm.delay.exchange"] ← Day 54 延迟队列
+ *  │    └→ alarm.delay.queue (TTL 30s, 无消费者)
+ *  │         → alarm.delay.dlx
+ *  │           └→ alarm.escalation.queue → AlarmEscalationConsumer
+ *  │
+ *  └─ [Direct "inspection.exchange"]  ← Day 85 AI 巡检日报投递（ADR 0031）
+ *       └→ inspection.queue (DLX→inspection.dlq, 无 TTL)
+ *            → InspectionReportConsumer (Phase 2 实现)
+ *              → Push Gateway → SSE → Vue（Phase 2-7 实现）
  * </pre>
  *
  * <h3>模式总结</h3>
@@ -35,10 +40,21 @@ import org.springframework.context.annotation.Profile;
  *   <tr><td>发布/订阅</td><td>Fanout</td><td>52</td><td>数据同步（广播）</td></tr>
  *   <tr><td>死信队列</td><td>DLX</td><td>53</td><td>失败消息不丢失</td></tr>
  *   <tr><td>延迟队列</td><td>TTL+DLX</td><td>54</td><td>报警超时升级</td></tr>
+ *   <tr><td>工作队列（无 TTL）</td><td>Direct</td><td>85</td><td>AI 巡检日报投递（ADR 0031）</td></tr>
  * </table>
  *
+ * <h3>Day 85 inspection.* 设计要点（ADR 0031 §6.1 / §9）</h3>
+ * <ul>
+ *   <li>Direct Exchange + durable Queue —— 与 alarm.exchange 同结构，便于运维复用；</li>
+ *   <li>DLX → inspection.dlq —— 失败日报不丢，可人工排查重投；</li>
+ *   <li><b>不设 TTL</b> —— alarm.queue 30s TTL 适合「实时报警」场景，
+ *       日报不应在 Consumer 短暂重启/慢处理时丢失，故省略 ttl()；</li>
+ *   <li><b>不设 maxPriority</b> —— 日报无优先级需求（如需可后续添加）；</li>
+ *   <li>acknowledge-mode 与 alarm 一致（manual，{@code application.yml} 控制）。</li>
+ * </ul>
+ *
  * @author hula0710
- * @since 2026-08-07 (Day 51), 全景审查 2026-08-09 (Day 55)
+ * @since 2026-08-07 (Day 51), 全景审查 2026-08-09 (Day 55), Day 85 增 inspection 队列
  */
 @Configuration
 @Profile("!test")
@@ -58,6 +74,13 @@ public class MQConfig {
     public static final String ALARM_DELAY_DLX = "alarm.delay.dlx";
     public static final String ALARM_ESCALATION_QUEUE = "alarm.escalation.queue";
     public static final String ALARM_ESCALATION_KEY = "alarm.escalation";
+
+    // ── Day 85: AI 巡检日报投递（ADR 0031）— 与 alarm 同结构，无 TTL ──
+    public static final String INSPECTION_EXCHANGE = "inspection.exchange";
+    public static final String INSPECTION_QUEUE = "inspection.queue";
+    public static final String INSPECTION_ROUTING_KEY = "inspection.report.new";
+    public static final String INSPECTION_DLX = "inspection.dlx";
+    public static final String INSPECTION_DLQ = "inspection.dlq";
 
     // ── Day 52: 发布/订阅 — 设备数据 Fanout Exchange ──
     public static final String DEVICE_DATA_FANOUT = "device-data.fanout";
@@ -151,6 +174,63 @@ public class MQConfig {
         return BindingBuilder.bind(alarmQueue())
                 .to(alarmExchange())
                 .with(ALARM_ROUTING_KEY);
+    }
+
+    // ── Day 85: AI 巡检日报投递（ADR 0031）— Direct Exchange + DLX，无 TTL ──
+
+    /**
+     * 巡检日报 Direct Exchange（与 alarm.exchange 同结构，durable）。
+     * <p>Producer 投递 {@code InspectionReportMessage} 到此 exchange，
+     * 由 routing key {@link #INSPECTION_ROUTING_KEY} 路由到 {@link #inspectionQueue()}。</p>
+     */
+    @Bean
+    public DirectExchange inspectionExchange() {
+        return new DirectExchange(INSPECTION_EXCHANGE, true, false);
+    }
+
+    /**
+     * 巡检日报工作队列（durable + DLX→inspection.dlx，<b>无 TTL</b>）。
+     * <p>与 {@link #alarmQueue()} 的差异：
+     * <ul>
+     *   <li>省略 ttl() —— 日报延迟敏感度低，不应在 30s 内过期进 DLQ；</li>
+     *   <li>省略 maxPriority —— 日报无优先级需求。</li>
+     * </ul>
+     * 其余（durable + DLX 路由）与 alarm.queue 完全一致。</p>
+     */
+    @Bean
+    public Queue inspectionQueue() {
+        return QueueBuilder.durable(INSPECTION_QUEUE)
+                .deadLetterExchange(INSPECTION_DLX)
+                .deadLetterRoutingKey(INSPECTION_ROUTING_KEY)
+                .build();
+    }
+
+    /** 巡检日报死信 Exchange（与 alarm.dlx 同结构）。 */
+    @Bean
+    public DirectExchange inspectionDlxExchange() {
+        return new DirectExchange(INSPECTION_DLX, true, false);
+    }
+
+    /** 巡检日报死信队列（durable，可人工排查重投）。 */
+    @Bean
+    public Queue inspectionDlq() {
+        return QueueBuilder.durable(INSPECTION_DLQ).build();
+    }
+
+    /** 巡检日报 DLX → DLQ 绑定（与 alarm.dlqBinding 同模式）。 */
+    @Bean
+    public Binding inspectionDlqBinding() {
+        return BindingBuilder.bind(inspectionDlq())
+                .to(inspectionDlxExchange())
+                .with(INSPECTION_ROUTING_KEY);
+    }
+
+    /** 巡检日报 Exchange → Queue 绑定（与 alarmBinding 同模式）。 */
+    @Bean
+    public Binding inspectionBinding() {
+        return BindingBuilder.bind(inspectionQueue())
+                .to(inspectionExchange())
+                .with(INSPECTION_ROUTING_KEY);
     }
 
     // ── Day 52: Fanout Exchange + 多队列 ──

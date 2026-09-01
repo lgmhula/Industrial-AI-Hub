@@ -24,7 +24,11 @@ import java.io.IOException;
  * <ul>
  *   <li>无 Authorization 头 → 放行（由 {@link AuthInterceptor}/@RequireRole 处理）；</li>
  *   <li>带 token 但无效/被撤销/Redis 异常（fail-close）→ 直接 401（登录/注册公开路径除外，避免陈旧 token 阻断登录）；</li>
- *   <li>登录/注册（/api/auth/login|register）携带失效 token → 忽略 token 继续（保持可登录）。</li>
+ *   <li>登录/注册（/api/auth/login|register）携带失效 token → 忽略 token 继续（保持可登录）；</li>
+ *   <li>SSE 端点（{@code /api/push/}）无 Authorization 头时，从 {@code ?token=} query 参数读取
+ *       <b>fallback token</b>（Day 85 Phase 7，ADR 0031 §5.2）—— 浏览器原生 EventSource 不支持
+ *       自定义 header，必须通过 URL 携带；为缩小暴露面，仅 SSE 端点支持 query fallback，
+ *       其他路径仍按原 Authorization header 逻辑。</li>
  * </ul>
  *
  * @author hula0710
@@ -36,6 +40,10 @@ public class JwtAuthFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(JwtAuthFilter.class);
     private static final ObjectMapper mapper = new ObjectMapper();
     private static final String REJECT_MESSAGE = "登录状态已失效，请重新登录";
+    /** SSE 端点前缀：仅此路径下的请求支持 ?token= query fallback（ADR 0031 §5.2）。 */
+    private static final String SSE_PATH_PREFIX = "/api/push/";
+    /** query fallback 参数名：与前端 EventSource URL 约定一致。 */
+    private static final String SSE_TOKEN_PARAM = "token";
 
     private final JwtUtils jwtUtils;
     private final TokenBlacklistService tokenBlacklistService;
@@ -51,13 +59,11 @@ public class JwtAuthFilter implements Filter {
         HttpServletRequest request = (HttpServletRequest) req;
         HttpServletResponse response = (HttpServletResponse) resp;
 
-        String header = request.getHeader("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
+        String token = resolveToken(request);
+        if (token == null) {
             chain.doFilter(request, response);
             return;
         }
-
-        String token = header.substring(7);
         try {
             if (!jwtUtils.validateToken(token)) {
                 rejectIfNotPublicAuth(request, response, chain);
@@ -111,5 +117,34 @@ public class JwtAuthFilter implements Filter {
         response.setStatus(401);
         response.setContentType("application/json;charset=UTF-8");
         response.getWriter().write(mapper.writeValueAsString(ApiResponse.error(401, REJECT_MESSAGE)));
+    }
+
+    /**
+     * 解析请求中的 JWT token（Day 85 Phase 7，ADR 0031 §5.2）。
+     *
+     * <p>解析顺序：</p>
+     * <ol>
+     *   <li>优先读 {@code Authorization: Bearer <token>} header（REST 主路径）；</li>
+     *   <li>仅当请求路径在 SSE 端点前缀 {@link #SSE_PATH_PREFIX} 下时，
+     *       fallback 到 {@code ?token=} query 参数 —— 浏览器原生 EventSource
+     *       不支持自定义 header，必须通过 URL 携带 JWT。其他路径不支持 query
+     *       fallback，避免 token 出现在 REST URL 被日志/Referer 泄漏。</li>
+     * </ol>
+     *
+     * @return 解析到的 token；无 token 返回 null（由后续 AuthInterceptor/@RequireRole 处理）
+     */
+    private String resolveToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
+        // SSE 端点 fallback：从 ?token= query 参数读取
+        if (request.getRequestURI().startsWith(SSE_PATH_PREFIX)) {
+            String queryToken = request.getParameter(SSE_TOKEN_PARAM);
+            if (queryToken != null && !queryToken.isBlank()) {
+                return queryToken;
+            }
+        }
+        return null;
     }
 }

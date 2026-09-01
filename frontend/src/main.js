@@ -18,6 +18,7 @@ import {
   Search,
   Refresh,
   ChatDotRound,
+  Notification,
 } from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router/index.js'
@@ -44,6 +45,7 @@ const icons = {
   Search,
   Refresh,
   ChatDotRound,
+  Notification,
 }
 for (const [name, component] of Object.entries(icons)) {
   app.component(name, component)

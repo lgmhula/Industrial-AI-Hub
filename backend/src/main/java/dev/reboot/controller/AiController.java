@@ -7,11 +7,14 @@ import dev.reboot.dto.ai.AiAlarmSummary;
 import dev.reboot.dto.ai.AiChatRequest;
 import dev.reboot.dto.ai.AiChatResult;
 import dev.reboot.dto.ai.AiDeviceDiagnosis;
+import dev.reboot.dto.ai.AiInspectionReportResult;
 import dev.reboot.dto.ai.AiDeviceStatusRequest;
 import dev.reboot.dto.ai.AiDeviceStatusResult;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.service.AiService;
+import dev.reboot.service.DeviceAnalysisAgentService;
 import dev.reboot.service.DeviceStatusAgentService;
+import dev.reboot.service.McpInspectionAgentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,10 +38,17 @@ public class AiController {
 
     private final AiService aiService;
     private final DeviceStatusAgentService deviceStatusAgentService;
+    private final DeviceAnalysisAgentService deviceAnalysisAgentService;
+    private final McpInspectionAgentService mcpInspectionAgentService;
 
-    public AiController(AiService aiService, DeviceStatusAgentService deviceStatusAgentService) {
+    public AiController(AiService aiService,
+                        DeviceStatusAgentService deviceStatusAgentService,
+                        DeviceAnalysisAgentService deviceAnalysisAgentService,
+                        McpInspectionAgentService mcpInspectionAgentService) {
         this.aiService = aiService;
         this.deviceStatusAgentService = deviceStatusAgentService;
+        this.deviceAnalysisAgentService = deviceAnalysisAgentService;
+        this.mcpInspectionAgentService = mcpInspectionAgentService;
     }
 
     /** 通用文本补全。 */
@@ -84,6 +94,27 @@ public class AiController {
     public ApiResponse<AiDeviceStatusResult> deviceStatus(@Valid @RequestBody AiDeviceStatusRequest request,
                                                           HttpServletRequest http) {
         return ApiResponse.ok(deviceStatusAgentService.answer(request, currentUserId(http)));
+    }
+
+    /** 设备分析多步 Agent：先查设备 → 再查数据 → 再分析。 */
+    @OperationLog(operationType = "FUNCTION_CALL", targetType = "AI",
+            description = "AI 设备分析 Agent（多步推理） {ret}")
+    @PostMapping("/agents/device-analysis")
+    @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
+    @Operation(summary = "AI 设备分析 Agent（多步推理）")
+    public ApiResponse<AiDeviceStatusResult> deviceAnalysis(@Valid @RequestBody AiDeviceStatusRequest request,
+                                                            HttpServletRequest http) {
+        return ApiResponse.ok(deviceAnalysisAgentService.analyze(request, currentUserId(http)));
+    }
+
+    /** AI 设备巡检日报（Agent + MCP 联调）：Agent 通过 MCP 客户端只读工具自动巡检并生成日报。 */
+    @OperationLog(operationType = "INSPECTION", targetType = "MCP",
+            description = "AI 设备巡检日报（MCP 工具调用） {ret}")
+    @PostMapping("/agents/inspection-report")
+    @RequireRole(RoleEnum.ADMIN)
+    @Operation(summary = "AI 设备巡检日报（Agent + MCP）")
+    public ApiResponse<AiInspectionReportResult> inspectionReport() {
+        return ApiResponse.ok(mcpInspectionAgentService.generate());
     }
 
     private Long currentUserId(HttpServletRequest request) {

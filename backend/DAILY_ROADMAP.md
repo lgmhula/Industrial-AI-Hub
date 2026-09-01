@@ -526,22 +526,22 @@
 |----|------|
 | Day 71 | RAG 概念 + 向量数据库选型（Milvus/Chroma/Qdrant）✅（ADR 0024：Qdrant 生产目标 + 内存向量库第一阶段 + 本地哈希 Embedding） |
 | Day 72 | 文档切片 + 向量化（embedding）+ 存入向量库 ✅（TextChunker + LocalHashEmbeddingModel + SimpleVectorStore + RagIngestionService，11 tests） |
-| Day 73 | 知识检索实现：根据用户问题检索相关文档 |
-| Day 74 | 实战：设备手册知识库——导入 PDF 设备说明书 |
-| Day 75 | 实战：AI 运维助手——根据知识库回答设备运维问题 |
-| Day 76 | 前端：AI 助手对话页面（侧边栏或独立页面） |
-| Day 77 | 周复盘 + RAG 笔记 |
+| Day 73 | 知识检索实现：根据用户问题检索相关文档 ✅（RagRetrievalService + KnowledgeChunk，Top-K 余弦相似度检索，4 tests） |
+| Day 74 | 实战：设备手册知识库——导入 PDF 设备说明书 ✅（PDFBox 3.0.8 + RagController 上传 + Flyway V11 INGEST/KNOWLEDGE，2 tests） |
+| Day 75 | 实战：AI 运维助手——根据知识库回答设备运维问题 ✅（AiService.answerWithRag + POST /api/rag/ask，检索片段注入上下文） |
+| Day 76 | 前端：AI 助手对话页面（侧边栏或独立页面）✅（RagAssistant.vue + /assistant 路由 + Sidebar AI 助手入口 + 引用片段展示） |
+| Day 77 | 周复盘 + RAG 笔记 ✅（Week11 复盘 + docs/ai/rag-learning-notes.md 更新，整理 feat/rag-retrieval 准备 PR） |
 
 ### 第 12 周：Agent + MCP
 | 天 | 任务 |
 |----|------|
-| Day 78 | Agent 概念：ReAct 模式、工具调用循环 |
-| Day 79 | 实现简单 Agent：多步推理（先查设备→再查数据→再分析） |
-| Day 80 | MCP 协议概念 + MCP Server 开发 |
-| Day 81 | 开发 Device MCP Server：暴露设备查询、数据查询工具 |
-| Day 82 | Codex/MCP 客户端集成：让 AI 通过 MCP 调用项目接口 |
-| Day 83 | Agent + MCP 联调：AI 自动巡检设备并生成日报 |
-| Day 84 | 周复盘 + Agent/MCP 笔记 |
+| Day 78 | Agent 概念：ReAct 模式、工具调用循环 ✅（ADR 0026：手动循环 + 3 轮硬限 + 可观测性） |
+| Day 79 | 实现简单 Agent：多步推理（先查设备→再查数据→再分析）✅（ToolCallingAgent + list_device_recent_data + DeviceAnalysisAgentService + /api/ai/agents/device-analysis） |
+| Day 80 | MCP 协议概念 + MCP Server 开发 ✅（ADR 0027：spring-ai-starter-mcp-server-webmvc + SSE + McpDeviceTools 4 只读工具 + 显式暴露边界） |
+| Day 81 | 开发 Device MCP Server：暴露设备查询、数据查询工具 ✅（ADR 0028：mcp_get_device_data_range / mcp_get_device_data_stats / mcp_search_devices，7 个只读 MCP 工具） |
+| Day 82 | Codex/MCP 客户端集成：让 AI 通过 MCP 调用项目接口 ✅（ADR 0029：MCP Java SDK 0.10.0 客户端 + SSE 握手/工具清单/只读探针 + /api/mcp/smoke ADMIN 入口 + X-MCP-Token 传输鉴权，257 tests） |
+| Day 83 | Agent + MCP 联调：AI 自动巡检设备并生成日报 ✅（DG-001/002 缺口补齐 + McpInspectionAgentService 单会话巡检 + McpToolCallbackAdapter + POST /api/ai/agents/inspection-report + Flyway V13，ADR 0030，269 tests） |
+| Day 84 | 周复盘 + Agent/MCP 笔记 ✅（Week12 复盘 + agent/mcp 学习笔记更新，Day 78-83 收官） |
 
 ### 第 13 周：AI 模块打磨
 | 天 | 任务 |

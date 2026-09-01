@@ -10,6 +10,7 @@ import dev.reboot.enums.ErrorCode;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.AlarmMapper;
+import dev.reboot.mapper.DeviceDataMapper;
 import dev.reboot.mapper.DeviceMapper;
 import dev.reboot.tool.DeviceAiTools;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,6 +56,7 @@ class DeviceStatusAgentServiceTest {
     @Mock private DeepSeekClient deepSeekClient;
     @Mock private DeviceMapper deviceMapper;
     @Mock private AlarmMapper alarmMapper;
+    @Mock private DeviceDataMapper deviceDataMapper;
     @Mock private SiteAccessService siteAccessService;
 
     private DeepSeekProperties properties;
@@ -66,7 +68,7 @@ class DeviceStatusAgentServiceTest {
         properties.setModel("deepseek-chat");
         properties.setMaxTokens(1024);
         properties.setTemperature(0.3);
-        DeviceAiTools deviceAiTools = new DeviceAiTools(deviceMapper, alarmMapper, siteAccessService, new ObjectMapper());
+        DeviceAiTools deviceAiTools = new DeviceAiTools(deviceMapper, alarmMapper, deviceDataMapper, siteAccessService, new ObjectMapper());
         agentService = new DeviceStatusAgentService(chatModel, deepSeekClient, properties,
                 deviceMapper, siteAccessService, deviceAiTools);
     }

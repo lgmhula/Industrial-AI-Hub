@@ -28,6 +28,10 @@ spring:
       - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration
       - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration
       - org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration
+      # MCP Server 默认关闭（隔离测试上下文）；McpServerContextTest 单独启用验证
+      - org.springframework.ai.mcp.server.autoconfigure.McpServerAutoConfiguration
+      - org.springframework.ai.mcp.server.autoconfigure.McpWebMvcServerAutoConfiguration
+      - org.springframework.ai.mcp.server.autoconfigure.McpWebFluxServerAutoConfiguration
   sql:
     init:
       mode: never
@@ -42,3 +46,10 @@ deepseek:
   api-key: test-deepseek-key-not-used
   base-url: https://api.deepseek.com
   model: deepseek-chat
+
+app:
+  mcp:
+    access-token: ""
+    client:
+      base-url: http://localhost:8080
+      sse-endpoint: /mcp/sse

@@ -22,6 +22,8 @@ spring:
       - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration
       - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration
       - org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration
+      # 本项目固定 WebMVC 传输；排除 WebFlux MCP 自动配置，避免双路由注册（ADR 0027）
+      - org.springframework.ai.mcp.server.autoconfigure.McpWebFluxServerAutoConfiguration
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3307}/reboot?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER:root}
@@ -62,6 +64,37 @@ spring:
       simple:
         acknowledge-mode: auto
         prefetch: 10
+  ai:
+    mcp:
+      server:
+        enabled: true
+        name: industrial-ai-hub-mcp
+        version: 1.0.0
+        type: sync
+        stdio: false
+        sse-endpoint: /mcp/sse
+        sse-message-endpoint: /mcp/message
+        capabilities:
+          tool: true
+          resource: false
+          prompt: false
+          completion: false
+        tool-change-notification: false
+        resource-change-notification: false
+        prompt-change-notification: false
+        instructions: >-
+          Industrial AI Hub 只读设备查询服务。工具返回 JSON；
+          当前仅对内部可信 AI 客户端开放，请勿将端点暴露到公网。
+
+app:
+  mcp:
+    # 传输层共享令牌（ADR 0029）：配置后 /mcp/* 要求 X-MCP-Token 一致；
+    # 留空表示本机/内网可信场景不启用令牌校验（本地开发默认）。
+    access-token: ${MCP_ACCESS_TOKEN:}
+    client:
+      # 进程内 MCP 客户端冒烟连接目标（默认指向本服务）。
+      base-url: ${MCP_CLIENT_BASE_URL:http://localhost:8080}
+      sse-endpoint: ${MCP_CLIENT_SSE_ENDPOINT:/mcp/sse}
 
 server:
   port: 8080
@@ -97,7 +130,8 @@ jwt:
 deepseek:
   enabled: ${DEEPSEEK_ENABLED:false}
   base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
-  api-key: ${DEEPSEEK_API_KEY:}
+  # ADR 0015 §8.3：敏感变量禁止空默认，未配置时 fail-fast（运行时才需，启动不强制，业务 ensureAvailable 兜底 503）
+  api-key: ${DEEPSEEK_API_KEY}
   model: ${DEEPSEEK_MODEL:deepseek-chat}
   timeout-seconds: ${DEEPSEEK_TIMEOUT_SECONDS:30}
   max-tokens: ${DEEPSEEK_MAX_TOKENS:1024}

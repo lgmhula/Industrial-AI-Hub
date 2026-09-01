@@ -23,6 +23,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Service;
@@ -198,6 +199,9 @@ public class DeviceStatusAgentService {
                 .model(properties.getModel())
                 .temperature(properties.getTemperature())
                 .maxTokens(properties.getMaxTokens())
+                .responseFormat(ResponseFormat.builder()
+                        .type(ResponseFormat.Type.TEXT)
+                        .build())
                 .internalToolExecutionEnabled(false)
                 .toolContext(context);
         if (withTools) {

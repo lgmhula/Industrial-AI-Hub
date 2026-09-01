@@ -42,7 +42,7 @@ class FlywayProductionSeedIsolationTest {
             "operator01", "TEMP-001", "13800001001", "Test123456"
     );
 
-    /** 契约 1：迁移目录只允许正式迁移（V1/V3~V10；演示种子已移出，V2 退役）。 */
+    /** 契约 1：迁移目录只允许正式迁移（V1/V3~V13；演示种子已移出，V2 退役）。 */
     @Test
     void migrationDirectory_containsOnlyFormalMigrations() throws IOException {
         Path migrationDir = new ClassPathResource("db/migration").getFile().toPath();
@@ -61,7 +61,11 @@ class FlywayProductionSeedIsolationTest {
                             "V7__alarm_role_audit_fields.sql",
                             "V8__update_admin_password.sql",
                             "V9__ai_operation_log_types.sql",
-                            "V10__function_call_operation_type.sql"),
+                            "V10__function_call_operation_type.sql",
+                            "V11__rag_knowledge_operation_types.sql",
+                            "V12__mcp_smoke_operation_types.sql",
+                            "V13__inspection_operation_type.sql",
+                            "V14__push_sse_operation_types.sql"),
                     names,
                     "db/migration 只允许正式迁移；演示种子已移出（V2__seed_test_data.sql 退役）"
             );

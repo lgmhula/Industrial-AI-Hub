@@ -171,6 +171,27 @@
             <artifactId>spring-ai-starter-model-openai</artifactId>
             <version>1.0.3</version>
         </dependency>
+
+        <!-- MCP Server (Day 80, ADR 0027): SSE 传输 + 显式只读工具暴露 -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+            <version>1.0.3</version>
+        </dependency>
+
+        <!-- MCP Client SDK (Day 82, ADR 0029): 内置 HttpClient SSE 传输，做连接冒烟与工具清单验证 -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp</artifactId>
+            <version>0.10.0</version>
+        </dependency>
+
+        <!-- RAG PDF 解析 (Day 74, ADR 0025): PDFBox 纯 Java 文本提取 -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.8</version>
+        </dependency>
     </dependencies>
 
     <!-- ===== Build Plugins ===== -->

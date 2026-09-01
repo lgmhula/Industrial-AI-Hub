@@ -1,7 +1,9 @@
 package dev.reboot.aop;
 
 import dev.reboot.annotation.OperationLog;
+import dev.reboot.dto.ApiResponse;
 import dev.reboot.dto.ai.AiDeviceStatusResult;
+import dev.reboot.dto.ai.AiInspectionReportResult;
 import dev.reboot.mapper.OperationLogMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -16,8 +18,10 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -41,6 +45,15 @@ class OperationLogAspectTest {
         @OperationLog(operationType = "FUNCTION_CALL", targetType = "AI",
                 description = "AI 设备状态问答（工具调用） {ret}")
         AiDeviceStatusResult deviceStatus();
+
+        @OperationLog(operationType = "MCP_SMOKE", targetType = "MCP",
+                description = "MCP 客户端冒烟（握手 + 工具清单 + 只读探针） {ret}")
+        String mcpSmoke();
+
+        /** 模拟 Controller 生产签名：返回 ApiResponse 包装的巡检日报，见 Week12 Exit Gate P1-1。 */
+        @OperationLog(operationType = "INSPECTION", targetType = "MCP",
+                description = "AI 设备巡检日报（MCP 工具调用） {ret}")
+        ApiResponse<AiInspectionReportResult> inspectionReport();
     }
 
     @org.junit.jupiter.api.BeforeEach
@@ -115,6 +128,81 @@ class OperationLogAspectTest {
         assertTrue(!desc.endsWith(" null"), "不应以 null 结尾: " + desc);
     }
 
+    @Test
+    void around_withMcpSmoke_shouldRecordMcpOperationAndTargetType() throws Throwable {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute("userId")).thenReturn(2L);
+        when(request.getRemoteAddr()).thenReturn("10.0.0.8");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        Method method = TestOps.class.getMethod("mcpSmoke");
+        MethodSignature signature = mock(MethodSignature.class);
+        when(signature.getMethod()).thenReturn(method);
+
+        ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
+        when(joinPoint.getSignature()).thenReturn(signature);
+        when(joinPoint.getArgs()).thenReturn(new Object[0]);
+        when(joinPoint.proceed()).thenReturn("industrial-ai-hub-mcp");
+
+        Object returned = aspect.around(joinPoint);
+
+        assertEquals("industrial-ai-hub-mcp", returned.toString());
+        ArgumentCaptor<dev.reboot.entity.OperationLog> captor =
+                ArgumentCaptor.forClass(dev.reboot.entity.OperationLog.class);
+        verify(operationLogMapper).insert(captor.capture());
+        dev.reboot.entity.OperationLog log = captor.getValue();
+        assertEquals("MCP_SMOKE", log.getOperationType());
+        assertEquals("MCP", log.getTargetType());
+        assertEquals(2L, log.getUserId());
+        assertEquals("MCP 客户端冒烟（握手 + 工具清单 + 只读探针） industrial-ai-hub-mcp",
+                log.getDescription());
+    }
+
+    /**
+     * 生产模式回归：Controller 返回 ApiResponse&lt;AiInspectionReportResult&gt;。
+     *
+     * <p>修复前 formatResult 直接对 ApiResponse 调 toString()，得到
+     * {@code ApiResponse@hash}，丢失 rounds/calls/devices/alarms/truncated 摘要。
+     * 此测试用真实 ApiResponse 包装断言解包逻辑，避免重蹈 Day 83 Exit Review P1-1 覆辙。</p>
+     */
+    @Test
+    void around_withApiResponseWrappedResult_shouldUnwrapDataForDescription() throws Throwable {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute("userId")).thenReturn(1L);
+        when(request.getRemoteAddr()).thenReturn("127.0.0.1");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        Method method = TestOps.class.getMethod("inspectionReport");
+        MethodSignature signature = mock(MethodSignature.class);
+        when(signature.getMethod()).thenReturn(method);
+
+        ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
+        when(joinPoint.getSignature()).thenReturn(signature);
+        when(joinPoint.getArgs()).thenReturn(new Object[0]);
+        when(joinPoint.proceed()).thenReturn(ApiResponse.ok(inspectionReportResult()));
+
+        Object returned = aspect.around(joinPoint);
+
+        assertTrue(returned instanceof ApiResponse,
+                "应原样返回 ApiResponse 包装: " + returned.getClass());
+        ArgumentCaptor<dev.reboot.entity.OperationLog> captor =
+                ArgumentCaptor.forClass(dev.reboot.entity.OperationLog.class);
+        verify(operationLogMapper).insert(captor.capture());
+        String desc = captor.getValue().getDescription();
+        assertFalse(desc.contains("ApiResponse@"),
+                "description 不应出现 ApiResponse@hash: " + desc);
+        assertTrue(desc.contains("rounds=6"),
+                "description 应含轮次: " + desc);
+        assertTrue(desc.contains("calls=66"),
+                "description 应含调用数: " + desc);
+        assertTrue(desc.contains("devices=20"),
+                "description 应含设备数: " + desc);
+        assertTrue(desc.contains("alarms=2"),
+                "description 应含告警数: " + desc);
+        assertTrue(desc.contains("truncated=true"),
+                "description 应含截断标记: " + desc);
+    }
+
     private AiDeviceStatusResult deviceStatusResult() {
         AiDeviceStatusResult result = new AiDeviceStatusResult();
         result.setDeviceId(1L);
@@ -124,5 +212,17 @@ class OperationLogAspectTest {
         result.setReferencedRealTime(true);
         result.setTruncated(false);
         return result;
+    }
+
+    private AiInspectionReportResult inspectionReportResult() {
+        AiInspectionReportResult r = new AiInspectionReportResult();
+        r.setReportDate(LocalDate.of(2026, 8, 31));
+        r.setReport("# 巡检日报\n设备全部在线");
+        r.setToolRounds(6);
+        r.setToolCalls(66);
+        r.setDeviceCount(20);
+        r.setAlarmCount(2);
+        r.setTruncated(true);
+        return r;
     }
 }

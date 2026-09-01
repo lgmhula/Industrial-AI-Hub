@@ -1,9 +1,9 @@
 # Application Architecture V2.2
 
 > **Status:** Active
-> **Version:** 2.3
-> **Updated:** 2026-08-28
-> **Based on:** Phase 3 收官 + 安全治理合并（站点授权 / 用户安全状态 / JWT 生命周期 / 登录审计 / 限流 / 注册治理 + V7-V10 迁移）+ Phase 4 Day 66 DeepSeek + Day 67 Spring AI ChatClient + Day 68 Function Calling
+> **Version:** 2.4
+> **Updated:** 2026-08-30
+> **Based on:** Phase 3 收官 + 安全治理合并（站点授权 / 用户安全状态 / JWT 生命周期 / 登录审计 / 限流 / 注册治理 + V7-V13 迁移）+ Phase 4 Day 66-83（DeepSeek / Spring AI / Function Calling / RAG / Agent / MCP Server + Client + 巡检联调）
 > **Governs:** All application-layer decisions for Industrial AI Hub Backend
 
 ---
@@ -68,7 +68,10 @@
 | Spring AI ChatClient | `spring-ai-starter-model-openai:1.0.3`（ADR 0022），显式 Bean 指向 DeepSeek baseUrl，业务层统一 ChatClient/PromptTemplate |
 | DeepSeekClient | 保留为通用 `chat()` 协议层（RestClient + token 用量 + 503 语义，ADR 0021） |
 | JSON 输出 | `OpenAiChatModel` 默认 `response_format=json_object`：告警摘要 / 设备健康诊断 |
-| Function Calling | `@Tool` 声明式工具注册（零手写 JSON Schema，ADR 0023）：get_device_basic / list_device_recent_alarms / list_active_alarms_by_site；`DeviceStatusAgentService` 手动工具循环（3 轮硬限 + 未参考实时数据标注） |
+| Function Calling | `@Tool` 声明式工具注册（零手写 JSON Schema，ADR 0023）：get_device_basic / list_device_recent_alarms / list_active_alarms_by_site / list_device_recent_data；`DeviceStatusAgentService` + `ToolCallingAgent` 手动工具循环（3/4 轮硬限 + 未参考实时数据标注，ADR 0026） |
+| MCP Server | `spring-ai-starter-mcp-server-webmvc:1.0.3`（ADR 0027 / ADR 0028）：SSE `/mcp/sse` + `/mcp/message`，仅 tools 能力，`McpDeviceTools` 7 个只读设备/数据查询工具显式注册 |
+| MCP Client | `io.modelcontextprotocol.sdk:mcp:0.10.0`（ADR 0029）：`McpClientService` SSE 握手 + 工具清单 + 只读探针；`POST /api/mcp/smoke`（ADMIN）；`McpAccessFilter` 可选 `X-MCP-Token` 传输鉴权 |
+| Agent + MCP | `McpInspectionAgentService` 复用 `ToolCallingAgent`（6 轮硬限，ADR 0026）+ `McpInspectionSession` / `McpToolCallbackAdapter`（ADR 0030）：一次巡检一个 SSE 会话，自动巡检设备并生成中文日报；`POST /api/ai/agents/inspection-report`（ADMIN，INSPECTION/MCP 审计） |
 
 ### Observability & 部署 (Baseline V2.1)
 
@@ -110,9 +113,9 @@ HTTP Request
 | OperationLogController | listPaged/listByUserId/listRecent | ADMIN |
 | RoleController | CRUD + toggleStatus | ADMIN |
 | SiteController | list | VIEWER+ |
-| AiController | /api/ai/chat、/api/ai/alarms/{id}/summary、/api/ai/devices/{id}/diagnose、/api/ai/agents/device-status（Function Calling） | VIEWER+ |
+| AiController | /api/ai/chat、/api/ai/alarms/{id}/summary、/api/ai/devices/{id}/diagnose、/api/ai/agents/device-status、/api/ai/agents/device-analysis、/api/ai/agents/inspection-report | VIEWER+（inspection-report 仅 ADMIN） |
 
-### Services (15)
+### Services (21)
 
 | 类别 | Service |
 |------|---------|
@@ -120,13 +123,13 @@ HTTP Request
 | 角色与站点 | RoleService / SiteService / SiteAccessService |
 | 安全治理 | AuthRateLimitService / TokenBlacklistService / LoginAuditService |
 | 基础设施 | CacheService |
-| AI（Phase 4） | AiService（ChatClient 提示词编排 + DeepSeekClient 协议层，ADR 0021/0022）/ DeviceStatusAgentService（Function Calling 手动工具循环，3 轮硬限，ADR 0023） |
+| AI（Phase 4） | AiService（ChatClient 提示词编排 + DeepSeekClient 协议层，ADR 0021/0022）/ DeviceStatusAgentService + DeviceAnalysisAgentService + McpInspectionAgentService（ToolCallingAgent 手动循环，ADR 0026/0030）/ RagIngestionService + RagRetrievalService + PdfIngestionService（RAG 入库/检索/PDF 导入，ADR 0024/0025） |
 
 ### 中间件整合（Phase 3 新增）
 
 | 包 | 内容 |
 |----|------|
-| `mq/` | RabbitMQ 管线：`AlarmProducer`/`AlarmConsumer`（工作队列）、`DeviceDataProducer`/`DeviceDataSyncConsumer`（发布/订阅）、`AlarmEscalationConsumer`（延迟队列 30s 升级） |
+| `mq/` | RabbitMQ 管线：`AlarmProducer`/`AlarmConsumer`（工作队列）、`DeviceDataProducer`/`DeviceDataSyncConsumer`（发布/订阅）、`AlarmEscalationConsumer`（延迟队列 30s 升级）、`InspectionReportMessage`/`InspectionReportProducer`/`InspectionReportConsumer`（Day 85 AI 巡检日报投递+消费，ADR 0031 Phase 1-3；Redis SETNX 跨实例幂等 `inspection:{date}:{siteId}/all` TTL 24h；Push Gateway/SSE/Vue 在 Phase 4-7 待实现） |
 | `rule/` | 报警规则引擎：`AlarmRule` / `AlarmRuleConfig` / `Operator` |
 | 缓存 | Spring Cache（`@Cacheable`/`@CacheEvict`）+ Redisson 分布式锁（设备数据上报防重） |
 
@@ -136,11 +139,15 @@ HTTP Request
 |----|------|
 | `client/` | DeepSeek Chat Completions HTTP 客户端（通用 `chat()` 协议层，503 统一错误映射） |
 | `config/` | `OpenAiApi` / `OpenAiChatModel` / `ChatClient` 显式 Bean（DeepSeekProperties SSOT，ADR 0022） |
-| `dto/ai/` | Chat 请求/响应、token usage、告警摘要 / 设备诊断 / 设备状态问答结构化 DTO |
-| `tool/` | `DeviceAiTools`：3 个 `@Tool` 声明式工具（零手写 JSON Schema，ADR 0023），经 ToolContext 携带 userId 做站点作用域校验 |
+| `dto/ai/` | Chat 请求/响应、token usage、告警摘要 / 设备诊断 / 设备状态问答 / 巡检日报结构化 DTO |
+| `tool/` | `DeviceAiTools`：4 个 `@Tool` 声明式工具（零手写 JSON Schema，ADR 0023），经 ToolContext 携带 userId 做站点作用域校验 |
 | `service/AiService` | ChatClient/PromptTemplate 提示词编排 + 结构化 JSON 解析降级 + 站点作用域校验 |
 | `service/DeviceStatusAgentService` | Function Calling 手动工具循环：最大 3 轮硬限、强制收尾、未参考实时数据标注、FUNCTION_CALL 审计元数据 |
-| `controller/AiController` | `/api/ai/*`（VIEWER+），设备状态问答端点带 `@OperationLog(FUNCTION_CALL, {ret} 轮次/调用数)` |
+| `service/DeviceAnalysisAgentService` | 多步推理 Agent：先查设备 → 再查数据 → 再分析，最大 4 轮硬限（ADR 0026） |
+| `service/McpInspectionAgentService` | 巡检日报 Agent：单 MCP SSE 会话 + `ToolCallingAgent`（6 轮硬限），生成中文日报并返回设备/告警统计（ADR 0030）；Day 85 Phase 2 接入 `@Nullable InspectionReportProducer`，`generate()` 末尾投递 `InspectionReportMessage` 到 `inspection.exchange`，AmqpException 降级不阻塞主流程（ADR 0031 §3.1/§6） |
+| `service/Rag*` | 文档切片 + 哈希向量 + 内存向量库入库/检索 + PDFBox 导入（ADR 0024/0025） |
+| `controller/AiController` | `/api/ai/*`（VIEWER+），设备状态问答带 `@OperationLog(FUNCTION_CALL, {ret})`，巡检日报带 `@OperationLog(INSPECTION/MCP, {ret})` 且仅 ADMIN |
+| `mcp/` | `McpDeviceTools` 7 个只读 @Tool + `McpToolConfig` 显式 ToolCallbackProvider（ADR 0027 / ADR 0028）+ `McpClientService` / `McpController`（`/api/mcp/smoke`）+ `McpAccessFilter`（X-MCP-Token 传输鉴权，ADR 0029）+ `McpInspectionSession` / `McpToolCallbackAdapter`（巡检会话与工具适配，ADR 0030） |
 
 ### 横切关注点
 
@@ -169,13 +176,13 @@ HTTP Request
 
 ## 4. API 端点清单
 
-约 40 个端点（覆盖 Auth / Device / DeviceData / Alarm / OperationLog / User / Role / Site 八大模块）+ Knife4j 文档 (/doc.html)。
+约 41 个端点（覆盖 Auth / Device / DeviceData / Alarm / OperationLog / User / Role / Site / AI / MCP 模块）+ Knife4j 文档 (/doc.html)。
 
 ---
 
 ## 5. 数据库
 
-`reboot` 数据库，9 张表（user / role / user_role / site / user_site / device / device_data / alarm / operation_log + login_audit），由 Flyway 管理（V1 基线 + V3 CHECK 扩展 + V4 站点授权 + V5 用户安全状态 + V6 登录审计 + V7 alarm/role 审计字段 + V8 admin 密码更新 + V9 AI 操作日志类型 + V10 FUNCTION_CALL 操作日志类型），零 FK，软删除策略。
+`reboot` 数据库，9 张表（user / role / user_role / site / user_site / device / device_data / alarm / operation_log + login_audit），由 Flyway 管理（V1 基线 + V3 CHECK 扩展 + V4 站点授权 + V5 用户安全状态 + V6 登录审计 + V7 alarm/role 审计字段 + V8 admin 密码更新 + V9 AI 操作日志类型 + V10 FUNCTION_CALL + V11 RAG 知识 + V12 MCP_SMOKE/MCP + V13 INSPECTION 操作日志类型），零 FK，软删除策略。
 
 ---
 
@@ -188,5 +195,5 @@ HTTP Request
 | Phase 1 | 第 1-3 周 | Day 1-21 | Java 复苏 | ✅ |
 | Phase 2 | 第 4-6 周 | Day 22-42 | 项目 V1：CRUD / JWT / RBAC / 告警 / 前端 | ✅ v1.0 + Baseline V2.1 |
 | Phase 3 | 第 7-9 周 | Day 43-63 | 中间件武装：Redis + RabbitMQ + Docker + Linux | ✅ 2026-08-16 |
-| Phase 4 | 第 10-13 周 | Day 64-91 | AI 集成：DeepSeek → RAG → Agent/MCP | 🔨 Day 66-68 已完成基础 + ChatClient 抽象 + Function Calling |
+| Phase 4 | 第 10-13 周 | Day 64-91 | AI 集成：DeepSeek → RAG → Agent/MCP | 🔨 Day 66-83 已完成 DeepSeek + ChatClient + Function Calling + RAG + Agent + MCP Server（含数据工具）+ MCP 客户端冒烟/传输鉴权 + Agent+MCP 巡检日报 |
 | Phase 5 | 第 14-16 周 | Day 92-112 | PLC + MQTT + 完整系统 | 📅 计划 |

@@ -65,7 +65,8 @@ class FlywayProductionSeedIsolationTest {
                             "V11__rag_knowledge_operation_types.sql",
                             "V12__mcp_smoke_operation_types.sql",
                             "V13__inspection_operation_type.sql",
-                            "V14__push_sse_operation_types.sql"),
+                            "V14__push_sse_operation_types.sql",
+                            "V15__auto_alarm_operation_type.sql"),
                     names,
                     "db/migration 只允许正式迁移；演示种子已移出（V2__seed_test_data.sql 退役）"
             );

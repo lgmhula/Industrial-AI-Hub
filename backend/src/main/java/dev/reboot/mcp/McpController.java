@@ -1,5 +1,6 @@
 package dev.reboot.mcp;
 
+import dev.reboot.annotation.OperationLog;
 import dev.reboot.annotation.RequireRole;
 import dev.reboot.dto.ApiResponse;
 import dev.reboot.enums.RoleEnum;
@@ -31,6 +32,8 @@ public class McpController {
 
     @PostMapping("/smoke")
     @RequireRole(RoleEnum.ADMIN)
+    @OperationLog(operationType = "MCP_SMOKE", targetType = "MCP",
+            description = "MCP 客户端冒烟（握手 + 工具清单 + 只读探针） {ret}")
     @Operation(summary = "MCP 连接冒烟（握手 + 工具清单 + 只读探针）")
     public ApiResponse<McpSmokeResult> smoke() {
         return ApiResponse.ok("MCP 冒烟通过", mcpClientService.smoke());

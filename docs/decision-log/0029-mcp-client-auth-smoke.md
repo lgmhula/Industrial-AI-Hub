@@ -75,6 +75,10 @@ order 0，早于 JWT Filter 但两者路径不重叠）：
   全上下文真连 SSE）+ `McpServerContextTest` 工具数断言更新为 7。
 - 回归：全量后端 `Tests run: 257, Failures: 0, Errors: 0, Skipped: 0`
   （Day81 基线 251 + 新增 6）；前端 `vite build` 0 errors。
+- 审计/模板（Day 83，DG-001/002）：`.env.example` 补齐 `MCP_ACCESS_TOKEN` /
+  `MCP_CLIENT_BASE_URL` / `MCP_CLIENT_SSE_ENDPOINT` 模板；`POST /api/mcp/smoke`
+  增加 `@OperationLog(operationType=MCP_SMOKE, targetType=MCP)`，
+  Flyway V12 扩展 operation_log CHECK 约束。
 - 文档：`docs/ai/mcp-learning-notes.md`、AGENTS/DAILY_ROADMAP/
   Application-Architecture 同步。
 

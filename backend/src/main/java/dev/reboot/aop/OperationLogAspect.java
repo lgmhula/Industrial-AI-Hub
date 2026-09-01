@@ -1,6 +1,7 @@
 package dev.reboot.aop;
 
 import dev.reboot.annotation.OperationLog;
+import dev.reboot.dto.ApiResponse;
 import dev.reboot.mapper.OperationLogMapper;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -147,6 +148,13 @@ public class OperationLogAspect {
      */
     private String formatResult(Object result, Throwable error) {
         if (result != null) {
+            // 生产中 Controller 返回 ApiResponse<T>，而 ApiResponse 未覆写 toString()，
+            // 直接 toString() 会得到 ApiResponse@hash，丢失业务摘要。先解包到 data，
+            // 让 {ret} 占位符能拿到 AiDeviceStatusResult / AiInspectionReportResult
+            // 等业务对象的紧凑 toString()（见 Week12 Exit Gate P1-1 修复）。
+            if (result instanceof ApiResponse<?> response && response.getData() != null) {
+                result = response.getData();
+            }
             String text = result instanceof String s ? s : result.toString();
             return text.length() > 400 ? text.substring(0, 400) + "..." : text;
         }

@@ -22,8 +22,9 @@ import java.util.Map;
  *
  * <p>用 MCP 1.0 Java SDK 的 {@link HttpClientSseClientTransport} 连接本服务暴露的
  * SSE MCP Server，完成三步冒烟：initialize 握手 → listTools 工具清单 → 调用
- * {@code mcp_list_devices}（limit=1）做真实链路探针。所有工具均为只读，
- * 不触发任何写操作。</p>
+ * {@code mcp_list_devices}（limit=1）做真实链路探针；Day 83（ADR 0030）扩展
+ * {@link #openInspectionSession()}，为 Agent 提供一次巡检内可复用的 MCP 会话。
+ * 所有工具均为只读，不触发任何写操作。</p>
  *
  * @author AI 助手
  * @since 2026-08-30
@@ -53,19 +54,7 @@ public class McpClientService {
 
     /** 连接 MCP Server 并返回握手、工具清单与只读探针结果。 */
     public McpSmokeResult smoke() {
-        HttpClientSseClientTransport.Builder transportBuilder = HttpClientSseClientTransport.builder(baseUrl)
-                .sseEndpoint(sseEndpoint)
-                .objectMapper(objectMapper);
-        if (StringUtils.hasText(accessToken)) {
-            String token = accessToken;
-            transportBuilder.customizeRequest(rb -> rb.header(McpAccessFilter.HEADER, token));
-        }
-
-        try (McpSyncClient client = McpClient.sync(transportBuilder.build())
-                .clientInfo(new McpSchema.Implementation(CLIENT_NAME, CLIENT_VERSION))
-                .requestTimeout(Duration.ofSeconds(10))
-                .initializationTimeout(Duration.ofSeconds(10))
-                .build()) {
+        try (McpSyncClient client = connect()) {
             client.initialize();
             McpSchema.ListToolsResult tools = client.listTools();
             List<String> toolNames = tools.tools().stream()
@@ -88,6 +77,43 @@ public class McpClientService {
             throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE,
                     "MCP Server 连接失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 建立一次巡检会话：连接 SSE MCP Server、握手并读取工具清单，
+     * 返回可被 {@link dev.reboot.agent.ToolCallingAgent} 复用的只读工具回调。
+     */
+    public McpInspectionSession openInspectionSession() {
+        McpSyncClient client = connect();
+        try {
+            client.initialize();
+            McpSchema.ListToolsResult tools = client.listTools();
+            return McpInspectionSession.create(client, tools.tools(), objectMapper);
+        } catch (Exception e) {
+            try {
+                client.close();
+            } catch (Exception closeException) {
+                log.warn("MCP 巡检会话关闭失败: {}", closeException.getMessage());
+            }
+            log.error("MCP 巡检会话连接失败: {}", e.getMessage());
+            throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE,
+                    "MCP 巡检会话建立失败: " + e.getMessage());
+        }
+    }
+
+    private McpSyncClient connect() {
+        HttpClientSseClientTransport.Builder transportBuilder = HttpClientSseClientTransport.builder(baseUrl)
+                .sseEndpoint(sseEndpoint)
+                .objectMapper(objectMapper);
+        if (StringUtils.hasText(accessToken)) {
+            String token = accessToken;
+            transportBuilder.customizeRequest(rb -> rb.header(McpAccessFilter.HEADER, token));
+        }
+        return McpClient.sync(transportBuilder.build())
+                .clientInfo(new McpSchema.Implementation(CLIENT_NAME, CLIENT_VERSION))
+                .requestTimeout(Duration.ofSeconds(10))
+                .initializationTimeout(Duration.ofSeconds(10))
+                .build();
     }
 
     private String probeListDevices(McpSyncClient client) {

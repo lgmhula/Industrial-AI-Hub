@@ -174,15 +174,17 @@ public class McpInspectionAgentService {
     }
 
     /**
-     * 将 {@link AiInspectionReportResult} 转换为 {@link InspectionReportMessage}（Day 85 Phase 2）。
+     * 将 {@link AiInspectionReportResult} 转换为 {@link InspectionReportMessage}（Day 85 Phase 2 / Day 87 字段扩充）。
      *
-     * <p>字段映射对齐 ADR 0031 §3.1 消息契约：
+     * <p>字段映射对齐 ADR 0031 §3.1 消息契约 + Day 86 AI→ALARM 闭环新增段：
      * <ul>
      *   <li>{@code siteIds} = 空 List —— 当前 Agent 是 ADMIN 全站点巡检，
      *       空集表示全站点（ADR 0031 §5.4 ADMIN 语义）；</li>
      *   <li>{@code triggeredByUserId} = null —— 当前 generate() 无 userId 参数，
      *       由 Controller 层在 Phase 6 接入时补充（ADR 0031 §5.5：仅审计用，
      *       Consumer/Push Gateway 不得据此越权路由）；</li>
+     *   <li>{@code autoAlarmCount / detectedIssues} —— Day 86 AiAlarmAutoCreator
+     *       从 AI 结构化异常生成的报警数量与异常清单，前端 SSE 直接消费渲染。</li>
      *   <li>其余字段一一对应 {@link AiInspectionReportResult}。</li>
      * </ul>
      * </p>
@@ -196,6 +198,9 @@ public class McpInspectionAgentService {
         message.setDeviceCount(result.getDeviceCount());
         message.setAlarmCount(result.getAlarmCount());
         message.setTruncated(result.isTruncated());
+        // Day 87 前端 AI 展示补强：AI 结构化异常 + 自动生成报警数量
+        message.setAutoAlarmCount(result.getAutoAlarmCount());
+        message.setDetectedIssues(result.getDetectedIssues());
         message.setSiteIds(List.of()); // ADMIN 全站点语义
         message.setTriggeredByUserId(null); // Phase 6 由 Controller 层注入
         message.setGeneratedAt(LocalDateTime.now());

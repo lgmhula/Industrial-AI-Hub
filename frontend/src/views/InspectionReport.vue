@@ -134,6 +134,7 @@ import {
   Bell, Calendar, Warning, WarningFilled, Cpu,
 } from '@element-plus/icons-vue'
 import EmptyState from '../components/EmptyState.vue'
+import { escapeText } from '../utils/escapeHtml.js'
 
 const reports = ref([])
 const connState = ref('connecting') // connecting | connected | reconnecting
@@ -163,28 +164,6 @@ function severityLabel(severity) {
   if (n === 2) return '重要'
   if (n === 1) return '一般'
   return '一般'
-}
-
-/**
- * Day 87：避免 XSS。AI 返回的 report/description 是自由文本，
- * 不能当 HTML 渲染；用 createTextNode 纯文本转义后取 textContent。
- */
-function escapeText(s) {
-  if (s == null) return ''
-  const str = String(s)
-  try {
-    const div = document.createElement('div')
-    div.appendChild(document.createTextNode(str))
-    return div.innerHTML
-  } catch (_) {
-    // 回退：替换常见 HTML 特殊字符
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;')
-  }
 }
 
 function normalizeMessage(msg) {

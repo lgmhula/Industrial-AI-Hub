@@ -196,6 +196,7 @@ import {
 } from '@element-plus/icons-vue'
 import { alarmApi, aiApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
+import { escapeText, safeJoin } from '../utils/escapeHtml.js'
 
 const alarms = ref([])
 const statusFilter = ref('')
@@ -217,13 +218,6 @@ const aiLastRowId = ref(null)
 const aiLastParams = ref(null) // { ids } or { alarmIds } or null for single-row alarmId
 const aiSummaryTs = ref(0)
 
-const escapeMap = {
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-}
-function escapeText(s) {
-  if (s == null) return ''
-  return String(s).replace(/[&<>"']/g, ch => escapeMap[ch])
-}
 function formatTs(ts) {
   if (!ts) return ''
   try {

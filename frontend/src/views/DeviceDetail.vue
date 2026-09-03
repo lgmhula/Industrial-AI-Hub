@@ -204,6 +204,7 @@ import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import { deviceApi, deviceDataApi, aiApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
+import { escapeText } from '../utils/escapeHtml.js'
 
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -228,13 +229,6 @@ const qaResult = ref(null)
 const qaResultTs = ref(0)
 const lastQaText = ref('')
 
-const escapeMap = {
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-}
-function escapeText(s) {
-  if (s == null) return ''
-  return String(s).replace(/[&<>"']/g, ch => escapeMap[ch])
-}
 function formatTs(ts) {
   if (!ts) return ''
   try {

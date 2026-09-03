@@ -78,6 +78,7 @@ import { ChatDotRound, Promotion, RefreshRight, Document } from '@element-plus/i
 import { ragApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
+import { escapeText, escapeHtml } from '../utils/escapeHtml.js'
 
 const messages = ref([])
 const question = ref('')
@@ -90,18 +91,6 @@ const quickQuestions = [
   '传感器读数异常波动如何排查？',
   'PLC 通信故障常见原因？',
 ]
-
-const escapeMap = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;',
-}
-function escapeText(s) {
-  if (s == null) return ''
-  return String(s).replace(/[&<>"']/g, ch => escapeMap[ch])
-}
 
 function formatTs(ts) {
   if (!ts) return ''

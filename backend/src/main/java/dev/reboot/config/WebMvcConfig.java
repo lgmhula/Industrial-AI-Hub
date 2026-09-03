@@ -1,6 +1,7 @@
 package dev.reboot.config;
 
 import dev.reboot.security.AuthInterceptor;
+import dev.reboot.security.AiRateLimitInterceptor;
 import dev.reboot.security.JwtAuthFilter;
 import dev.reboot.security.RateLimitInterceptor;
 import dev.reboot.mcp.McpAccessFilter;
@@ -25,15 +26,18 @@ public class WebMvcConfig implements WebMvcConfigurer {
     private final JwtAuthFilter jwtAuthFilter;
     private final AuthInterceptor authInterceptor;
     private final RateLimitInterceptor rateLimitInterceptor;
+    private final AiRateLimitInterceptor aiRateLimitInterceptor;
     private final McpAccessFilter mcpAccessFilter;
 
     public WebMvcConfig(JwtAuthFilter jwtAuthFilter,
                         AuthInterceptor authInterceptor,
                         RateLimitInterceptor rateLimitInterceptor,
+                        AiRateLimitInterceptor aiRateLimitInterceptor,
                         McpAccessFilter mcpAccessFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.authInterceptor = authInterceptor;
         this.rateLimitInterceptor = rateLimitInterceptor;
+        this.aiRateLimitInterceptor = aiRateLimitInterceptor;
         this.mcpAccessFilter = mcpAccessFilter;
     }
 
@@ -57,9 +61,19 @@ public class WebMvcConfig implements WebMvcConfigurer {
         return bean;
     }
 
-    /** 拦截器注册 — RateLimit → Auth。 */
+    /** 拦截器注册 — AiRateLimit（AI 专项成本保护）→ RateLimit（洪水保护）→ Auth（权限）。 */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // AI 接口专项限流（先于通用限流 & 权限拦截，优先挡 DeepSeek 成本级爆破）
+        registry.addInterceptor(aiRateLimitInterceptor)
+                .addPathPatterns(
+                        "/api/ai/**",
+                        "/api/agents/**",
+                        "/api/rag/**",
+                        "/api/mcp/**"
+                )
+                .order(-1);
+
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns("/api/auth/**")

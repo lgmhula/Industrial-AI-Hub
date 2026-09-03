@@ -15,7 +15,7 @@ import java.lang.annotation.*;
 @Documented
 public @interface OperationLog {
 
-    /** 操作类型：CREATE / UPDATE / DELETE / LOGIN / EXPORT / ACKNOWLEDGE / RESOLVE / CHAT / SUMMARY / DIAGNOSE / FUNCTION_CALL / INGEST / MCP_SMOKE / INSPECTION / PUSH。 */
+    /** 操作类型：CREATE / UPDATE / DELETE / LOGIN / EXPORT / ACKNOWLEDGE / RESOLVE / CHAT / SUMMARY / DIAGNOSE / FUNCTION_CALL / INGEST / MCP_SMOKE / INSPECTION / PUSH / AUTO_ALARM。 */
     String operationType();
 
     /** 目标类型：USER / DEVICE / ALARM / ROLE / DEVICE_DATA / AI / KNOWLEDGE / MCP / SSE。 */

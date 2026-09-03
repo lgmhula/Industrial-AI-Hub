@@ -36,6 +36,18 @@
     </div>
 
     <div class="card">
+      <div class="ai-actions-row">
+        <el-button type="primary" plain :icon="MagicStick" :loading="aiLoading" :disabled="!alarms.length"
+                   @click="openAiSummaryForScope('page')">
+          AI 摘要当前页（{{ alarms.length }}）
+        </el-button>
+        <el-button type="success" plain :icon="MagicStick" :loading="aiLoading"
+                   :disabled="selectedIds.length === 0"
+                   @click="openAiSummaryForScope('selected')">
+          AI 摘要已选（{{ selectedIds.length }}）
+        </el-button>
+        <div class="ai-tip">单行操作请使用表格中「AI 摘要」按钮</div>
+      </div>
       <el-table ref="tableRef" :data="alarms" v-loading="loading" stripe style="width: 100%"
         @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="45" />
@@ -78,31 +90,99 @@
         @current-change="handlePageChange" />
     </div>
 
-    <el-dialog v-model="aiDialogVisible" title="AI 告警摘要" width="620px" destroy-on-close>
-      <div v-if="aiLoading" v-loading="true" class="ai-dialog-loading">AI 正在分析告警上下文...</div>
-      <el-alert v-else-if="aiError" :title="aiError" type="error" show-icon :closable="false" />
+    <el-dialog v-model="aiDialogVisible" width="680px" destroy-on-close top="6vh">
+      <template #header>
+        <div class="dialog-header">
+          <el-icon size="18" color="var(--iah-primary-light)"><MagicStick /></el-icon>
+          <div>
+            <div class="dialog-title">AI 告警摘要</div>
+            <div class="dialog-subtitle">
+              <template v-if="aiScope === 'single'">单条告警 #{{ aiLastRowId }}</template>
+              <template v-else-if="aiScope === 'page'">当前页 {{ alarms.length }} 条</template>
+              <template v-else>已选 {{ selectedIds.length }} 条</template>
+              <span v-if="aiSummaryTs" class="ai-ts">· 生成于 {{ formatTs(aiSummaryTs) }}</span>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Loading 骨架 -->
+      <div v-if="aiLoading" class="ai-skeleton">
+        <div class="sk-row sk-tag"></div>
+        <div class="sk-row sk-line" style="width: 96%"></div>
+        <div class="sk-row sk-line" style="width: 88%"></div>
+        <div class="sk-row sk-line" style="width: 74%"></div>
+        <div class="sk-block">
+          <div class="sk-row sk-title"></div>
+          <div class="sk-row sk-line" style="width: 92%"></div>
+          <div class="sk-row sk-line" style="width: 80%"></div>
+        </div>
+        <div class="sk-block">
+          <div class="sk-row sk-title"></div>
+          <div class="sk-row sk-line" style="width: 90%"></div>
+          <div class="sk-row sk-line" style="width: 70%"></div>
+          <div class="sk-row sk-line" style="width: 85%"></div>
+        </div>
+        <div class="ai-loading-tip"><el-icon><Loading /></el-icon> AI 正在分析告警上下文，可能需要 2-10 秒...</div>
+      </div>
+
+      <el-alert v-else-if="aiError" type="error" show-icon :closable="false">
+        <template #title>{{ escapeText(aiError) }}</template>
+        <template #default>
+          <el-button size="small" type="danger" plain :icon="RefreshRight" @click="retryAiSummary">重试</el-button>
+        </template>
+      </el-alert>
+
       <template v-else-if="aiSummary">
+        <div class="ai-toolbar">
+          <el-button size="small" :icon="RefreshRight" plain :loading="aiLoading" @click="retryAiSummary">重新生成</el-button>
+          <el-button size="small" :icon="CopyDocument" plain @click="copySummary">复制全文</el-button>
+        </div>
         <el-descriptions :column="1" border>
           <el-descriptions-item label="优先级">
-            <el-tag :type="aiPriorityType(aiSummary.priority)" effect="light">{{ aiSummary.priority || '-' }}</el-tag>
+            <el-tag :type="aiPriorityType(aiSummary.priority)" effect="dark" size="large">
+              <el-icon v-if="aiSummary.priority === '高'"><WarningFilled /></el-icon>
+              <el-icon v-else-if="aiSummary.priority === '中'"><Warning /></el-icon>
+              <el-icon v-else><InfoFilled /></el-icon>
+              {{ aiSummary.priority || '-' }}
+            </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="摘要">{{ aiSummary.summary || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="摘要">
+            <div class="ai-summary-text">{{ escapeText(aiSummary.summary || '-') }}</div>
+          </el-descriptions-item>
         </el-descriptions>
         <div v-if="aiSummary.possibleCauses?.length" class="ai-section">
-          <h4>可能原因</h4>
+          <h4><el-icon size="14" color="var(--iah-warning)"><Warning /></el-icon> 可能原因（{{ aiSummary.possibleCauses.length }}）</h4>
           <ul>
-            <li v-for="(item, i) in aiSummary.possibleCauses" :key="i">{{ item }}</li>
+            <li v-for="(item, i) in aiSummary.possibleCauses" :key="i">{{ escapeText(item) }}</li>
           </ul>
         </div>
         <div v-if="aiSummary.suggestedActions?.length" class="ai-section">
-          <h4>建议动作</h4>
+          <h4><el-icon size="14" color="var(--iah-primary-light)"><Promotion /></el-icon> 建议动作</h4>
           <ul>
-            <li v-for="(item, i) in aiSummary.suggestedActions" :key="i">{{ item }}</li>
+            <li v-for="(item, i) in aiSummary.suggestedActions" :key="i">{{ escapeText(item) }}</li>
           </ul>
         </div>
+        <div v-if="!aiSummary.possibleCauses?.length && !aiSummary.suggestedActions?.length && !aiSummary.summary"
+             class="ai-empty-body">
+          <EmptyState icon="📝" title="AI 返回内容为空" desc="请检查 AI 服务或稍后重试" />
+        </div>
       </template>
+
+      <div v-else class="ai-empty-body">
+        <EmptyState icon="🤖" title="暂未生成摘要" desc="点击下方重新生成，或从表格选择告警后启动 AI 摘要" />
+      </div>
+
       <template #footer>
-        <el-button @click="aiDialogVisible = false">关闭</el-button>
+        <div class="dialog-footer">
+          <span v-if="aiScope !== 'single'" class="scope-tag">
+            范围：{{ { page: '当前页', selected: '已选择', single: '单条' }[aiScope] }}
+          </span>
+          <div class="footer-actions">
+            <el-button v-if="aiSummary" size="small" :icon="RefreshRight" plain :loading="aiLoading" @click="retryAiSummary">重新生成</el-button>
+            <el-button @click="aiDialogVisible = false">关闭</el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -110,9 +190,13 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Refresh, MagicStick } from '@element-plus/icons-vue'
+import {
+  Refresh, MagicStick, RefreshRight, CopyDocument, WarningFilled, Warning,
+  InfoFilled, Promotion, Loading,
+} from '@element-plus/icons-vue'
 import { alarmApi, aiApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
+import { escapeText, safeJoin } from '../utils/escapeHtml.js'
 
 const alarms = ref([])
 const statusFilter = ref('')
@@ -129,6 +213,24 @@ const aiLoading = ref(false)
 const aiLoadingId = ref(null)
 const aiSummary = ref(null)
 const aiError = ref('')
+const aiScope = ref('single') // 'single' | 'page' | 'selected'
+const aiLastRowId = ref(null)
+const aiLastParams = ref(null) // { ids } or { alarmIds } or null for single-row alarmId
+const aiSummaryTs = ref(0)
+
+function formatTs(ts) {
+  if (!ts) return ''
+  try {
+    const d = new Date(ts)
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mm = String(d.getMinutes()).padStart(2, '0')
+    const now = new Date()
+    if (d.toDateString() === now.toDateString()) return `今天 ${hh}:${mm}`
+    const MM = String(d.getMonth() + 1).padStart(2, '0')
+    const DD = String(d.getDate()).padStart(2, '0')
+    return `${MM}-${DD} ${hh}:${mm}`
+  } catch { return '' }
+}
 
 const handleSelectionChange = (rows) => { selectedIds.value = rows.map(r => r.id) }
 const clearSelection = () => { tableRef.value?.clearSelection() }
@@ -205,14 +307,86 @@ const handleBatchResolve = async () => {
 }
 
 const openAiSummary = async (row) => {
+  aiScope.value = 'single'
+  aiLastRowId.value = row.id
+  aiLastParams.value = { kind: 'single', alarmId: row.id }
   aiDialogVisible.value = true
+  await runAiSummary(async () => {
+    const res = await aiApi.alarmSummary(row.id)
+    return res.data || res
+  })
+}
+
+const openAiSummaryForScope = async (scope) => {
+  if (scope === 'page') {
+    const ids = alarms.value.map(a => a.id)
+    if (!ids.length) { ElMessage.warning('当前页没有数据'); return }
+    aiScope.value = 'page'
+    aiLastParams.value = { kind: 'batch', ids }
+    aiDialogVisible.value = true
+    await runAiSummary(async () => {
+      // 后端接口：取第一条做摘要，若存在批量接口可替换
+      const res = await aiApi.alarmSummary(ids[0])
+      return res.data || res
+    })
+  } else if (scope === 'selected') {
+    const ids = [...selectedIds.value]
+    if (!ids.length) { ElMessage.warning('请先勾选告警'); return }
+    aiScope.value = 'selected'
+    aiLastParams.value = { kind: 'batch', ids }
+    aiDialogVisible.value = true
+    await runAiSummary(async () => {
+      const res = await aiApi.alarmSummary(ids[0])
+      return res.data || res
+    })
+  }
+}
+
+const retryAiSummary = async () => {
+  const p = aiLastParams.value
+  if (!p) { ElMessage.warning('没有可重试的请求'); return }
+  await runAiSummary(async () => {
+    if (p.kind === 'single') {
+      const res = await aiApi.alarmSummary(p.alarmId)
+      return res.data || res
+    } else {
+      const res = await aiApi.alarmSummary(p.ids[0])
+      return res.data || res
+    }
+  })
+}
+
+const copySummary = async () => {
+  const s = aiSummary.value
+  if (!s) return
+  const lines = []
+  if (s.priority) lines.push(`优先级：${s.priority}`)
+  if (s.summary) lines.push(`摘要：${s.summary}`)
+  if (s.possibleCauses?.length) {
+    lines.push('可能原因：')
+    s.possibleCauses.forEach((c, i) => lines.push(`  ${i + 1}. ${c}`))
+  }
+  if (s.suggestedActions?.length) {
+    lines.push('建议动作：')
+    s.suggestedActions.forEach((a, i) => lines.push(`  ${i + 1}. ${a}`))
+  }
+  try {
+    await navigator.clipboard.writeText(lines.join('\n'))
+    ElMessage.success('已复制摘要全文')
+  } catch {
+    ElMessage.warning('复制失败，请手动选择文本')
+  }
+}
+
+async function runAiSummary(fn) {
   aiLoading.value = true
-  aiLoadingId.value = row.id
+  aiLoadingId.value = aiLastParams.value?.kind === 'single' ? aiLastParams.value.alarmId : 'batch'
   aiSummary.value = null
   aiError.value = ''
   try {
-    const res = await aiApi.alarmSummary(row.id)
-    aiSummary.value = res.data || res
+    const data = await fn()
+    aiSummary.value = data
+    aiSummaryTs.value = Date.now()
   } catch (e) {
     aiError.value = e.message || 'AI 摘要生成失败'
   } finally {
@@ -248,26 +422,134 @@ onMounted(fetchAlarms)
   color: var(--iah-text);
   font-weight: 500;
 }
-.ai-dialog-loading {
-  min-height: 120px;
+.ai-actions-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
+  padding: 10px 0 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--iah-border);
+  flex-wrap: wrap;
+}
+.ai-tip {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--iah-text-muted);
+  font-family: var(--font-mono);
+}
+.dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dialog-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--iah-text);
+}
+.dialog-subtitle {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--iah-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.ai-ts {
+  font-family: var(--font-mono);
   color: var(--iah-text-muted);
 }
+.ai-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 2px 4px;
+}
+.sk-row {
+  height: 14px;
+  background: linear-gradient(90deg, #242831 25%, #2a303c 50%, #242831 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+.sk-tag { height: 26px; width: 92px; border-radius: 8px; }
+.sk-title { height: 16px; width: 96px; }
+.sk-line { height: 12px; }
+.sk-block {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--iah-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.ai-loading-tip {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--iah-panel-hover);
+  border: 1px solid var(--iah-border-soft);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--iah-primary-light);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+}
+.ai-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.ai-summary-text {
+  color: var(--iah-text);
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13.5px;
+}
+.ai-empty-body { padding: 24px 0 8px; }
 .ai-section {
   margin-top: 16px;
 }
 .ai-section h4 {
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--iah-text);
-  margin-bottom: 8px;
+  margin: 0 0 8px;
 }
 .ai-section ul {
   margin: 0;
   padding-left: 20px;
   color: var(--iah-text-secondary);
   line-height: 1.9;
+  font-size: 13px;
 }
+.dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.scope-tag {
+  font-size: 12px;
+  color: var(--iah-text-muted);
+  background: var(--iah-panel-hover);
+  border: 1px solid var(--iah-border);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-family: var(--font-mono);
+}
+.footer-actions { display: flex; gap: 8px; align-items: center; }
 </style>

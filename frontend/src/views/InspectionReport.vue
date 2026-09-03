@@ -5,7 +5,7 @@
         <el-icon :size="20" class="title-icon"><Bell /></el-icon>
         <div>
           <div class="page-title">AI 巡检日报</div>
-          <div class="page-subtitle">实时推送 · 自动重连 · 按日去重</div>
+          <div class="page-subtitle">实时推送 · 自动重连 · 按日去重 · AI 自动报警高亮</div>
         </div>
       </div>
       <div class="conn-status" :class="connState">
@@ -54,13 +54,74 @@
               <el-tag v-if="r.alarmCount" size="small" type="danger" effect="plain" class="meta-tag">
                 告警 {{ r.alarmCount }}
               </el-tag>
+              <!-- Day 87 新增：AI 结构化异常徽章 + 自动生成报警徽章 -->
+              <el-tag
+                v-if="r.issueCount"
+                size="small"
+                :type="issueSeverityTagType(r.issuesMaxSeverity)"
+                effect="light"
+                class="meta-tag ai-tag"
+              >
+                <el-icon class="tag-icon"><Warning /></el-icon>
+                异常 {{ r.issueCount }}
+              </el-tag>
+              <el-tag
+                v-if="r.autoAlarmCount"
+                size="small"
+                type="danger"
+                effect="dark"
+                class="meta-tag ai-tag"
+              >
+                <el-icon class="tag-icon"><Bell /></el-icon>
+                AI 自动报警 {{ r.autoAlarmCount }}
+              </el-tag>
               <el-tag v-if="r.truncated" size="small" type="danger" effect="dark" class="meta-tag">
                 已截断
               </el-tag>
               <span class="card-time">{{ formatTime(r.generatedAt) }}</span>
             </div>
           </div>
-          <div class="card-report">{{ r.report }}</div>
+
+          <!-- Day 87 新增：AI 结构化异常折叠卡（不截断，可展开逐条定位设备/级别/类型/描述） -->
+          <el-collapse
+            v-if="r.issueCount"
+            v-model="r._openIssues"
+            class="issue-collapse"
+          >
+            <el-collapse-item :name="'issues-' + r.reportDate">
+              <template #title>
+                <span class="issue-title">
+                  <el-icon class="issue-icon"><WarningFilled /></el-icon>
+                  AI 识别异常（{{ r.issueCount }}）· 点击展开逐条查看
+                </span>
+              </template>
+              <div class="issue-list">
+                <div v-for="(it, idx) in r.detectedIssues" :key="idx" class="issue-item">
+                  <div class="issue-head">
+                    <el-tag
+                      size="small"
+                      class="issue-severity"
+                      :type="severityTagType(it.severity)"
+                      effect="dark"
+                    >
+                      {{ severityLabel(it.severity) }}
+                    </el-tag>
+                    <span class="issue-device">
+                      <el-icon><Cpu /></el-icon>
+                      {{ it.deviceCode || ('#设备 ' + it.deviceId) }}
+                    </span>
+                    <el-tag size="small" effect="plain" type="info" class="issue-type">
+                      {{ it.alarmType }}
+                    </el-tag>
+                    <span class="issue-time" v-if="it.occurredAt">{{ formatTime(it.occurredAt) }}</span>
+                  </div>
+                  <div class="issue-desc">{{ escapeText(it.description) }}</div>
+                </div>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+
+          <div class="card-report">{{ escapeText(r.report) }}</div>
         </div>
       </div>
     </div>
@@ -69,8 +130,11 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { Bell, Calendar } from '@element-plus/icons-vue'
+import {
+  Bell, Calendar, Warning, WarningFilled, Cpu,
+} from '@element-plus/icons-vue'
 import EmptyState from '../components/EmptyState.vue'
+import { escapeText } from '../utils/escapeHtml.js'
 
 const reports = ref([])
 const connState = ref('connecting') // connecting | connected | reconnecting
@@ -82,6 +146,52 @@ const connLabel = computed(() => ({
   connected: '已连接',
   reconnecting: '重连中',
 }[connState.value] || '未知'))
+
+// Day 87 工具方法：AI 异常 severity → Element tag type
+function severityTagType(severity) {
+  const n = Number(severity) || 0
+  if (n >= 3) return 'danger'
+  if (n === 2) return 'warning'
+  if (n === 1) return 'info'
+  return 'info'
+}
+function issueSeverityTagType(maxSev) {
+  return severityTagType(maxSev)
+}
+function severityLabel(severity) {
+  const n = Number(severity) || 0
+  if (n >= 3) return '紧急'
+  if (n === 2) return '重要'
+  if (n === 1) return '一般'
+  return '一般'
+}
+
+function normalizeMessage(msg) {
+  const issues = Array.isArray(msg.detectedIssues) ? msg.detectedIssues : []
+  // issuesMaxSeverity：取 N 条异常里最高严重性，用于卡片头部异常徽章颜色
+  let maxSev = 0
+  for (const it of issues) {
+    const s = Number(it.severity) || 0
+    if (s > maxSev) maxSev = s
+  }
+  return {
+    reportDate: msg.reportDate,
+    report: msg.report || '',
+    toolRounds: msg.toolRounds || 0,
+    toolCalls: msg.toolCalls || 0,
+    deviceCount: msg.deviceCount || 0,
+    alarmCount: msg.alarmCount || 0,
+    truncated: !!msg.truncated,
+    generatedAt: msg.generatedAt || null,
+    // Day 87 新字段（后端 InspectionReportMessage Day 87 扩）
+    autoAlarmCount: Number(msg.autoAlarmCount) || 0,
+    detectedIssues: issues,
+    issueCount: issues.length,
+    issuesMaxSeverity: maxSev,
+    // UI 状态：折叠面板展开 key（默认不展开，不滚动时不抢占卡片正文位置）
+    _openIssues: [],
+  }
+}
 
 function connect() {
   const token = localStorage.getItem('token')
@@ -100,22 +210,14 @@ function connect() {
   // event 字段为 "inspection-report"，addEventListener 监听该具名事件
   source.addEventListener('inspection-report', (ev) => {
     try {
-      const msg = JSON.parse(ev.data)
+      const raw = JSON.parse(ev.data)
+      const msg = normalizeMessage(raw)
       // ADR 0031 §6 重复推送策略：前端按 reportDate 去重渲染
       // （Consumer 已用 Redis SETNX 跨实例幂等，前端二次去重作兜底）
       if (reports.value.some(r => r.reportDate === msg.reportDate)) {
         return
       }
-      reports.value.unshift({
-        reportDate: msg.reportDate,
-        report: msg.report || '',
-        toolRounds: msg.toolRounds || 0,
-        toolCalls: msg.toolCalls || 0,
-        deviceCount: msg.deviceCount || 0,
-        alarmCount: msg.alarmCount || 0,
-        truncated: !!msg.truncated,
-        generatedAt: msg.generatedAt || null,
-      })
+      reports.value.unshift(msg)
       // 保持最多 50 条，超出按时间倒序丢弃最旧
       if (reports.value.length > 50) {
         reports.value = reports.value.slice(0, 50)
@@ -147,8 +249,10 @@ function scrollToTop() {
 function formatTime(iso) {
   if (!iso) return ''
   try {
-    const d = new Date(iso.replace(' ', 'T'))
-    return d.toLocaleTimeString('zh-CN', { hour12: false })
+    const d = new Date(String(iso).replace(' ', 'T'))
+    if (Number.isNaN(d.getTime())) return iso
+    // 带日期：跨天巡检（00:xx）更清晰，不只是 HH:mm:ss
+    return d.toLocaleString('zh-CN', { hour12: false })
   } catch {
     return iso
   }
@@ -224,7 +328,7 @@ onUnmounted(() => {
   padding: 16px 20px;
 }
 .report-list {
-  max-width: 920px;
+  max-width: 960px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -261,12 +365,84 @@ onUnmounted(() => {
   gap: 6px;
   flex-wrap: wrap;
 }
-.meta-tag { font-family: var(--font-mono); }
+.meta-tag { font-family: var(--font-mono); display: inline-flex; align-items: center; gap: 4px; }
+.ai-tag { border-radius: 10px; letter-spacing: 0.2px; }
+.tag-icon { font-size: 12px; }
 .card-time {
   font-size: 12px;
   color: var(--iah-text-muted);
   margin-left: 4px;
+  font-family: var(--font-mono);
 }
+
+/* Day 87 新增：AI 异常折叠卡 */
+.issue-collapse {
+  border: none;
+  border-bottom: 1px solid var(--iah-border-soft);
+  background: transparent;
+  --el-collapse-border-color: transparent;
+}
+.issue-collapse :deep(.el-collapse-item__header) {
+  padding: 10px 16px;
+  background: linear-gradient(90deg, rgba(230,162,60,0.06), transparent 70%);
+  border-bottom: none;
+  color: var(--iah-text);
+  height: auto;
+  line-height: 1.5;
+}
+.issue-collapse :deep(.el-collapse-item__wrap) {
+  border-bottom: none;
+}
+.issue-title {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 600; font-size: 13px;
+}
+.issue-icon { color: var(--iah-warning, #e6a23c); }
+.issue-list {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px 16px 14px;
+  background: var(--iah-panel-hover);
+}
+.issue-item {
+  border: 1px solid var(--iah-border);
+  background: var(--iah-panel);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.issue-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.issue-severity {
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+.issue-device {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--iah-text-secondary);
+}
+.issue-type {
+  font-family: var(--font-mono);
+}
+.issue-time {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--iah-text-muted);
+  font-family: var(--font-mono);
+}
+.issue-desc {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--iah-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 4px 2px 0;
+  border-top: 1px dashed var(--iah-border-soft);
+  margin-top: 4px;
+}
+
 .card-report {
   padding: 14px 16px;
   font-size: 13px;
@@ -282,5 +458,6 @@ onUnmounted(() => {
   .card-header { padding: 10px 12px; }
   .card-report { padding: 10px 12px; font-size: 12px; }
   .conn-status .label { display: none; }
+  .issue-time { margin-left: 0; width: 100%; }
 }
 </style>

@@ -1,6 +1,5 @@
 package dev.reboot.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.reboot.client.DeepSeekClient;
 import dev.reboot.config.DeepSeekProperties;
@@ -23,6 +22,7 @@ import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.AlarmMapper;
 import dev.reboot.mapper.DeviceDataMapper;
 import dev.reboot.mapper.DeviceMapper;
+import dev.reboot.util.AiJsonFallbackUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -166,16 +166,13 @@ public class AiService {
                 "triggeredAt", alarm.getTriggeredAt()));
 
         String content = callJson(ALARM_SYSTEM_PROMPT, userPrompt);
-        try {
-            return objectMapper.readValue(unwrapJsonFence(content), AiAlarmSummary.class);
-        } catch (JsonProcessingException e) {
-            log.warn("告警摘要 JSON 解析失败，退回纯文本: {}", e.getMessage());
-            AiAlarmSummary fallback = new AiAlarmSummary();
-            fallback.setSummary(content);
-            fallback.setPossibleCauses(List.of());
-            fallback.setSuggestedActions(List.of());
-            return fallback;
-        }
+        return AiJsonFallbackUtil.parseOrFallback(content, AiAlarmSummary.class, objectMapper, raw -> {
+            AiAlarmSummary f = new AiAlarmSummary();
+            f.setSummary(raw);
+            f.setPossibleCauses(List.of());
+            f.setSuggestedActions(List.of());
+            return f;
+        });
     }
 
     /** 设备健康诊断：结合设备基础信息 + 最近数据 + 最近告警生成评估。 */
@@ -196,16 +193,14 @@ public class AiService {
                 "recentAlarms", renderRecentAlarms(recentAlarms)));
 
         String content = callJson(DIAGNOSIS_SYSTEM_PROMPT, userPrompt);
-        try {
-            return objectMapper.readValue(unwrapJsonFence(content), AiDeviceDiagnosis.class);
-        } catch (JsonProcessingException e) {
-            log.warn("设备诊断 JSON 解析失败，退回纯文本: {}", e.getMessage());
-            AiDeviceDiagnosis fallback = new AiDeviceDiagnosis();
-            fallback.setSummary(content);
-            fallback.setIssues(List.of());
-            fallback.setSuggestedActions(List.of());
-            return fallback;
-        }
+        return AiJsonFallbackUtil.parseOrFallback(content, AiDeviceDiagnosis.class, objectMapper, raw -> {
+            AiDeviceDiagnosis f = new AiDeviceDiagnosis();
+            f.setHealthLevel("未知");
+            f.setSummary(raw);
+            f.setIssues(List.of());
+            f.setSuggestedActions(List.of());
+            return f;
+        });
     }
 
     /** RAG 知识问答：检索相关片段注入上下文后由 ChatClient 回答。 */
@@ -309,18 +304,6 @@ public class AiService {
             result.setTotalTokens(response.getUsage().getTotalTokens());
         }
         return result;
-    }
-
-    private String unwrapJsonFence(String content) {
-        String trimmed = content == null ? "" : content.trim();
-        if (trimmed.startsWith("```")) {
-            int firstLineEnd = trimmed.indexOf('\n');
-            int lastFence = trimmed.lastIndexOf("```");
-            if (firstLineEnd >= 0 && lastFence > firstLineEnd) {
-                return trimmed.substring(firstLineEnd + 1, lastFence).trim();
-            }
-        }
-        return trimmed;
     }
 
     private Alarm requireAlarm(Long alarmId) {

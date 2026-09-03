@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS `operation_log` (
     `id`              BIGINT        NOT NULL AUTO_INCREMENT  COMMENT '主键',
     `user_id`         BIGINT        DEFAULT NULL             COMMENT '操作用户 ID',
     `operation_type`  VARCHAR(32)   NOT NULL                 COMMENT '操作类型',
-    CONSTRAINT `chk_operation_type` CHECK (`operation_type` IN ('CREATE','UPDATE','DELETE','LOGIN','EXPORT','ACKNOWLEDGE','RESOLVE','CHAT','SUMMARY','DIAGNOSE','FUNCTION_CALL','INGEST','MCP_SMOKE','INSPECTION','PUSH')),
+    CONSTRAINT `chk_operation_type` CHECK (`operation_type` IN ('CREATE','UPDATE','DELETE','LOGIN','EXPORT','ACKNOWLEDGE','RESOLVE','CHAT','SUMMARY','DIAGNOSE','FUNCTION_CALL','INGEST','MCP_SMOKE','INSPECTION','PUSH','AUTO_ALARM')),
     `target_type`     VARCHAR(32)   NOT NULL                 COMMENT '目标类型',
     CONSTRAINT `chk_target_type` CHECK (`target_type` IN ('USER','DEVICE','ALARM','ROLE','AI','KNOWLEDGE','MCP','SSE')),
     `target_id`       BIGINT        DEFAULT NULL             COMMENT '目标 ID',

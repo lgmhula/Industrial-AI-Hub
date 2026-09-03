@@ -63,33 +63,52 @@
             </div>
           </div>
           <div class="ai-card-action">
+            <el-button v-if="aiDiagnosis" size="small" :icon="RefreshRight" plain
+                       :loading="aiLoading" @click="runAiDiagnosis">
+              重新生成
+            </el-button>
             <el-button type="primary" :icon="MagicStick" :loading="aiLoading" @click="runAiDiagnosis">
-              生成诊断
+              {{ aiDiagnosis ? '刷新诊断' : '生成诊断' }}
             </el-button>
           </div>
         </div>
-        <el-alert v-if="aiError" :title="aiError" type="error" show-icon :closable="false" />
+        <el-alert v-if="aiError" type="error" show-icon :closable="false">
+          <template #title>{{ escapeText(aiError) }}</template>
+          <template #default>
+            <el-button size="small" type="danger" plain :icon="RefreshRight" @click="runAiDiagnosis">重试</el-button>
+          </template>
+        </el-alert>
         <template v-else-if="aiDiagnosis">
           <div class="ai-diagnosis-head">
-            <el-tag :type="healthType(aiDiagnosis.healthLevel)" effect="light" size="large">
+            <el-tag :type="healthType(aiDiagnosis.healthLevel)" effect="dark" size="large" class="health-tag">
+              <el-icon v-if="aiDiagnosis.healthLevel === '异常'"><WarningFilled /></el-icon>
+              <el-icon v-else-if="aiDiagnosis.healthLevel === '关注'"><Warning /></el-icon>
+              <el-icon v-else><CircleCheckFilled /></el-icon>
               {{ aiDiagnosis.healthLevel || '未知' }}
             </el-tag>
+            <span v-if="aiDiagnosisTs" class="ai-ts">生成于 {{ formatTs(aiDiagnosisTs) }}</span>
           </div>
-          <p class="ai-summary">{{ aiDiagnosis.summary || '-' }}</p>
+          <p class="ai-summary">{{ escapeText(aiDiagnosis.summary || '-') }}</p>
           <div v-if="aiDiagnosis.issues?.length" class="ai-section">
-            <h4>发现的问题</h4>
-            <ul>
-              <li v-for="(item, i) in aiDiagnosis.issues" :key="i">{{ item }}</li>
+            <h4><el-icon size="14" color="var(--iah-danger)"><WarningFilled /></el-icon> 发现的问题（{{ aiDiagnosis.issues.length }}）</h4>
+            <ul class="issue-list">
+              <li v-for="(item, i) in aiDiagnosis.issues" :key="i">
+                <el-tag size="small" type="danger" effect="plain" class="issue-sev">L2 重要</el-tag>
+                {{ escapeText(item) }}
+              </li>
             </ul>
           </div>
           <div v-if="aiDiagnosis.suggestedActions?.length" class="ai-section">
-            <h4>建议动作</h4>
+            <h4><el-icon size="14" color="var(--iah-primary-light)"><Promotion /></el-icon> 建议动作</h4>
             <ul>
-              <li v-for="(item, i) in aiDiagnosis.suggestedActions" :key="i">{{ item }}</li>
+              <li v-for="(item, i) in aiDiagnosis.suggestedActions" :key="i">{{ escapeText(item) }}</li>
             </ul>
           </div>
         </template>
-        <div v-else class="ai-placeholder">点击「生成诊断」，让 AI 基于设备基础信息、最近采集数据和未处理告警给出健康评估。</div>
+        <div v-else class="ai-placeholder">
+          <el-icon class="ph-icon" :size="28"><MagicStick /></el-icon>
+          <p>点击「生成诊断」，让 AI 基于设备基础信息、最近采集数据和未处理告警给出健康评估。</p>
+        </div>
       </div>
 
       <!-- AI 设备问答（Function Calling 折叠面板） -->
@@ -105,7 +124,12 @@
                         :disabled="qaLoading" clearable @keyup.enter="askQuestion" />
               <el-button type="primary" :icon="ChatDotRound" :loading="qaLoading" @click="askQuestion">提问</el-button>
             </div>
-            <el-alert v-if="qaError" :title="qaError" type="error" show-icon :closable="false" class="qa-error" />
+            <el-alert v-if="qaError" type="error" show-icon :closable="false" class="qa-error">
+              <template #title>{{ escapeText(qaError) }}</template>
+              <template #default>
+                <el-button size="small" type="danger" plain :icon="RefreshRight" @click="retryQuestion">重试</el-button>
+              </template>
+            </el-alert>
             <template v-else-if="qaResult">
               <div class="qa-meta">
                 <el-tag size="small" :type="qaResult.referencedRealTime ? 'success' : 'warning'" effect="light">
@@ -117,10 +141,18 @@
                         :type="t.success ? 'success' : 'danger'">
                   {{ t.toolName }}{{ t.success ? '' : ' ✗' }}
                 </el-tag>
+                <span v-if="qaResultTs" class="ai-ts">回答于 {{ formatTs(qaResultTs) }}</span>
               </div>
-              <p class="ai-summary">{{ qaResult.answer }}</p>
+              <div class="qa-answer-head">
+                <el-button size="small" :icon="RefreshRight" plain :loading="qaLoading" @click="retryQuestion">重新回答</el-button>
+                <el-button size="small" :icon="CopyDocument" plain @click="copyQaAnswer">复制回答</el-button>
+              </div>
+              <p class="ai-summary qa-answer">{{ escapeText(qaResult.answer) }}</p>
             </template>
-            <div v-else class="ai-placeholder">输入问题后，AI 将基于实时数据回答设备状态。</div>
+            <div v-else class="ai-placeholder">
+              <el-icon class="ph-icon" :size="26"><ChatDotRound /></el-icon>
+              <p>输入问题后，AI 将基于实时数据回答设备状态。</p>
+            </div>
           </el-collapse-item>
         </el-collapse>
       </div>
@@ -161,7 +193,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ArrowLeft, MagicStick, ChatDotRound } from '@element-plus/icons-vue'
+import {
+  ArrowLeft, MagicStick, ChatDotRound, RefreshRight, WarningFilled, Warning,
+  CircleCheckFilled, Promotion, CopyDocument,
+} from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
@@ -169,6 +204,7 @@ import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import { deviceApi, deviceDataApi, aiApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
+import { escapeText } from '../utils/escapeHtml.js'
 
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -182,6 +218,7 @@ const loading = ref(false)
 const aiLoading = ref(false)
 const aiError = ref('')
 const aiDiagnosis = ref(null)
+const aiDiagnosisTs = ref(0)
 
 // AI 设备问答（Function Calling）
 const qaOpen = ref([])
@@ -189,6 +226,22 @@ const qaQuestion = ref('')
 const qaLoading = ref(false)
 const qaError = ref('')
 const qaResult = ref(null)
+const qaResultTs = ref(0)
+const lastQaText = ref('')
+
+function formatTs(ts) {
+  if (!ts) return ''
+  try {
+    const d = new Date(ts)
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mm = String(d.getMinutes()).padStart(2, '0')
+    const now = new Date()
+    if (d.toDateString() === now.toDateString()) return `今天 ${hh}:${mm}`
+    const MM = String(d.getMonth() + 1).padStart(2, '0')
+    const DD = String(d.getDate()).padStart(2, '0')
+    return `${MM}-${DD} ${hh}:${mm}`
+  } catch { return '' }
+}
 
 const CHART_CONFIGS = [
   { type: 'TEMPERATURE', label: '温度', unit: '°C', color: '#3b82f6', icon: '🌡️' },
@@ -298,12 +351,13 @@ const primaryStats = computed(() => {
 const runAiDiagnosis = async () => {
   aiLoading.value = true
   aiError.value = ''
-  aiDiagnosis.value = null
   try {
     const res = await aiApi.deviceDiagnosis(deviceId)
     aiDiagnosis.value = res.data || res
+    aiDiagnosisTs.value = Date.now()
   } catch (e) {
     aiError.value = e.message || 'AI 健康诊断失败'
+    aiDiagnosis.value = null
   } finally {
     aiLoading.value = false
   }
@@ -315,12 +369,38 @@ const askQuestion = async () => {
     ElMessage.warning('请输入问题')
     return
   }
+  lastQaText.value = question
+  await doAskQuestion(question)
+}
+
+const retryQuestion = async () => {
+  const q = lastQaText.value || qaQuestion.value?.trim()
+  if (!q) {
+    ElMessage.warning('没有可重试的问题')
+    return
+  }
+  await doAskQuestion(q)
+}
+
+const copyQaAnswer = async () => {
+  const text = qaResult.value?.answer
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('已复制回答')
+  } catch {
+    ElMessage.warning('复制失败，请手动选择文本')
+  }
+}
+
+async function doAskQuestion(question) {
   qaLoading.value = true
   qaError.value = ''
   qaResult.value = null
   try {
     const res = await aiApi.deviceStatus(deviceId, question)
     qaResult.value = res.data || res
+    qaResultTs.value = Date.now()
   } catch (e) {
     qaError.value = e.message || 'AI 设备问答失败'
   } finally {
@@ -359,13 +439,130 @@ onMounted(fetchDetail)
   gap: 16px;
   margin-bottom: 14px;
 }
-.ai-card-action { flex: none; }
-.ai-diagnosis-head { margin-bottom: 12px; }
+.ai-card-action {
+  flex: none;
+  display: flex;
+  gap: 8px;
+}
+.ai-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ai-card-title h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--iah-text);
+}
+.ai-card-subtitle {
+  font-size: 12px;
+  color: var(--iah-text-muted);
+  margin-top: 2px;
+}
+.ai-card-title .el-icon { color: var(--iah-primary-light); }
+.ai-diagnosis-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.health-tag :deep(.el-tag__content) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ai-ts {
+  font-size: 12px;
+  color: var(--iah-text-muted);
+  font-family: var(--font-mono);
+}
+.ai-summary {
+  font-size: 14px;
+  color: var(--iah-text);
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 10px 0 6px;
+  background: var(--iah-panel-hover);
+  border-left: 3px solid var(--iah-primary);
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+}
+.qa-answer { background: var(--iah-panel-hover); }
+.qa-answer-head {
+  margin: 12px 0 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ai-section { margin-top: 16px; }
+.ai-section h4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--iah-text);
+  margin: 0 0 8px;
+}
+.ai-section ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--iah-text-secondary);
+  line-height: 1.9;
+  font-size: 13px;
+}
+.issue-list li { display: flex; align-items: flex-start; gap: 6px; }
+.issue-sev { margin-top: 3px; flex: none; }
 .qa-title {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  font-weight: 600;
 }
 .qa-title .el-icon { color: var(--iah-primary-light); }
+.qa-tip {
+  font-size: 12px;
+  color: var(--iah-text-muted);
+  margin: 4px 0 12px;
+  padding: 6px 10px;
+  background: var(--iah-panel-hover);
+  border-radius: var(--radius-md);
+}
+.qa-input-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
 .qa-error { margin-bottom: 12px; }
+.qa-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: var(--iah-panel-hover);
+  border-radius: var(--radius-md);
+}
+.ai-placeholder {
+  text-align: center;
+  padding: 36px 20px 30px;
+  color: var(--iah-text-muted);
+  border: 1px dashed var(--iah-border);
+  border-radius: var(--radius-md);
+  background: var(--iah-panel-hover);
+}
+.ai-placeholder .ph-icon {
+  color: var(--iah-primary-light);
+  opacity: 0.8;
+  margin-bottom: 10px;
+}
+.ai-placeholder p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
 </style>

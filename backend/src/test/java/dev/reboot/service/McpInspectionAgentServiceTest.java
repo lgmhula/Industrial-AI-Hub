@@ -3,6 +3,7 @@ package dev.reboot.service;
 import dev.reboot.agent.AgentRunResult;
 import dev.reboot.agent.ToolCallingAgent;
 import dev.reboot.client.DeepSeekClient;
+import dev.reboot.dto.ai.AiInspectionDetectedIssue;
 import dev.reboot.dto.ai.AiInspectionReportResult;
 import dev.reboot.dto.ai.AiToolCallTrace;
 import dev.reboot.enums.ErrorCode;
@@ -20,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.AmqpException;
 import org.springframework.ai.tool.ToolCallback;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -36,17 +38,24 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * McpInspectionAgentService 单元测试（ADR 0030 + Day 85 Phase 2 ADR 0031）。
+ * McpInspectionAgentService 单元测试（ADR 0030 + Day 85 Phase 2 ADR 0031 + Day 86 AI→ALARM 闭环）。
  *
- * <h3>Day 85 Phase 2 新增覆盖</h3>
+ * <h3>Day 85 Phase 2 覆盖</h3>
  * <ul>
  *   <li>{@code generate()} 末尾投递 InspectionReportMessage —— 验证 send 被调用 + 字段映射；</li>
  *   <li>MQ 异常降级不阻塞 —— AmqpException 被 catch，result 仍返回；</li>
  *   <li>null Producer（test profile 模拟）—— 跳过投递不 NPE。</li>
  * </ul>
  *
+ * <h3>Day 86 新增覆盖</h3>
+ * <ul>
+ *   <li>generate() 在 dispatchReport <b>前</b>调用 AiAlarmAutoCreator.createAlarms —— verify inOrder；</li>
+ *   <li>AutoCreator 抛 RuntimeException —— 二次兜底 catch 不阻塞 Agent 主流程（result 仍返回、MQ 仍投递）；</li>
+ *   <li>null AutoCreator（未装配/test profile）—— 跳过、不 NPE、不中断主流程。</li>
+ * </ul>
+ *
  * @author AI 助手
- * @since 2026-08-30, Phase 2 接入测试 2026-08-31
+ * @since 2026-08-30, Phase 2 接入测试 2026-08-31, Day 86 自动报警闭环 2026-09-01
  */
 @ExtendWith(MockitoExtension.class)
 class McpInspectionAgentServiceTest {
@@ -56,13 +65,14 @@ class McpInspectionAgentServiceTest {
     @Mock private ToolCallingAgent toolCallingAgent;
     @Mock private McpInspectionSession session;
     @Mock private InspectionReportProducer inspectionReportProducer;
+    @Mock private AiAlarmAutoCreator aiAlarmAutoCreator;
 
     private McpInspectionAgentService service;
 
     @BeforeEach
     void setUp() {
         service = new McpInspectionAgentService(deepSeekClient, mcpClientService,
-                toolCallingAgent, inspectionReportProducer);
+                toolCallingAgent, inspectionReportProducer, aiAlarmAutoCreator);
     }
 
     @Test
@@ -162,12 +172,13 @@ class McpInspectionAgentServiceTest {
     /**
      * Day 85 Phase 2：test profile 下 Producer 为 null（@Profile("!test")），
      * generate() 应跳过投递，不 NPE，不影响上下文加载与主流程。
+     * （AutoCreator 也为 null，和 Day 86 新 nullable 对齐）
      */
     @Test
     void generate_nullProducer_shouldSkipDispatchAndReturnResult() throws Exception {
-        // 模拟 test profile：Producer 为 null
+        // 模拟 test profile：Producer + AutoCreator 都为 null
         service = new McpInspectionAgentService(deepSeekClient, mcpClientService,
-                toolCallingAgent, null);
+                toolCallingAgent, null, null);
         when(mcpClientService.openInspectionSession()).thenReturn(session);
         when(session.toolCallbacks()).thenReturn(new ToolCallback[0]);
         when(toolCallingAgent.run(anyString(), anyString(), any(), any(), anyInt()))
@@ -180,5 +191,86 @@ class McpInspectionAgentServiceTest {
         assertEquals("null Producer 下的日报", result.getReport());
         assertEquals(1, result.getDeviceCount());
         // 无 Producer 可调用，验证不抛异常即可
+    }
+
+    // ===================== Day 86 新增测试 =====================
+
+    /**
+     * Day 86：generate() 先 AiAlarmAutoCreator.createAlarms，再 dispatchReport（MQ）。
+     * 顺序保证：即使 MQ 不可达，AI 自动报警仍先落盘。
+     */
+    @Test
+    void generate_shouldInvokeAutoCreateAlarmsBeforeDispatchReport() throws Exception {
+        when(mcpClientService.openInspectionSession()).thenReturn(session);
+        when(session.toolCallbacks()).thenReturn(new ToolCallback[0]);
+        when(toolCallingAgent.run(anyString(), anyString(), any(), any(), anyInt()))
+                .thenReturn(new AgentRunResult("检测到 2 个异常", 5, 8, false, false, List.of()));
+        when(session.deviceCount()).thenReturn(4);
+        when(session.alarmCount()).thenReturn(1);
+        // 模拟真实行为：createAlarms() 内部通过 result.setAutoAlarmCount 回填返回值
+        when(aiAlarmAutoCreator.createAlarms(any(), any(AiInspectionReportResult.class)))
+                .thenAnswer(invocation -> {
+                    AiInspectionReportResult r = invocation.getArgument(1);
+                    r.setAutoAlarmCount(2);
+                    return 2;
+                });
+
+        AiInspectionReportResult result = service.generate();
+
+        assertEquals(2, result.getAutoAlarmCount(), "autoAlarmCount 由 createAlarms() 内部回填");
+
+        // 顺序验证：先 createAlarms → 再 producer.send（MQ 不可达也能保证报警先落盘）
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(aiAlarmAutoCreator, inspectionReportProducer);
+        inOrder.verify(aiAlarmAutoCreator).createAlarms(any(), any(AiInspectionReportResult.class));
+        inOrder.verify(inspectionReportProducer).send(any(InspectionReportMessage.class));
+    }
+
+    /**
+     * Day 86 ADR 0031 §6 降级语义：AutoCreator.createAlarms 抛 RuntimeException
+     * （理论上内部已全 catch，这里验证 Agent 层二次兜底也生效）——不阻塞 Agent 主流程，
+     * result 仍返回、MQ 仍投递、session.close() 仍执行。
+     */
+    @Test
+    void generate_autoCreatorFails_shouldNotBlockAgentFlow() throws Exception {
+        when(mcpClientService.openInspectionSession()).thenReturn(session);
+        when(session.toolCallbacks()).thenReturn(new ToolCallback[0]);
+        when(toolCallingAgent.run(anyString(), anyString(), any(), any(), anyInt()))
+                .thenReturn(new AgentRunResult("检测到异常", 2, 2, false, false, List.of()));
+        when(session.deviceCount()).thenReturn(1);
+        when(session.alarmCount()).thenReturn(0);
+        when(aiAlarmAutoCreator.createAlarms(any(), any()))
+                .thenThrow(new RuntimeException("Alarm DB 不可达模拟（createAlarms 未预期抛异常）"));
+
+        AiInspectionReportResult result = service.generate();
+
+        // 关键断言：不抛 BusinessException / RuntimeException，result 仍正常返回
+        assertEquals("检测到异常", result.getReport());
+        assertEquals(1, result.getDeviceCount());
+        // MQ 投递仍执行（失败降级不应该连 MQ 也不做）
+        verify(inspectionReportProducer).send(any(InspectionReportMessage.class));
+        verify(session).close();
+    }
+
+    /**
+     * Day 86：test profile / 未装配 AutoCreator（constructor null）→ 跳过，不 NPE。
+     * Producer 存在时仍照常投递；保证 null 组件不影响其他功能。
+     */
+    @Test
+    void generate_nullAutoCreator_shouldSkipAndKeepDispatch() throws Exception {
+        service = new McpInspectionAgentService(deepSeekClient, mcpClientService,
+                toolCallingAgent, inspectionReportProducer, null);
+        when(mcpClientService.openInspectionSession()).thenReturn(session);
+        when(session.toolCallbacks()).thenReturn(new ToolCallback[0]);
+        when(toolCallingAgent.run(anyString(), anyString(), any(), any(), anyInt()))
+                .thenReturn(new AgentRunResult("无 AutoCreator 场景", 1, 1, true, false, List.of()));
+        when(session.deviceCount()).thenReturn(2);
+        when(session.alarmCount()).thenReturn(0);
+
+        AiInspectionReportResult result = service.generate();
+
+        assertEquals("无 AutoCreator 场景", result.getReport());
+        assertEquals(2, result.getDeviceCount());
+        // MQ 仍被投递；不 NPE 即可
+        verify(inspectionReportProducer).send(any(InspectionReportMessage.class));
     }
 }

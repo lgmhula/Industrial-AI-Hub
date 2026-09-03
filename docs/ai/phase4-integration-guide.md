@@ -5,22 +5,22 @@
 > **关联文档**：[SETUP.md](../SETUP.md)（环境起 + 登录）｜[Application-Architecture.md §2a](../Architecture/Application-Architecture.md)（巡检推送链路 ASCII 图，Day 88 交付）｜[AGENTS.md §3](../../AGENTS.md)（当前状态）
 > **一句话版**：`.env` 开 `DEEPSEEK_ENABLED=true` → 重启 → `curl POST /api/rag/documents` 入 PDF → `curl POST /api/ai/agents/inspection-report` 触发巡检 → 浏览器 `/inspection` 看 SSE → curl 3 次 `/api/ai/chat` 看 429。
 
----
+***
 
 ## 0. 前置条件
 
-| 项 | 要求 | 验证命令 |
-|----|------|----------|
-| 基础设施 | MySQL / Redis / RabbitMQ / backend 四容器 `Up`（见 [SETUP §3](../SETUP.md#3-启动后端)） | `docker compose ps` |
-| 后端健康 | `/actuator/health` = `UP` | `curl -s http://localhost:8080/actuator/health` |
-| admin 登录 | 已 `POST /api/auth/login` 拿到 `accessToken`（用户名 `admin` / 密码 `admin123`） | 见 [SETUP §5](../SETUP.md#5-登录验证) |
-| 前端（可选） | `npm run dev` 在 5173 端口（Step 4 SSE 验证需要） | `curl -sI http://localhost:5173` |
-| DeepSeek 配额 | 账户有 ≥1$ 余额（或免费额度未耗尽），否则 Step 1 起一路 429 | DeepSeek 控制台 |
+| 项           | 要求                                                                            | 验证命令                                            |
+| ----------- | ----------------------------------------------------------------------------- | ----------------------------------------------- |
+| 基础设施        | MySQL / Redis / RabbitMQ / backend 四容器 `Up`（见 [SETUP §3](../SETUP.md#3-启动后端)） | `docker compose ps`                             |
+| 后端健康        | `/actuator/health` = `UP`                                                     | `curl -s http://localhost:8080/actuator/health` |
+| admin 登录    | 已 `POST /api/auth/login` 拿到 `accessToken`（用户名 `admin` / 密码 `admin123`）        | 见 [SETUP §5](../SETUP.md#5-登录验证)                |
+| 前端（可选）      | `npm run dev` 在 5173 端口（Step 4 SSE 验证需要）                                      | `curl -sI http://localhost:5173`                |
+| DeepSeek 配额 | 账户有 ≥1$ 余额（或免费额度未耗尽），否则 Step 1 起一路 429                                        | DeepSeek 控制台                                    |
 
 > 下文 `$TOKEN` = admin 登录返回的 `data.accessToken`，统一放进 `Authorization: Bearer $TOKEN`。
 > bash 下用 `export TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}' | jq -r .data.accessToken)` 一次到位。
 
----
+***
 
 ## 1. Step 1 — 启用 DeepSeek + MCP 通道
 
@@ -80,13 +80,13 @@ curl -s -X POST http://localhost:8080/api/ai/chat \
 }
 ```
 
-| 现象 | 原因 | 解法 |
-|------|------|------|
-| `code=503` message 含「未启用/未配置/第三方」 | `DEEPSEEK_ENABLED` 还是 false，或 `.env` 改完没重启 | `grep DEEPSEEK_ENABLED .env` 确认；`docker compose restart backend` |
-| `code=503` message 含「DeepSeek 调用失败」 | Key 错误 / 网络不通 / 配额耗尽 | curl DeepSeek 原始接口排查；DeepSeek 控制台看配额 |
-| 启动日志 `Could not resolve placeholder 'DEEPSEEK_API_KEY'` | `.env` 工作目录不对，或 OS 环境变量覆盖了空值 | 工作目录需 `backend/` 或项目根（dev profile 双候选 `../.env` / `./.env` 自动定位）；清掉 IDEA Run Configuration 残留 env |
+| 现象                                                      | 原因                                         | 解法                                                                                                |
+| ------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `code=503` message 含「未启用/未配置/第三方」                       | `DEEPSEEK_ENABLED` 还是 false，或 `.env` 改完没重启 | `grep DEEPSEEK_ENABLED .env` 确认；`docker compose restart backend`                                  |
+| `code=503` message 含「DeepSeek 调用失败」                     | Key 错误 / 网络不通 / 配额耗尽                       | curl DeepSeek 原始接口排查；DeepSeek 控制台看配额                                                              |
+| 启动日志 `Could not resolve placeholder 'DEEPSEEK_API_KEY'` | `.env` 工作目录不对，或 OS 环境变量覆盖了空值               | 工作目录需 `backend/` 或项目根（dev profile 双候选 `../.env` / `./.env` 自动定位）；清掉 IDEA Run Configuration 残留 env |
 
----
+***
 
 ## 2. Step 2 — RAG 知识库入库 + 问答验证
 
@@ -114,7 +114,7 @@ curl -s -X POST http://localhost:8080/api/rag/documents \
 
 > **端点纠正**：Day 89 笔记 §5 写的 `/api/rag/ingest/upload` 是笔误，实际端点是 [POST /api/rag/documents](../../backend/src/main/java/dev/reboot/controller/RagController.java#L45)（`consumes=multipart/form-data`，ADMIN 权限）。
 
-### 2.2 验证 knowledge_chunk 入库（DB 侧）
+### 2.2 验证 knowledge\_chunk 入库（DB 侧）
 
 ```bash
 docker compose exec mysql mysql -uroot -p$MYSQL_PASSWORD reboot \
@@ -147,13 +147,13 @@ curl -s -X POST http://localhost:8080/api/rag/ask \
 }
 ```
 
-| 现象 | 原因 | 解法 |
-|------|------|------|
-| `citations: []` 且 answer 含「知识库中缺少相关信息」 | 入库失败 / 问题与手册无关 | 回 2.2 看 DB；或换一个明显在手册里的问题 |
-| `chunkCount: 0` | PDF 是扫描件（无文本层）/ 加密 PDF | PDFBox 不做 OCR；用 `pdftotext` 预检 PDF 是否含文本 |
-| `code=503` | DeepSeek 未启用（Step 1 没做完） | 回 Step 1 |
+| 现象                                     | 原因                       | 解法                                       |
+| -------------------------------------- | ------------------------ | ---------------------------------------- |
+| `citations: []` 且 answer 含「知识库中缺少相关信息」 | 入库失败 / 问题与手册无关           | 回 2.2 看 DB；或换一个明显在手册里的问题                 |
+| `chunkCount: 0`                        | PDF 是扫描件（无文本层）/ 加密 PDF   | PDFBox 不做 OCR；用 `pdftotext` 预检 PDF 是否含文本 |
+| `code=503`                             | DeepSeek 未启用（Step 1 没做完） | 回 Step 1                                 |
 
----
+***
 
 ## 3. Step 3 — AI 巡检 + 业务闭环（alarm 落库）
 
@@ -188,7 +188,7 @@ curl -s -X POST http://localhost:8080/api/ai/agents/inspection-report \
 > **链路**（ADR 0030 + ADR 0031 + Day 86）：`McpInspectionAgentService.generate()` → Agent 通过 MCP 工具列设备/查数据/查告警 → `AiAlarmAutoCreator.autoCreateAlarms()` 把 detectedIssues 落 alarm 表（幂等）→ `InspectionReportProducer` 投递到 `inspection.exchange` MQ → Consumer 消费 → PushGateway 路由到 SSE。
 > 完整 ASCII 图见 [Application-Architecture.md §2a](../Architecture/Application-Architecture.md)。
 
-### 3.2 验证 alarm 表新增 AUTO_ALARM 记录
+### 3.2 验证 alarm 表新增 AUTO\_ALARM 记录
 
 ```bash
 docker compose exec mysql mysql -uroot -p$MYSQL_PASSWORD reboot \
@@ -214,13 +214,13 @@ ai-alarm:{deviceId}:{alarmType}:{yyyy-MM-dd}   TTL 24h   Redis SETNX
 
 - 命中 → 跳过；Redis 不可用（null / 抛异常）→ **降级不做去重**（warn 日志，不阻塞主流程），见 §6 故障 3。
 
-| 现象 | 原因 | 解法 |
-|------|------|------|
+| 现象                                | 原因                                     | 解法                                                    |
+| --------------------------------- | -------------------------------------- | ----------------------------------------------------- |
 | `code=503` message 含「MCP 客户端连接失败」 | MCP Server 未起 / `MCP_ACCESS_TOKEN` 不一致 | 看 Step 1.1 的 MCP 三变量；后端日志 grep `McpInspectionSession` |
-| `toolRounds: 6` `truncated: true` | 设备过多触发 6 轮硬限（ADR 0026） | 设备数 ≥30 时正常现象；想完整覆盖分站点分批跑 |
-| 第二次 `autoAlarmCount` 翻倍 | Redis 未连（降级去重） → 又命中 | 回 §6 故障 3 修 Redis |
+| `toolRounds: 6` `truncated: true` | 设备过多触发 6 轮硬限（ADR 0026）                 | 设备数 ≥30 时正常现象；想完整覆盖分站点分批跑                             |
+| 第二次 `autoAlarmCount` 翻倍           | Redis 未连（降级去重） → 又命中                   | 回 §6 故障 3 修 Redis                                     |
 
----
+***
 
 ## 4. Step 4 — SSE 推送验证（浏览器 + curl）
 
@@ -252,17 +252,17 @@ curl -s -X POST http://localhost:8080/api/ai/agents/inspection-report \
 kill $SSE_PID
 ```
 
-> **JWT 解析路径**（[JwtAuthFilter.java](../../backend/src/main/java/dev/reboot/security/JwtAuthFilter.java#L136)）：Authorization header 优先；缺则从 `?token=` query 读（仅 `/api/push/` 前缀）。**REST 端点不读 query**，防止 token 通过 URL 泄漏到 nginx access_log。
+> **JWT 解析路径**（[JwtAuthFilter.java](../../backend/src/main/java/dev/reboot/security/JwtAuthFilter.java#L136)）：Authorization header 优先；缺则从 `?token=` query 读（仅 `/api/push/` 前缀）。**REST 端点不读 query**，防止 token 通过 URL 泄漏到 nginx access\_log。
 
 ### 4.3 连接级断言
 
-| 检查点 | 期望 |
-|--------|------|
-| HTTP 状态 | 200，`Content-Type: text/event-stream` |
-| 连接保持时长 | 30min（[SseEmitterRegistry](../../backend/src/main/java/dev/reboot/mq/SseEmitterRegistry.java) 默认 timeout） |
-| 具名事件 | `event: inspection-report`（不是 `message`），前端 `addEventListener('inspection-report', ...)` 监听 |
-| 自动重连 | 浏览器 `EventSource` 原生指数退避；`onerror` 时 `readyState=2(CLOSED)` 手动 3s 重试 |
-| 断线清理 | `onCompletion` / `onTimeout` / `onError` 三回调自动 `registry.remove()` 防泄漏 |
+| 检查点     | 期望                                                                                                        |
+| ------- | --------------------------------------------------------------------------------------------------------- |
+| HTTP 状态 | 200，`Content-Type: text/event-stream`                                                                     |
+| 连接保持时长  | 30min（[SseEmitterRegistry](../../backend/src/main/java/dev/reboot/mq/SseEmitterRegistry.java) 默认 timeout） |
+| 具名事件    | `event: inspection-report`（不是 `message`），前端 `addEventListener('inspection-report', ...)` 监听               |
+| 自动重连    | 浏览器 `EventSource` 原生指数退避；`onerror` 时 `readyState=2(CLOSED)` 手动 3s 重试                                      |
+| 断线清理    | `onCompletion` / `onTimeout` / `onError` 三回调自动 `registry.remove()` 防泄漏                                    |
 
 ### 4.4 nginx 反代注意（生产部署必看）
 
@@ -280,7 +280,7 @@ location /api/push/ {
 }
 ```
 
----
+***
 
 ## 5. Step 5 — 限流验证 + 运维参数
 
@@ -309,11 +309,11 @@ order  1   AuthInterceptor（@RequireRole）/api/** 除 /api/auth/**
 
 ### 5.3 限流桶粒度
 
-| 用户类型 | 桶 key | 默认速率 |
-|----------|--------|----------|
-| 已登录（JWT userId 存在） | `u:{userId}` 每用户独立桶 | 2 req/s |
-| ADMIN | 同 `u:{userId}` 但速率放宽 | 5 req/s |
-| 匿名未登录 | `ip:{clientIp}`（X-Forwarded-For 链取第一个真实 IP） | 2 req/s |
+| 用户类型               | 桶 key                                       | 默认速率    |
+| ------------------ | ------------------------------------------- | ------- |
+| 已登录（JWT userId 存在） | `u:{userId}` 每用户独立桶                         | 2 req/s |
+| ADMIN              | 同 `u:{userId}` 但速率放宽                        | 5 req/s |
+| 匿名未登录              | `ip:{clientIp}`（X-Forwarded-For 链取第一个真实 IP） | 2 req/s |
 
 > **热更新**：用户升级 ADMIN 后，下次请求检测到 `limiter.getRate() != rate` 自动 `setRate()`，不重启即生效。
 
@@ -355,83 +355,85 @@ done
 
 > 与通用 `RateLimitInterceptor` body 结构一致但 message 明说「AI 接口」，前端可区分错误来源。
 
----
+***
 
 ## 6. Step 6 — 常见故障速查 + 回滚策略
 
 ### 6.1 故障速查表
 
-| # | 现象 | 根因 | 定位 | 回滚 / 解法 |
-|---|------|------|------|--------------|
-| 1 | `/api/ai/*` 全部 503 message 含「未启用/未配置/第三方」 | DeepSeek 未启用 / Key 缺失 | `grep DEEPSEEK .env`；后端日志 `DeepSeek enabled=false` | `.env` 设 `DEEPSEEK_ENABLED=true` + 真实 Key + 重启 |
-| 2 | `/api/ai/*` 503 message 含「DeepSeek 调用失败」 | Key 错 / 配额耗尽 / DeepSeek 限流 429 | 直接 curl DeepSeek 原始接口；DeepSeek 控制台看配额 | 换 Key / 充值 / 等配额恢复；应急可临时 `DEEPSEEK_ENABLED=false` 回到「AI 关闭」基线 |
-| 3 | 巡检第二次 `autoAlarmCount` 翻倍 / alarm 表出现重复 | Redis 未连 → `AiAlarmAutoCreator` 降级「不做去重」（warn 日志） | `docker compose ps redis`；后端日志 `AI 自动报警幂等 Redis SETNX 异常，降级不做去重` | 修 Redis 连接（`REDIS_PASSWORD` 对不对、容器是否 Up）；清理 alarm 表重复行（`DELETE FROM alarm WHERE id IN (...)`）；重新跑巡检 |
-| 4 | SSE 端点 403「无可访问站点，无法订阅巡检日报」 | 非 ADMIN 用户且 `SiteAccessService.accessibleSiteIds(userId)` 返回空 List | 检查 `user_site` 表是否给该用户分配站点 | `INSERT INTO user_site ...` 给站点访问权；或用 admin 登录 |
-| 5 | SSE 连上但收不到事件 | InspectionReportConsumer 没消费 / PushGateway 路由不到 | RabbitMQ 管理台 `http://localhost:15672` 看 `inspection.queue` 消息堆积；后端日志 grep `InspectionReportConsumer` | 重启 backend 让 Consumer 重新绑定；`docker compose restart rabbitmq`（DLQ 里的消息需手动 requeue） |
-| 6 | nginx 反代下 SSE 卡死 / 一次性吐所有事件 | `proxy_buffering` 未关 | `curl -I` 看 `X-Accel-Buffering` | nginx `location /api/push/` 加 `proxy_buffering off`（见 §4.4） |
-| 7 | MCP 巡检报「MCP 客户端握手超时」 | `MCP_ACCESS_TOKEN` 不一致 / MCP Server 端点被拦截 | 后端日志 grep `McpInspectionSession` / `McpAccessFilter` | `.env` 两端 `MCP_ACCESS_TOKEN` 对齐；或留空（仅内网）；巡检 `McpInspectionSession` 是 `AutoCloseable`，异常会自动 close 不泄漏 |
-| 8 | AI 返回 JSON 含 ```json fence 但前端解析失败 | `AiJsonFallbackUtil` 已 unwrap，前端二次 parse 失败 | 浏览器 console 看 parse 错误 | 后端已经 fallback 到纯文本，前端 `escapeHtml.js` 渲染纯文本即可；不要前端再 `JSON.parse`，直接渲染 `answer` 字段 |
-| 9 | `Could not resolve placeholder 'DEEPSEEK_API_KEY'` 启动失败 | `.env` 缺失 / 工作目录不对 / OS env 覆盖空值 | 启动日志直接报 | 工作目录 `backend/` 或项目根（dev 双候选）；清 IDEA Run Configuration 残留 env；`cp .env.example .env` 重填 |
-| 10 | `code=429` 但用户没刷 | 桶里残留旧令牌 / 测试期间触发过 | wait 1s 即恢复（令牌桶每秒补 2 个） | 等待；或重启 backend 清空 `ConcurrentHashMap`（仅单实例有效） |
+| #  | 现象                                                      | 根因                                                                 | 定位                                                                                                   | 回滚 / 解法                                                                                              |
+| -- | ------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 1  | `/api/ai/*` 全部 503 message 含「未启用/未配置/第三方」               | DeepSeek 未启用 / Key 缺失                                              | `grep DEEPSEEK .env`；后端日志 `DeepSeek enabled=false`                                                   | `.env` 设 `DEEPSEEK_ENABLED=true` + 真实 Key + 重启                                                       |
+| 2  | `/api/ai/*` 503 message 含「DeepSeek 调用失败」                | Key 错 / 配额耗尽 / DeepSeek 限流 429                                     | 直接 curl DeepSeek 原始接口；DeepSeek 控制台看配额                                                                | 换 Key / 充值 / 等配额恢复；应急可临时 `DEEPSEEK_ENABLED=false` 回到「AI 关闭」基线                                        |
+| 3  | 巡检第二次 `autoAlarmCount` 翻倍 / alarm 表出现重复                 | Redis 未连 → `AiAlarmAutoCreator` 降级「不做去重」（warn 日志）                  | `docker compose ps redis`；后端日志 `AI 自动报警幂等 Redis SETNX 异常，降级不做去重`                                     | 修 Redis 连接（`REDIS_PASSWORD` 对不对、容器是否 Up）；清理 alarm 表重复行（`DELETE FROM alarm WHERE id IN (...)`）；重新跑巡检  |
+| 4  | SSE 端点 403「无可访问站点，无法订阅巡检日报」                             | 非 ADMIN 用户且 `SiteAccessService.accessibleSiteIds(userId)` 返回空 List | 检查 `user_site` 表是否给该用户分配站点                                                                           | `INSERT INTO user_site ...` 给站点访问权；或用 admin 登录                                                       |
+| 5  | SSE 连上但收不到事件                                            | InspectionReportConsumer 没消费 / PushGateway 路由不到                    | RabbitMQ 管理台 `http://localhost:15672` 看 `inspection.queue` 消息堆积；后端日志 grep `InspectionReportConsumer` | 重启 backend 让 Consumer 重新绑定；`docker compose restart rabbitmq`（DLQ 里的消息需手动 requeue）                    |
+| 6  | nginx 反代下 SSE 卡死 / 一次性吐所有事件                             | `proxy_buffering` 未关                                               | `curl -I` 看 `X-Accel-Buffering`                                                                      | nginx `location /api/push/` 加 `proxy_buffering off`（见 §4.4）                                          |
+| 7  | MCP 巡检报「MCP 客户端握手超时」                                    | `MCP_ACCESS_TOKEN` 不一致 / MCP Server 端点被拦截                          | 后端日志 grep `McpInspectionSession` / `McpAccessFilter`                                                 | `.env` 两端 `MCP_ACCESS_TOKEN` 对齐；或留空（仅内网）；巡检 `McpInspectionSession` 是 `AutoCloseable`，异常会自动 close 不泄漏 |
+| 8  | AI 返回 JSON 含 \`\`\`json fence 但前端解析失败                   | `AiJsonFallbackUtil` 已 unwrap，前端二次 parse 失败                        | 浏览器 console 看 parse 错误                                                                               | 后端已经 fallback 到纯文本，前端 `escapeHtml.js` 渲染纯文本即可；不要前端再 `JSON.parse`，直接渲染 `answer` 字段                    |
+| 9  | `Could not resolve placeholder 'DEEPSEEK_API_KEY'` 启动失败 | `.env` 缺失 / 工作目录不对 / OS env 覆盖空值                                   | 启动日志直接报                                                                                              | 工作目录 `backend/` 或项目根（dev 双候选）；清 IDEA Run Configuration 残留 env；`cp .env.example .env` 重填              |
+| 10 | `code=429` 但用户没刷                                        | 桶里残留旧令牌 / 测试期间触发过                                                  | wait 1s 即恢复（令牌桶每秒补 2 个）                                                                              | 等待；或重启 backend 清空 `ConcurrentHashMap`（仅单实例有效）                                                        |
 
 ### 6.2 回滚策略
 
-| 场景 | 回滚动作 | 影响范围 |
-|------|----------|----------|
-| DeepSeek 整体不可用（Key 泄漏 / 配额耗尽） | `.env` 改 `DEEPSEEK_ENABLED=false` → 重启 | 所有 `/api/ai/**` 返回 503；设备/告警/日志 CRUD 不受影响 |
-| 单接口要降级（如巡检卡） | nginx 或网关层把 `/api/ai/agents/inspection-report` 临时 return 423 | 其他 AI 接口（chat / summary / diagnose）正常 |
-| SSE 推送链路异常（Consumer 死锁） | `docker compose restart backend`；RabbitMQ 不重启，消息在队列里等 Consumer 恢复 | 已发出的 SSE 连接断开，浏览器自动重连 |
-| 误把演示数据灌进生产 | 见 [ADR 0019 §5](../decision-log/0019-flyway-migration.md) | `db/seed/dev/seed_demo_data.sql` 只能 `scripts/seed-dev.sh` 显式执行，不进 Flyway 迁移链 |
-| AI 限流误伤 ADMIN | `application-dev.yml` 加 `rate.limit.ai.adminPermits: 100` 重启 | 不影响普通用户桶 |
+| 场景                            | 回滚动作                                                              | 影响范围                                                                         |
+| ----------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| DeepSeek 整体不可用（Key 泄漏 / 配额耗尽） | `.env` 改 `DEEPSEEK_ENABLED=false` → 重启                            | 所有 `/api/ai/**` 返回 503；设备/告警/日志 CRUD 不受影响                                    |
+| 单接口要降级（如巡检卡）                  | nginx 或网关层把 `/api/ai/agents/inspection-report` 临时 return 423      | 其他 AI 接口（chat / summary / diagnose）正常                                        |
+| SSE 推送链路异常（Consumer 死锁）       | `docker compose restart backend`；RabbitMQ 不重启，消息在队列里等 Consumer 恢复 | 已发出的 SSE 连接断开，浏览器自动重连                                                        |
+| 误把演示数据灌进生产                    | 见 [ADR 0019 §5](../decision-log/0019-flyway-migration.md)         | `db/seed/dev/seed_demo_data.sql` 只能 `scripts/seed-dev.sh` 显式执行，不进 Flyway 迁移链 |
+| AI 限流误伤 ADMIN                 | `application-dev.yml` 加 `rate.limit.ai.adminPermits: 100` 重启      | 不影响普通用户桶                                                                     |
 
 ### 6.3 Day 89 兜底工具速查（事故时的安全网）
 
-| 工具 | 位置 | 防的事故 |
-|------|------|----------|
-| [escapeHtml.js](../../frontend/src/utils/escapeHtml.js) | 前端 4 个 AI 页面 | AI 自由文本 XSS（OWASP 5 字符实体） |
-| [AiJsonFallbackUtil](../../backend/src/main/java/dev/reboot/util/AiJsonFallbackUtil.java) | AiService.summarizeAlarm/diagnose | AI 返回非法 JSON / ```json fence / 超长 payload OOM（2MB 硬上限） |
-| [AiRateLimitInterceptor](../../backend/src/main/java/dev/reboot/security/AiRateLimitInterceptor.java) | order=-1 先于通用限流 | DeepSeek 成本级攻击（每用户独立桶，ADMIN 放宽） |
-| `McpInspectionSession` AutoCloseable | MCP 巡检 | SSE 握手异常时连接泄漏 |
-| Redis SETNX 幂等键 | AiAlarmAutoCreator / InspectionReportConsumer | 跨实例重复报警 / 重复消费 |
+| 工具                                                                                                    | 位置                                            | 防的事故                                                      |
+| ----------------------------------------------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------- |
+| [escapeHtml.js](../../frontend/src/utils/escapeHtml.js)                                               | 前端 4 个 AI 页面                                  | AI 自由文本 XSS（OWASP 5 字符实体）                                 |
+| [AiJsonFallbackUtil](../../backend/src/main/java/dev/reboot/util/AiJsonFallbackUtil.java)             | AiService.summarizeAlarm/diagnose             | AI 返回非法 JSON / \`\`\`json fence / 超长 payload OOM（2MB 硬上限） |
+| [AiRateLimitInterceptor](../../backend/src/main/java/dev/reboot/security/AiRateLimitInterceptor.java) | order=-1 先于通用限流                               | DeepSeek 成本级攻击（每用户独立桶，ADMIN 放宽）                           |
+| `McpInspectionSession` AutoCloseable                                                                  | MCP 巡检                                        | SSE 握手异常时连接泄漏                                             |
+| Redis SETNX 幂等键                                                                                       | AiAlarmAutoCreator / InspectionReportConsumer | 跨实例重复报警 / 重复消费                                            |
 
----
+***
 
 ## 7. 验证矩阵（验收清单）
 
-| Step | 端点 | 角色 | 期望 | ✓ |
-|------|------|------|------|---|
-| 1.3 | `POST /api/ai/chat` | ADMIN | 200 + `answer`/`totalTokens` 非空 | ☐ |
-| 2.1 | `POST /api/rag/documents` | ADMIN | 200 + `chunkCount > 0` | ☐ |
-| 2.2 | `SELECT FROM knowledge_chunk` | — | ≥1 行 | ☐ |
-| 2.3 | `POST /api/rag/ask` | ADMIN | 200 + `citations` 非空 | ☐ |
-| 3.1 | `POST /api/ai/agents/inspection-report` | ADMIN | 200 + `detectedIssues` 数组 | ☐ |
-| 3.2 | `SELECT FROM alarm` | — | ≥1 行 `source=AI` 或 `alarm_type LIKE 'AI_%'` | ☐ |
-| 3.3 | 二次巡检 `autoAlarmCount` | ADMIN | 与第一次相同（幂等） | ☐ |
-| 4.1 | 浏览器 `/inspection` 页 | ADMIN | 连接状态绿色 + 收到日报卡片 | ☐ |
-| 4.2 | `GET /api/push/inspection?token=` | ADMIN | 200 + `text/event-stream` + `event: inspection-report` | ☐ |
-| 5.4 | 连续 3 次 `/api/ai/chat`（VIEWER） | VIEWER | 200 / 200 / 429 | ☐ |
-| 5.5 | 连续 6 次 `/api/ai/chat`（ADMIN） | ADMIN | 6 个 200 | ☐ |
+| Step | 端点                                      | 角色     | 期望                                                     | ✓ |
+| ---- | --------------------------------------- | ------ | ------------------------------------------------------ | - |
+| 1.3  | `POST /api/ai/chat`                     | ADMIN  | 200 + `answer`/`totalTokens` 非空                        | ☐ |
+| 2.1  | `POST /api/rag/documents`               | ADMIN  | 200 + `chunkCount > 0`                                 | ☐ |
+| 2.2  | `SELECT FROM knowledge_chunk`           | —      | ≥1 行                                                   | ☐ |
+| 2.3  | `POST /api/rag/ask`                     | ADMIN  | 200 + `citations` 非空                                   | ☐ |
+| 3.1  | `POST /api/ai/agents/inspection-report` | ADMIN  | 200 + `detectedIssues` 数组                              | ☐ |
+| 3.2  | `SELECT FROM alarm`                     | —      | ≥1 行 `source=AI` 或 `alarm_type LIKE 'AI_%'`            | ☐ |
+| 3.3  | 二次巡检 `autoAlarmCount`                   | ADMIN  | 与第一次相同（幂等）                                             | ☐ |
+| 4.1  | 浏览器 `/inspection` 页                     | ADMIN  | 连接状态绿色 + 收到日报卡片                                        | ☐ |
+| 4.2  | `GET /api/push/inspection?token=`       | ADMIN  | 200 + `text/event-stream` + `event: inspection-report` | ☐ |
+| 5.4  | 连续 3 次 `/api/ai/chat`（VIEWER）           | VIEWER | 200 / 200 / 429                                        | ☐ |
+| 5.5  | 连续 6 次 `/api/ai/chat`（ADMIN）            | ADMIN  | 6 个 200                                                | ☐ |
 
----
+***
 
 ## 8. 相关文档索引
 
-| 想了解 | 看 |
-|--------|----|
-| 巡检推送链路完整 ASCII 图 | [Application-Architecture.md §2a](../Architecture/Application-Architecture.md) |
-| DeepSeek 集成决策 | [ADR 0021](../decision-log/0021-deepseek-llm-provider.md) |
-| Spring AI ChatClient 抽象 | [ADR 0022](../decision-log/0022-spring-ai-chatclient.md) |
-| Function Calling 3 轮硬限 | [ADR 0023](../decision-log/0023-function-calling.md) |
-| RAG 向量库选型 | [ADR 0024](../decision-log/0024-rag-vector-store.md) |
-| Agent ReAct 循环治理 | [ADR 0026](../decision-log/0026-agent-loop-governance.md) |
-| MCP Server 边界 | [ADR 0027](../decision-log/0027-mcp-tool-exposure.md) |
-| MCP 客户端鉴权 | [ADR 0029](../decision-log/0029-mcp-client-auth-smoke.md) |
-| Agent + MCP 联调 | [ADR 0030](../decision-log/0030-mcp-agent-inspection.md) |
-| 推送链路架构边界冻结 | [ADR 0031](../decision-log/0031-day85-ai-report-push-architecture.md) |
-| 密钥 SSOT | [ADR 0015](../decision-log/0015-dev-env-secrets-ssot.md) + [AGENTS §8](../../AGENTS.md) |
-| Day 89 重构细节 | [Day89.md](../../backend/DAILY/Day89.md) |
+| 想了解                     | 看                                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------------- |
+| 巡检推送链路完整 ASCII 图        | [Application-Architecture.md §2a](../Architecture/Application-Architecture.md)          |
+| DeepSeek 集成决策           | [ADR 0021](../decision-log/0021-deepseek-llm-provider.md)                               |
+| Spring AI ChatClient 抽象 | [ADR 0022](../decision-log/0022-spring-ai-chatclient.md)                                |
+| Function Calling 3 轮硬限  | [ADR 0023](../decision-log/0023-function-calling.md)                                    |
+| RAG 向量库选型               | [ADR 0024](../decision-log/0024-rag-vector-store.md)                                    |
+| Agent ReAct 循环治理        | [ADR 0026](../decision-log/0026-agent-loop-governance.md)                               |
+| MCP Server 边界           | [ADR 0027](../decision-log/0027-mcp-tool-exposure.md)                                   |
+| MCP 客户端鉴权               | [ADR 0029](../decision-log/0029-mcp-client-auth-smoke.md)                               |
+| Agent + MCP 联调          | [ADR 0030](../decision-log/0030-mcp-agent-inspection.md)                                |
+| 推送链路架构边界冻结              | [ADR 0031](../decision-log/0031-day85-ai-report-push-architecture.md)                   |
+| 密钥 SSOT                 | [ADR 0015](../decision-log/0015-dev-env-secrets-ssot.md) + [AGENTS §8](../../AGENTS.md) |
+| Day 89 重构细节             | [Day89.md](../../backend/DAILY/Day89.md)                                                |
 
----
+***
 
 > 完成时间：2026-09-03（Asia/Shanghai）
 > 维护者：AI 助手 + hula0710
+
+<br />

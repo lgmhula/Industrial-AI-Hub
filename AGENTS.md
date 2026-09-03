@@ -23,7 +23,7 @@
 | ★★☆ | 从零复刻指南       | `docs/SETUP.md`                                        | 克隆 → 配置 → 运行 → 验证 全流程                                         |
 | ★★☆ | AI 模块集成 Runbook | `docs/ai/phase4-integration-guide.md`                  | Phase 4 AI 6 步打通（启用→RAG→巡检→SSE→限流→故障速查），Day 90 交付      |
 | ★★☆ | 基础设施基线       | `docs/Architecture/Infrastructure-Baseline.md`         | Docker/网络/端口规范                                                |
-| ★★☆ | 架构决策记录       | `docs/decision-log/0001~0030`                          | 关键技术决策理由（含 0015 密钥 SSOT / 0016 charset / 0017 分支策略 / 0018 CI / 0021 DeepSeek / 0022 Spring AI / 0023 Function Calling / 0026 Agent 循环 / 0027 MCP 边界 / 0030 Agent+MCP 联调） |
+| ★★☆ | 架构决策记录       | `docs/decision-log/0001~0032`                          | 关键技术决策理由（含 0015 密钥 SSOT / 0016 charset / 0017 分支策略 / 0018 CI / 0021 DeepSeek / 0022 Spring AI / 0023 Function Calling / 0026 Agent 循环 / 0027 MCP 边界 / 0030 Agent+MCP 联调 / 0031 SSE 推送架构 / 0032 Day 91 Exit Audit E2E IT 策略） |
 | ★★☆ | Phase 3-A 计划 | `docs/plans/phase3-a-infrastructure-stabilization.md`  | 基础设施稳定化任务分解 + 验收标准                                            |
 | ★★☆ | 新设备部署手册      | `docs/reports/deploy-runbook-new-device.md`            | 全量坑位 + 一键部署指令（副本免扫描）                                          |
 | ★★☆ | 参与贡献指南       | `CONTRIBUTING.md`                                      | 分支流程 + 自测清单 + 工程约束摘要                                          |
@@ -44,6 +44,13 @@
 * **上一基线**：v2.2.0（Tag: `v2.2.0`，Commit: `892c4a5`）——含 ADR 0015 密钥 SSOT / ADR 0016 charset-safe init / 跨平台交接修复；Release Gate: GO
 
 * **Phase 4 收官 tag**：`v2.0-ai`（annotated，Day 91）——Phase 4 AI 集成 Day 66-91（26 天）收官检查点达成；AI 不再是 demo，5 项业务价值落地（告警摘要/设备诊断/知识库问答/自动巡检日报/AI 自动报警）；9 ADR（0021-0031）/ 7 Flyway（V9-V15）/ 9 AI 端点 + 7 MCP 工具 / 343 tests / 集成 runbook（docs/ai/phase4-integration-guide.md）
+
+* **Day 91 Exit Audit P0 修复**（branch `feat/exit-audit-p0-fix`）：
+  * P0-1 Git 修复：5 个堆叠分支（feat/day86-91）通过 `--no-ff` 一次性合并到 main（merge commit `b584173`，governance bootstrap 标注），`v2.0-ai` tag 从 `0fbccfe` 重打到 main 的 merge commit，符合 ADR 0017 §4.4「main = 唯一发布线，发布打 tag」；5 个 feature 分支删除
+  * P0-2 E2E IT 真实贯通（ADR 0032）：新增 `it` profile + `InspectionPushChainIT.java` 3 用例，连真实 docker-compose RabbitMQ+Redis，覆盖 Producer→Consumer→Redis SETNX→DLQ 链路（不再全 mock）；默认 `./mvnw test` 仍 343/343，IT 显式 `RUN_INSPECTION_IT=true` 触发
+  * P0-5 MQ 可靠性 IT：重复消费跳过 + 失败→DLQ 路由真实验证
+  * P0-4 SSE 回调边界（明确不覆盖）：SseEmitter 在无 Web 异步上下文时 `complete()` 是 no-op，IT 无法触发回调；留作 Phase 5 真实浏览器 E2E（Selenium/Playwright）覆盖，本 ADR 0032 §4.1 缓解策略：sendSafely 兜底 + @PreDestroy shutdown + 30min timeout 三重泄漏防护
+  * 待收口 P1-2 多副本风险：SseEmitterRegistry 进程内 + inspectionQueue work-queue + AiRateLimitInterceptor per-JVM + SimpleVectorStore 内存 → Phase 5 启动前 Redis pub/sub 桥 + fanout queue + Redis 限流 + Qdrant 改造
 
 * **下一步**：Day 92 PLC 基础概念（Modbus 协议 / 寄存器 / 线圈 / 离散输入 / 输入寄存器 4 类数据），Phase 5（PLC + MQTT + 完整系统上线）启动，对齐 DAILY_ROADMAP L568
 

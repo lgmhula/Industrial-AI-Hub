@@ -1,0 +1,85 @@
+# ========================
+# Industrial AI Hub — Integration Test Profile (it)
+# ========================
+# Day 91 Exit Audit P0-2 修复：E2E IT 配置。
+# 设计原则（对齐 AGENTS §4.2 + ADR 0018 测试隔离）：
+#   1. 不使用 test profile（test 排除了 Redis/RabbitMQ autoconfig，无法验证 MQ/SSE 链路）；
+#   2. 不读取本地 .env（dev SSOT，避免污染；密钥由环境变量注入，仿照 RedisContainerIT 模式）；
+#   3. H2 内存库（同 test profile，无需本机 MySQL）；
+#   4. 真实 RabbitMQ + Redis（连本地 docker-compose 5672/6379）；
+#   5. 显式执行：RUN_INSPECTION_IT=true ./mvnw test -Dtest=InspectionPushChainIT
+#   6. DeepSeek AI 关闭（IT 不依赖第三方 LLM，仅验证链路，不验证 AI 内容）。
+
+spring:
+  # H2 内存库（与 test profile 一致），避免 IT 依赖本机 MySQL
+  datasource:
+    url: jdbc:h2:mem:itdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: it-password-for-context-load
+  flyway:
+    enabled: false
+  # 真实 RabbitMQ 连接（compose.yml:5672，凭证从环境变量读取，仿照 RedisContainerIT）
+  rabbitmq:
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_DEFAULT_USER:admin}
+    password: ${RABBITMQ_DEFAULT_PASS:change_me}
+    listener:
+      simple:
+        acknowledge-mode: manual  # 与 InspectionReportConsumer @RabbitListener ackMode=MANUAL 对齐
+  # 真实 Redis 连接（compose.yml:6379，密码从环境变量读取）
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  autoconfigure:
+    exclude:
+      # 排除 Redisson（IT 用 StringRedisTemplate，不需要分布式锁）
+      - org.redisson.spring.starter.RedissonAutoConfigurationV2
+      # Spring AI autoconfig 排除（deepseek.enabled=false，但 autoconfig 仍可能因缺 api-key 启动失败）
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiEmbeddingAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiImageAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration
+      # MCP Server 排除（IT 不验证 MCP）
+      - org.springframework.ai.mcp.server.autoconfigure.McpServerAutoConfiguration
+      - org.springframework.ai.mcp.server.autoconfigure.McpWebMvcServerAutoConfiguration
+      - org.springframework.ai.mcp.server.autoconfigure.McpWebFluxServerAutoConfiguration
+  sql:
+    init:
+      mode: never
+
+# JWT（IT 占位密钥，仅用于上下文加载，不验证真实 JWT 鉴权）
+jwt:
+  secret: it-test-secret-at-least-256-bits-for-jwt-signing-placeholder
+  expiration-ms: 86400000
+
+logging:
+  level:
+    dev.reboot: INFO
+    org.springframework.amqp: WARN
+    org.springframework.data.redis: WARN
+
+# DeepSeek AI 关闭（ADR 0021 opt-in 默认 false）
+deepseek:
+  enabled: false
+  api-key: it-not-used
+  base-url: https://api.deepseek.com
+  model: deepseek-chat
+
+app:
+  mcp:
+    access-token: ""
+    client:
+      base-url: http://localhost:8080
+      sse-endpoint: /mcp/sse
+
+# 注册治理（同 test profile，关闭）
+security:
+  registration:
+    enabled: false
+    invite-code: ""
+    daily-limit: 100

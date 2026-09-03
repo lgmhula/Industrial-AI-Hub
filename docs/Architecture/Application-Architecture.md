@@ -3,7 +3,7 @@
 > **Status:** Active
 > **Version:** 2.5
 > **Updated:** 2026-09-03
-> **Based on:** Phase 3 收官 + 安全治理合并（站点授权 / 用户安全状态 / JWT 生命周期 / 登录审计 / 限流 / 注册治理 + V7-V15 迁移）+ Phase 4 Day 66-87（DeepSeek / Spring AI / Function Calling / RAG / Agent / MCP Server + Client + 巡检联调 + Day 85 Phase1-7 SSE 推送链路全链路 + Day 86 AI→ALARM 业务闭环 + Day 87 前端 AI 4 页工业化打磨）
+> **Based on:** Phase 3 收官 + 安全治理合并（站点授权 / 用户安全状态 / JWT 生命周期 / 登录审计 / 限流 / 注册治理 + V7-V15 迁移）+ Phase 4 Day 66-91（DeepSeek / Spring AI / Function Calling / RAG / Agent / MCP Server + Client + 巡检联调 + Day 85 Phase1-7 SSE 推送链路全链路 + Day 86 AI→ALARM 业务闭环 + Day 87 前端 AI 4 页工业化打磨 + Day 88 推送链路架构图 V2.5 + Day 89 AI 模块重构 escapeHtml/AiJsonFallbackUtil/AiRateLimitInterceptor + Day 90 phase4-integration-guide runbook + Day 91 Week14 收官 + Git tag v2.0-ai + Day 91 Exit Audit P0 修复：5 分支合并 main + ADR 0032 E2E IT 策略 / InspectionPushChainIT 3 用例）
 > **Governs:** All application-layer decisions for Industrial AI Hub Backend
 
 ---

@@ -45,9 +45,9 @@ public class PdfIngestionService {
 
     public RagIngestResult ingest(String fileName, byte[] bytes) {
         try {
-            String text = extractText(bytes);
+            String text = extractText(fileName, bytes);
             if (!StringUtils.hasText(text)) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST, "PDF 未提取到文本内容");
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "未提取到文本内容");
             }
             int chunks = ragIngestionService.ingest(fileName, text);
 
@@ -57,11 +57,17 @@ public class PdfIngestionService {
             result.setChunks(chunks);
             return result;
         } catch (IOException e) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "PDF 解析失败: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "文档解析失败: " + e.getMessage(), e);
         }
     }
 
-    private String extractText(byte[] bytes) throws IOException {
+    /** 按文件扩展名分发：txt/md 直接读取，PDF 用 PDFBox 解析。 */
+    private String extractText(String fileName, byte[] bytes) throws IOException {
+        String lower = fileName == null ? "" : fileName.toLowerCase();
+        if (lower.endsWith(".txt") || lower.endsWith(".md")) {
+            return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        }
+        // 默认按 PDF 解析
         try (PDDocument document = Loader.loadPDF(bytes)) {
             return new PDFTextStripper().getText(document);
         }

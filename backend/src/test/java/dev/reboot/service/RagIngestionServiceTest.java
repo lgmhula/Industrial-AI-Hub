@@ -18,14 +18,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RagIngestionServiceTest {
 
     @Test
-    void ingest_shouldChunkEmbedAndStore() {
+    void ingest_shouldChunkEmbedAndStore() throws java.io.IOException {
         RagProperties properties = new RagProperties();
         properties.setEmbeddingDimensions(64);
         properties.setChunkSize(24);
         properties.setChunkOverlap(6);
         TextChunker textChunker = new TextChunker(properties);
         SimpleVectorStore vectorStore =
-                new SimpleVectorStore(new LocalHashEmbeddingModel(properties));
+                new SimpleVectorStore(new LocalHashEmbeddingModel(properties),
+                new com.fasterxml.jackson.databind.ObjectMapper(),
+                java.nio.file.Files.createTempDirectory("vs-test").resolve("store.json").toString());
         RagIngestionService service = new RagIngestionService(textChunker, vectorStore);
 
         int count = service.ingest("manual", "设备温度过高。传感器读数异常。建议现场检查。");

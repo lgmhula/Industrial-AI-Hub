@@ -35,6 +35,7 @@ compose.override.yml
 backend/target/
 backend/.qodana/
 backend/**/*.class
+backend/data/
 
 # Frontend
 frontend/node_modules/

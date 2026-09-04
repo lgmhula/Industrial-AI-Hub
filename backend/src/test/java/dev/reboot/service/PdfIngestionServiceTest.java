@@ -34,12 +34,14 @@ class PdfIngestionServiceTest {
     private SimpleVectorStore vectorStore;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws java.io.IOException {
         RagProperties properties = new RagProperties();
         properties.setEmbeddingDimensions(64);
         properties.setChunkSize(40);
         properties.setChunkOverlap(8);
-        vectorStore = new SimpleVectorStore(new LocalHashEmbeddingModel(properties));
+        vectorStore = new SimpleVectorStore(new LocalHashEmbeddingModel(properties),
+                new com.fasterxml.jackson.databind.ObjectMapper(),
+                java.nio.file.Files.createTempDirectory("vs-test").resolve("store.json").toString());
         RagIngestionService ragIngestionService =
                 new RagIngestionService(new TextChunker(properties), vectorStore);
         pdfIngestionService = new PdfIngestionService(ragIngestionService);

@@ -28,13 +28,15 @@ class RagRetrievalServiceTest {
     private RagRetrievalService retrievalService;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws java.io.IOException {
         RagProperties properties = new RagProperties();
         properties.setEmbeddingDimensions(64);
         properties.setChunkSize(24);
         properties.setChunkOverlap(6);
         SimpleVectorStore vectorStore =
-                new SimpleVectorStore(new LocalHashEmbeddingModel(properties));
+                new SimpleVectorStore(new LocalHashEmbeddingModel(properties),
+                new com.fasterxml.jackson.databind.ObjectMapper(),
+                java.nio.file.Files.createTempDirectory("vs-test").resolve("store.json").toString());
         RagIngestionService ingestionService =
                 new RagIngestionService(new TextChunker(properties), vectorStore);
         ingestionService.ingest("manual", "设备温度过高。传感器读数异常。建议现场检查。");

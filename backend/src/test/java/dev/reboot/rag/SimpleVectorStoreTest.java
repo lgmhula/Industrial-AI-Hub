@@ -21,10 +21,12 @@ class SimpleVectorStoreTest {
     private SimpleVectorStore vectorStore;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws java.io.IOException {
         RagProperties properties = new RagProperties();
         properties.setEmbeddingDimensions(64);
-        vectorStore = new SimpleVectorStore(new LocalHashEmbeddingModel(properties));
+        vectorStore = new SimpleVectorStore(new LocalHashEmbeddingModel(properties),
+                new com.fasterxml.jackson.databind.ObjectMapper(),
+                java.nio.file.Files.createTempDirectory("vs-test").resolve("store.json").toString());
     }
 
     @Test

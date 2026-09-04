@@ -28,9 +28,6 @@
           {{ loading ? '验证中...' : '登 录' }}
         </el-button>
       </form>
-      <div class="register-link">
-        <router-link to="/register">没有账号？邀请码注册</router-link>
-      </div>
       <div class="footer-text">Industrial AI Hub · 工业设备智能管理平台</div>
     </div>
   </div>

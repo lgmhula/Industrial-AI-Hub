@@ -78,7 +78,7 @@
     </div>
 
     <!-- 新增用户弹窗 -->
-    <el-dialog v-model="showCreate" title="新增用户" width="520px" destroy-on-close>
+    <el-dialog v-model="showCreate" title="新增用户" width="520px" destroy-on-close align-center>
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="90px">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="createForm.username" placeholder="请输入用户名" />
@@ -105,7 +105,7 @@
     </el-dialog>
 
     <!-- 编辑用户弹窗 -->
-    <el-dialog v-model="showEdit" title="编辑用户信息" width="480px" destroy-on-close>
+    <el-dialog v-model="showEdit" title="编辑用户信息" width="480px" destroy-on-close align-center>
       <el-form ref="editFormRef" :model="editForm" label-width="90px">
         <el-form-item label="用户名">
           <el-input :value="editForm.username" disabled />
@@ -124,7 +124,7 @@
     </el-dialog>
 
     <!-- 角色分配弹窗 -->
-    <el-dialog v-model="showRoles" title="分配角色" width="440px" destroy-on-close>
+    <el-dialog v-model="showRoles" title="分配角色" width="440px" destroy-on-close align-center>
       <div class="role-assign-body">
         <p class="role-assign-user">用户：<strong>{{ roleTarget.username }}</strong></p>
         <el-checkbox-group v-model="selectedRoleIds" class="role-checkbox-group">
@@ -142,7 +142,7 @@
     </el-dialog>
 
     <!-- 重置密码弹窗 -->
-    <el-dialog v-model="showResetPwd" title="重置密码" width="440px" destroy-on-close>
+    <el-dialog v-model="showResetPwd" title="重置密码" width="440px" destroy-on-close align-center>
       <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-width="90px">
         <el-form-item label="用户">
           <el-input :value="pwdTarget.username" disabled />

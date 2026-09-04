@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import Login from '../views/Login.vue'
 
 const Dashboard = () => import('../views/Dashboard.vue')
@@ -8,13 +9,11 @@ const AlarmList = () => import('../views/AlarmList.vue')
 const OperationLogList = () => import('../views/OperationLogList.vue')
 const UserList = () => import('../views/UserList.vue')
 const RoleList = () => import('../views/RoleList.vue')
-const Register = () => import('../views/Register.vue')
 const RagAssistant = () => import('../views/RagAssistant.vue')
 const InspectionReport = () => import('../views/InspectionReport.vue')
 
 const routes = [
   { path: '/login', name: 'Login', component: Login, meta: { guest: true } },
-  { path: '/register', name: 'Register', component: Register, meta: { guest: true } },
   { path: '/', redirect: '/dashboard' },
   { path: '/dashboard', name: 'Dashboard', component: Dashboard },
   { path: '/assistant', name: 'RagAssistant', component: RagAssistant },
@@ -34,9 +33,11 @@ const ADMIN_ONLY = ['/users', '/roles', '/logs']
 
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
-  if (!token && to.path !== '/login' && to.path !== '/register') {
+  if (!token && to.path !== '/login') {
+    // 未登录访问受保护页面：重定向登录页 + 提示未登录
+    ElMessage.warning('请先登录后再访问该页面')
     next('/login')
-  } else if (token && (to.path === '/login' || to.path === '/register')) {
+  } else if (token && to.path === '/login') {
     next('/dashboard')
   } else if (token && ADMIN_ONLY.includes(to.path)) {
     const roles = JSON.parse(localStorage.getItem('roles') || '[]')

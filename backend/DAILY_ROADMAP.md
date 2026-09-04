@@ -565,7 +565,7 @@
 ### 第 14 周：PLC 模拟 + MQTT
 | 天 | 任务 |
 |----|------|
-| Day 92 | PLC 基础概念：Modbus、寄存器、线圈 |
+| Day 92 | PLC 基础概念：Modbus、寄存器、线圈 ✅（plc-modbus-learning-notes.md：PLC 扫描周期/I-O 映像/梯形图 + Modbus RTU/TCP/功能码 + 线圈/离散输入/输入寄存器/保持寄存器 4 类数据区 + 点位表到 device_data 映射） |
 | Day 93 | MQTT 协议基础 + EMQX/Mosquitto 安装 |
 | Day 94 | Java MQTT 客户端（Eclipse Paho）开发 |
 | Day 95 | 模拟 PLC 设备：Java 程序定时发送模拟传感器数据 |

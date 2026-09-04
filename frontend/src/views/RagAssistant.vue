@@ -21,6 +21,10 @@
                 {{ q }}
               </el-button>
             </div>
+            <div class="kb-hint">
+              <el-icon size="12"><InfoFilled /></el-icon>
+              <span>提示：若回答「知识库中未找到相关内容」，说明运维资料尚未导入。请联系管理员通过 RAG 文档上传 API（POST /api/rag/documents）导入设备手册 PDF/文本。</span>
+            </div>
           </EmptyState>
         </div>
 
@@ -74,7 +78,7 @@
 
 <script setup>
 import { ref, nextTick } from 'vue'
-import { ChatDotRound, Promotion, RefreshRight, Document } from '@element-plus/icons-vue'
+import { ChatDotRound, Promotion, RefreshRight, Document, InfoFilled } from '@element-plus/icons-vue'
 import { ragApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
@@ -216,6 +220,21 @@ async function sendQuestion(text, isRetry = false) {
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
+}
+.kb-hint {
+  margin-top: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--iah-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 420px;
+  text-align: left;
+}
+.kb-hint .el-icon {
+  margin-top: 2px;
+  flex-shrink: 0;
 }
 .conversation {
   flex: 1;

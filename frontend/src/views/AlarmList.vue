@@ -197,6 +197,9 @@ import {
 import { alarmApi, aiApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
 import { escapeText, safeJoin } from '../utils/escapeHtml.js'
+import { useAuth } from '../composables/useAuth.js'
+
+const { isAdmin } = useAuth()
 
 const alarms = ref([])
 const statusFilter = ref('')
@@ -247,6 +250,10 @@ const fetchAlarms = async () => {
     const res = await api
     alarms.value = res.data?.list || []
     total.value = res.data?.total || 0
+    // 非 ADMIN 用户若无站点授权，后端返回空列表 — 提示用户联系管理员授权
+    if (total.value === 0 && !isAdmin.value) {
+      ElMessage.warning('暂无可见报警数据。若您是操作员/查看者，请联系管理员分配站点权限。')
+    }
   } catch (e) {
     ElMessage.error(e.message || '加载报警列表失败')
   } finally {

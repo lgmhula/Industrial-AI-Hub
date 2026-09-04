@@ -34,6 +34,14 @@
           title="连接断开"
           desc="浏览器正在自动重连，无需手动操作……"
         />
+        <EmptyState
+          v-else-if="!reports.length && connState === 'failed'"
+          icon="🚫"
+          title="连接失败"
+          :desc="failReason || 'SSE 通道连接被拒绝，可能是无站点权限或登录已过期。'"
+        >
+          <el-button size="small" type="primary" plain @click="connect">重新连接</el-button>
+        </EmptyState>
 
         <div v-for="r in reports" :key="r.reportDate" class="report-card">
           <div class="card-header">
@@ -137,14 +145,18 @@ import EmptyState from '../components/EmptyState.vue'
 import { escapeText } from '../utils/escapeHtml.js'
 
 const reports = ref([])
-const connState = ref('connecting') // connecting | connected | reconnecting
+const connState = ref('connecting') // connecting | connected | reconnecting | failed
+const failReason = ref('')
 const listEl = ref(null)
 let source = null
+let retryCount = 0
+const MAX_RETRY = 3
 
 const connLabel = computed(() => ({
   connecting: '连接中',
   connected: '已连接',
   reconnecting: '重连中',
+  failed: '连接失败',
 }[connState.value] || '未知'))
 
 // Day 87 工具方法：AI 异常 severity → Element tag type
@@ -196,48 +208,74 @@ function normalizeMessage(msg) {
 function connect() {
   const token = localStorage.getItem('token')
   if (!token) {
-    connState.value = 'reconnecting'
+    connState.value = 'failed'
+    failReason.value = '未检测到登录凭证，请先登录后再访问巡检日报。'
     return
   }
+  // 重置计数器（用户手动重连时）
+  retryCount = 0
+  doConnect(token)
+}
+
+async function doConnect(token) {
+  // 预检查：先发普通 GET 验证权限，避免 EventSource 403 循环
+  try {
+    const checkRes = await fetch('/api/push/inspection?token=' + encodeURIComponent(token), {
+      headers: { 'Accept': 'text/event-stream' },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (checkRes.status === 403) {
+      connState.value = 'failed'
+      failReason.value = '无站点访问权限，无法订阅巡检日报。请联系管理员分配站点权限后重试。'
+      return
+    }
+    if (checkRes.status === 401) {
+      connState.value = 'failed'
+      failReason.value = '登录已过期，请重新登录后再访问巡检日报。'
+      return
+    }
+  } catch (e) {
+    // 预检查失败（网络/超时）— 仍尝试 EventSource 直连
+    console.warn('SSE 预检查失败，尝试直接连接', e)
+  }
+
   connState.value = 'connecting'
-  // 浏览器原生 EventSource 不支持自定义 header，JWT 走 ?token= query fallback
-  // （后端 JwtAuthFilter 仅在 /api/push/ 路径下支持该 fallback，ADR 0031 §5.2）
   source = new EventSource(`/api/push/inspection?token=${encodeURIComponent(token)}`)
 
-  source.onopen = () => { connState.value = 'connected' }
+  source.onopen = () => {
+    connState.value = 'connected'
+    retryCount = 0
+  }
 
-  // 后端 SseEmitter.event().name("inspection-report").data(message) 推送
-  // event 字段为 "inspection-report"，addEventListener 监听该具名事件
   source.addEventListener('inspection-report', (ev) => {
     try {
       const raw = JSON.parse(ev.data)
       const msg = normalizeMessage(raw)
-      // ADR 0031 §6 重复推送策略：前端按 reportDate 去重渲染
-      // （Consumer 已用 Redis SETNX 跨实例幂等，前端二次去重作兜底）
       if (reports.value.some(r => r.reportDate === msg.reportDate)) {
         return
       }
       reports.value.unshift(msg)
-      // 保持最多 50 条，超出按时间倒序丢弃最旧
       if (reports.value.length > 50) {
         reports.value = reports.value.slice(0, 50)
       }
       nextTick(scrollToTop)
     } catch (e) {
-      // SSE 数据解析失败 → 静默丢弃，避免 UI 闪退（与 AI JSON 解析失败降级语义一致）
       console.warn('巡检日报 SSE 数据解析失败', e)
     }
   })
 
-  // EventSource 无 onerror 时浏览器原生自动重连（指数退避）；
-  // 这里仅切换 UI 状态 + 保留 source 让浏览器自动重试
   source.onerror = () => {
     connState.value = 'reconnecting'
-    // 若 readyState=CLOSED（2）则浏览器不会自动重连，需手动清理 + 延迟重试
     if (source.readyState === 2) {
       source.close()
       source = null
-      setTimeout(connect, 3000)
+      retryCount++
+      if (retryCount >= MAX_RETRY) {
+        connState.value = 'failed'
+        failReason.value = `连续 ${MAX_RETRY} 次重连失败，可能是后端服务不可用或登录已过期。`
+      } else {
+        setTimeout(() => doConnect(token), 3000)
+      }
     }
   }
 }

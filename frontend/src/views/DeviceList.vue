@@ -114,8 +114,10 @@ import { useRouter } from 'vue-router'
 import { Plus, Search, Refresh } from '@element-plus/icons-vue'
 import { deviceApi, siteApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
+import { useAuth } from '../composables/useAuth.js'
 
 const router = useRouter()
+const { isAdmin } = useAuth()
 const deviceTypes = ['PLC', 'SENSOR', 'CAMERA', 'ROBOT', 'OTHER']
 
 const devices = ref([])
@@ -149,6 +151,10 @@ const fetchDevices = async () => {
     const res = await deviceApi.list(params)
     devices.value = res.data?.list || []
     total.value = res.data?.total || 0
+    // 非 ADMIN 用户若无站点授权，后端返回空列表 — 提示用户联系管理员授权
+    if (total.value === 0 && !isAdmin.value) {
+      ElMessage.warning('暂无可见设备数据。若您是操作员/查看者，请联系管理员分配站点权限。')
+    }
   } catch (e) {
     ElMessage.error(e.message)
   } finally {

@@ -83,22 +83,35 @@ class DevSeedDemoDataTest {
                 JOIN role r ON r.id = ur.role_id
                 WHERE u.username = 'user05' AND r.role_code = 'VIEWER'"""), "user05 应被分配 VIEWER");
 
-        // P1-01 站点成员：20 个演示用户归属默认站点（2 OPERATOR + 18 VIEWER）
-        assertEquals(20L, scalar("SELECT COUNT(*) FROM user_site"), "20 个演示用户应分配默认站点");
+        // P1-01 站点成员（多站点分配，演示站点隔离）：
+        //   operator01 → PLANT_A + PLANT_B（2 条 OPERATOR）
+        //   operator02 → PLANT_C + WAREHOUSE（2 条 OPERATOR）
+        //   viewer01 → PLANT_A（1 条 VIEWER）
+        //   viewer02 → 5 个站点（5 条 VIEWER）
+        //   user05~20 → DEFAULT（16 条 VIEWER）
+        //   总计 2+2+1+5+16 = 26 条
+        assertEquals(26L, scalar("SELECT COUNT(*) FROM user_site"), "26 条站点授权记录（多站点分配）");
         assertTrue(exists("""
                 SELECT 1 FROM user_site us
                 JOIN `user` u ON u.id = us.user_id
                 JOIN role r ON r.id = us.role_id
                 JOIN site s ON s.id = us.site_id
-                WHERE u.username = 'operator01' AND r.role_code = 'OPERATOR' AND s.site_code = 'DEFAULT'"""),
-                "operator01 应为默认站点 OPERATOR");
+                WHERE u.username = 'operator01' AND r.role_code = 'OPERATOR' AND s.site_code = 'PLANT_A'"""),
+                "operator01 应为 PLANT_A 站点 OPERATOR");
         assertTrue(exists("""
                 SELECT 1 FROM user_site us
                 JOIN `user` u ON u.id = us.user_id
                 JOIN role r ON r.id = us.role_id
                 JOIN site s ON s.id = us.site_id
-                WHERE u.username = 'viewer01' AND r.role_code = 'VIEWER' AND s.site_code = 'DEFAULT'"""),
-                "viewer01 应为默认站点 VIEWER");
+                WHERE u.username = 'viewer01' AND r.role_code = 'VIEWER' AND s.site_code = 'PLANT_A'"""),
+                "viewer01 应为 PLANT_A 站点 VIEWER（站点隔离演示）");
+        assertTrue(exists("""
+                SELECT 1 FROM user_site us
+                JOIN `user` u ON u.id = us.user_id
+                JOIN role r ON r.id = us.role_id
+                JOIN site s ON s.id = us.site_id
+                WHERE u.username = 'viewer02' AND r.role_code = 'VIEWER' AND s.site_code = 'WAREHOUSE'"""),
+                "viewer02 应为 WAREHOUSE 站点 VIEWER（跨站点权限）");
     }
 
     /** Test C：seed 重复执行——数量不增长，且用户/设备/告警不重复。 */

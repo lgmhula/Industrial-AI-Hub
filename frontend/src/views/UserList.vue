@@ -57,6 +57,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="roles">分配角色</el-dropdown-item>
+                  <el-dropdown-item command="sites">分配站点</el-dropdown-item>
                   <el-dropdown-item v-if="!isLocked(row) && row.status === 1" command="lock">锁定</el-dropdown-item>
                   <el-dropdown-item v-if="isLocked(row)" command="unlock">解锁</el-dropdown-item>
                   <el-dropdown-item command="password">重置密码</el-dropdown-item>
@@ -159,13 +160,62 @@
         <el-button type="primary" :loading="pwdSubmitting" @click="submitResetPwd">确认重置</el-button>
       </template>
     </el-dialog>
+
+    <!-- 分配站点弹窗 -->
+    <el-dialog v-model="showSites" title="分配站点" width="560px" destroy-on-close align-center>
+      <div class="site-assign-body">
+        <p class="site-assign-user">用户：<strong>{{ siteTarget.username }}</strong></p>
+        <el-alert type="info" :closable="false" show-icon class="site-hint">
+          <span>非 ADMIN 用户必须分配站点才能看到设备/告警数据。站点内角色决定用户在该站点的权限。</span>
+        </el-alert>
+        <!-- 已分配站点列表 -->
+        <div class="site-list-section">
+          <div class="site-list-title">已分配站点</div>
+          <el-table v-if="userSites.length > 0" :data="userSites" size="small" border>
+            <el-table-column prop="siteName" label="站点" />
+            <el-table-column prop="siteCode" label="编码" width="120" />
+            <el-table-column prop="roleCode" label="站点内角色" width="120">
+              <template #default="{ row }">
+                <el-tag size="small" :type="row.roleCode === 'OPERATOR' ? 'warning' : 'info'">{{ row.roleCode }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="80" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="danger" size="small" @click="handleRevokeSite(row.siteId)">移除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-else description="暂无站点授权" :image-size="40" />
+        </div>
+        <!-- 分配新站点表单 -->
+        <div class="site-form-section">
+          <div class="site-form-title">分配新站点</div>
+          <el-form :model="siteForm" label-width="90px" class="site-form">
+            <el-form-item label="站点">
+              <el-select v-model="siteForm.siteId" placeholder="选择站点" style="width: 100%">
+                <el-option v-for="s in availableSites" :key="s.id" :label="s.siteName + ' (' + s.siteCode + ')'" :value="s.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="站点内角色">
+              <el-select v-model="siteForm.roleId" placeholder="选择站点内角色" style="width: 100%">
+                <el-option v-for="r in siteRoles" :key="r.id" :label="r.roleName + ' (' + r.roleCode + ')'" :value="r.id" />
+              </el-select>
+            </el-form-item>
+          </el-form>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showSites = false">关闭</el-button>
+        <el-button type="primary" :loading="siteSubmitting" @click="submitAssignSite" :disabled="!siteForm.siteId || !siteForm.roleId">分配</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { Plus, Search, Refresh, ArrowDown } from '@element-plus/icons-vue'
-import { userApi, roleApi } from '../api/index.js'
+import { userApi, roleApi, siteApi } from '../api/index.js'
 import EmptyState from '../components/EmptyState.vue'
 
 const users = ref([])
@@ -255,6 +305,7 @@ const handlePageChange = (p) => { page.value = p; fetchUsers() }
 // ---- 行操作调度 ----
 const handleRowAction = (cmd, row) => {
   if (cmd === 'roles') openRoleDialog(row)
+  else if (cmd === 'sites') openSiteDialog(row)
   else if (cmd === 'lock') handleLock(row)
   else if (cmd === 'unlock') handleUnlock(row)
   else if (cmd === 'password') openResetPwd(row)
@@ -420,8 +471,77 @@ const roleTagType = (code) => {
 }
 const fmtTime = (t) => t ? new Date(t).toLocaleString('zh-CN') : '-'
 
+// ---- 分配站点 ----
+const showSites = ref(false)
+const siteTarget = reactive({ id: null, username: '' })
+const allSites = ref([])
+const userSites = ref([])
+const siteForm = reactive({ siteId: null, roleId: null })
+const siteSubmitting = ref(false)
+// 站点内角色仅 OPERATOR / VIEWER（ADMIN 是全局角色，不分配到站点）
+const siteRoles = computed(() => allRoles.value.filter(r => r.roleCode === 'OPERATOR' || r.roleCode === 'VIEWER'))
+// 可分配站点 = 所有站点 - 已分配站点
+const availableSites = computed(() => {
+  const assigned = new Set(userSites.value.map(s => s.siteId))
+  return allSites.value.filter(s => !assigned.has(s.id))
+})
+
+const fetchAllSites = async () => {
+  try {
+    const res = await siteApi.list()
+    allSites.value = res.data || []
+  } catch (e) {
+    console.error('加载站点失败', e)
+  }
+}
+
+const openSiteDialog = async (row) => {
+  Object.assign(siteTarget, { id: row.id, username: row.username })
+  Object.assign(siteForm, { siteId: null, roleId: null })
+  showSites.value = true
+  try {
+    const res = await userApi.getSites(row.id)
+    userSites.value = res.data || []
+  } catch (e) {
+    userSites.value = []
+  }
+}
+
+const submitAssignSite = async () => {
+  if (!siteForm.siteId || !siteForm.roleId) {
+    ElMessage.warning('请选择站点和站点内角色')
+    return
+  }
+  siteSubmitting.value = true
+  try {
+    await userApi.assignSite(siteTarget.id, siteForm.siteId, siteForm.roleId)
+    ElMessage.success('站点已分配')
+    Object.assign(siteForm, { siteId: null, roleId: null })
+    const res = await userApi.getSites(siteTarget.id)
+    userSites.value = res.data || []
+  } catch (e) {
+    ElMessage.error(e.message || '分配失败')
+  } finally {
+    siteSubmitting.value = false
+  }
+}
+
+const handleRevokeSite = async (siteId) => {
+  try {
+    await ElMessageBox.confirm('确定移除该站点授权吗？', '提示', { type: 'warning' })
+    await userApi.revokeSite(siteTarget.id, siteId)
+    ElMessage.success('站点授权已移除')
+    const res = await userApi.getSites(siteTarget.id)
+    userSites.value = res.data || []
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '移除失败')
+    }
+  }
+}
+
 onMounted(async () => {
-  await Promise.all([fetchUsers(), fetchAllRoles()])
+  await Promise.all([fetchUsers(), fetchAllRoles(), fetchAllSites()])
 })
 </script>
 
@@ -433,7 +553,28 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  align-items: center;
+}
+.site-assign-body {
+  max-height: 520px;
+  overflow-y: auto;
+}
+.site-assign-user {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+.site-hint {
+  margin-bottom: 16px;
+}
+.site-list-section,
+.site-form-section {
+  margin-bottom: 20px;
+}
+.site-list-title,
+.site-form-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--el-text-color-primary);
 }
 .role-tag {
   margin: 0;

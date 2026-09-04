@@ -103,6 +103,10 @@ export const userApi = {
   assignRole: (id, roleId) => api.post(`/users/${id}/roles/${roleId}`),
   revokeRole: (id, roleId) => api.delete(`/users/${id}/roles/${roleId}`),
   getRoles: (id) => api.get(`/users/${id}/roles`),
+  // 站点授权（P1-01 站点作用域）
+  getSites: (id) => api.get(`/users/${id}/sites`),
+  assignSite: (id, siteId, roleId) => api.post(`/users/${id}/sites`, { siteId, roleId }),
+  revokeSite: (id, siteId) => api.delete(`/users/${id}/sites/${siteId}`),
 }
 
 // ---------- 站点 ----------

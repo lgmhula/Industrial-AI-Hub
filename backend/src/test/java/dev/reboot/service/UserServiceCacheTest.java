@@ -67,7 +67,8 @@ class UserServiceCacheTest {
                                 AuthRateLimitService authRateLimitService,
                                 TokenBlacklistService tokenBlacklistService) {
             return new UserService(userMapper, userRoleMapper, roleMapper, passwordEncoder,
-                    authRateLimitService, tokenBlacklistService);
+                    authRateLimitService, tokenBlacklistService,
+                    mock(dev.reboot.mapper.UserSiteMapper.class));
         }
     }
 

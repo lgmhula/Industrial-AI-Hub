@@ -145,4 +145,32 @@ public class UserController {
     public ApiResponse<List<String>> getUserRoles(@PathVariable Long id) {
         return ApiResponse.ok(userService.getUserRoleCodes(id));
     }
+
+    // ================================================================
+    // 站点授权（P1-01 站点作用域）—— ADMIN 分配用户到站点
+    // ================================================================
+
+    @GetMapping("/{id}/sites")
+    @Operation(summary = "查询用户已分配的站点列表")
+    public ApiResponse<List<dev.reboot.dto.UserSiteVO>> getUserSites(@PathVariable Long id) {
+        return ApiResponse.ok(userService.getUserSites(id));
+    }
+
+    @OperationLog(operationType = "UPDATE", targetType = "USER", description = "分配用户到站点")
+    @PostMapping("/{id}/sites")
+    @Operation(summary = "分配用户到指定站点（带站点内角色）")
+    public ApiResponse<Void> assignSite(@PathVariable Long id,
+                                        @Valid @RequestBody dev.reboot.dto.SiteAssignDTO dto) {
+        userService.assignSite(id, dto.getSiteId(), dto.getRoleId());
+        return ApiResponse.ok("站点已分配", null);
+    }
+
+    @OperationLog(operationType = "UPDATE", targetType = "USER", description = "取消用户站点授权")
+    @DeleteMapping("/{id}/sites/{siteId}")
+    @Operation(summary = "取消用户在指定站点的授权")
+    public ApiResponse<Void> revokeSite(@PathVariable Long id, @PathVariable Long siteId) {
+        userService.revokeSite(id, siteId);
+        return ApiResponse.ok("站点授权已取消", null);
+    }
 }
+

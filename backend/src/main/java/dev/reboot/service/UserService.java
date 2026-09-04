@@ -44,6 +44,7 @@ public class UserService {
     private final UserMapper userMapper;
     private final UserRoleMapper userRoleMapper;
     private final RoleMapper roleMapper;
+    private final dev.reboot.mapper.UserSiteMapper userSiteMapper;
     private final BCryptPasswordEncoder passwordEncoder;
     private final AuthRateLimitService authRateLimitService;
     private final TokenBlacklistService tokenBlacklistService;
@@ -51,13 +52,15 @@ public class UserService {
     public UserService(UserMapper userMapper, UserRoleMapper userRoleMapper, RoleMapper roleMapper,
                        BCryptPasswordEncoder passwordEncoder,
                        AuthRateLimitService authRateLimitService,
-                       TokenBlacklistService tokenBlacklistService) {
+                       TokenBlacklistService tokenBlacklistService,
+                       dev.reboot.mapper.UserSiteMapper userSiteMapper) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.roleMapper = roleMapper;
         this.passwordEncoder = passwordEncoder;
         this.authRateLimitService = authRateLimitService;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.userSiteMapper = userSiteMapper;
     }
 
     /** 分页查询用户列表（可选关键字搜索），批量填充角色编码。 */
@@ -337,5 +340,39 @@ public class UserService {
     /** 查询用户的角色编码列表。 */
     public List<String> getUserRoleCodes(Long userId) {
         return userRoleMapper.findRoleCodesByUserId(userId);
+    }
+
+    // ================================================================
+    // 站点授权（P1-01 站点作用域）—— ADMIN 分配用户到站点
+    // ================================================================
+
+    /** 查询用户已分配的站点列表（用于分配站点对话框展示）。 */
+    public List<dev.reboot.dto.UserSiteVO> getUserSites(Long userId) {
+        return userSiteMapper.findUserSites(userId);
+    }
+
+    /** 分配用户到指定站点（带站点内角色）。 */
+    @Transactional
+    public void assignSite(Long userId, Long siteId, Long roleId) {
+        // 防重复分配
+        if (userSiteMapper.countUserSite(userId, siteId) > 0) {
+            throw new dev.reboot.exception.BusinessException(
+                dev.reboot.enums.ErrorCode.CONFLICT, "用户已分配到该站点");
+        }
+        dev.reboot.entity.UserSite us = new dev.reboot.entity.UserSite();
+        us.setUserId(userId);
+        us.setSiteId(siteId);
+        us.setRoleId(roleId);
+        userSiteMapper.insert(us);
+    }
+
+    /** 取消用户在指定站点的授权。 */
+    @Transactional
+    public void revokeSite(Long userId, Long siteId) {
+        int rows = userSiteMapper.deleteUserSite(userId, siteId);
+        if (rows == 0) {
+            throw new dev.reboot.exception.BusinessException(
+                dev.reboot.enums.ErrorCode.NOT_FOUND, "用户站点授权记录不存在");
+        }
     }
 }

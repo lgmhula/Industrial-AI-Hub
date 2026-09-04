@@ -22,6 +22,24 @@
 SET NAMES utf8mb4;
 
 -- ================================================================
+-- 0. 重置 admin 密码 + 失败计数 + 确保 ADMIN 角色分配（admin 由 V1 baseline 创建）
+--    hash 对应密码 admin123（Spring Security BCryptPasswordEncoder 兼容）
+-- ================================================================
+UPDATE `user`
+SET `password` = '$2a$10$NEfKVxhQ8MXavqtEb3/5EOODMhaC/jo4g.MquTdALnOwv7GrS3JzW',
+    `failed_attempts` = 0,
+    `locked_until` = NULL,
+    `status` = 1
+WHERE `username` = 'admin';
+
+-- 确保 admin 拥有 ADMIN 角色（防止 user_role 被清空后 admin 无角色）
+INSERT INTO `user_role` (`user_id`, `role_id`)
+SELECT u.id, r.id
+FROM `user` u, `role` r
+WHERE u.username = 'admin' AND r.role_code = 'ADMIN'
+  AND NOT EXISTS (SELECT 1 FROM `user_role` ur WHERE ur.user_id = u.id AND ur.role_id = r.id);
+
+-- ================================================================
 -- 1. 测试用户（20 条）— 密码均为 Test123456 (BCrypt)
 --    hash: $2a$10$bqhBCq7qlhpegKHUgPaxhuqm.8EBQunBZvPTD8/HfnWjTC4C5Lnje
 --    守卫键：user.username（uk_username）
@@ -367,30 +385,101 @@ WHERE NOT EXISTS (
 );
 
 -- ================================================================
--- 7. 站点成员分配（user_site）—— 演示用户归属默认站点（P1-01）
---    守卫键：user_site(user_id, site_id)
---    operator01/02 → 默认站点 OPERATOR；viewer01/02 + user05~20 → 默认站点 VIEWER
+-- 7. 多站点创建 + 设备站点分配 + 用户站点授权（P1-01 站点作用域）
+--    守卫键：site.site_code / user_site(user_id, site_id)
+--    5 个站点：DEFAULT / PLANT_A / PLANT_B / PLANT_C / WAREHOUSE
+--    设备按 location 分配到对应站点（UPDATE device.site_id）
+--    operator01 → PLANT_A + PLANT_B OPERATOR（能看一车间+二车间设备）
+--    operator02 → PLANT_C + WAREHOUSE OPERATOR（能看三车间+仓库设备）
+--    viewer01 → PLANT_A VIEWER（只能看一车间）
+--    viewer02 → 全部站点 VIEWER（能看所有站点）
+--    user05~20 → DEFAULT 站点 VIEWER（默认站点，仅含未分类设备）
 --    全局 ADMIN（admin）无需 user_site（系统管理员隐式全站点）
---    安全网：确保 DEFAULT 站点存在（V4 迁移应已创建，此处兜底）
 -- ================================================================
-INSERT INTO `site` (`site_name`, `site_code`, `description`)
-SELECT '默认工厂', 'DEFAULT', '系统默认站点（seed 兜底）'
-WHERE NOT EXISTS (SELECT 1 FROM `site` WHERE `site_code` = 'DEFAULT');
+
+-- 7.1 创建 5 个站点
+INSERT INTO `site` (`site_name`, `site_code`, `description`, `address`)
+SELECT t.site_name, t.site_code, t.description, t.address
+FROM (
+    SELECT '默认工厂' AS site_name, 'DEFAULT' AS site_code, '系统默认站点（未分类设备）' AS description, '厂区综合楼' AS address
+    UNION ALL SELECT '一车间', 'PLANT_A', '一车间产线设备', '厂区 1 号楼'
+    UNION ALL SELECT '二车间', 'PLANT_B', '二车间产线设备', '厂区 2 号楼'
+    UNION ALL SELECT '三车间', 'PLANT_C', '三车间产线设备', '厂区 3 号楼'
+    UNION ALL SELECT '仓库', 'WAREHOUSE', '仓库区设备', '厂区物流中心'
+) t
+WHERE NOT EXISTS (SELECT 1 FROM `site` s WHERE s.site_code = t.site_code);
+
+-- 7.2 按 location 分配设备到站点（H2 兼容的子查询语法）
+--     一车间设备 → PLANT_A
+UPDATE `device`
+SET `site_id` = (SELECT `id` FROM `site` WHERE `site_code` = 'PLANT_A')
+WHERE `location` LIKE '一车间%'
+  AND `site_id` != (SELECT `id` FROM `site` WHERE `site_code` = 'PLANT_A');
+
+--     二车间设备 → PLANT_B
+UPDATE `device`
+SET `site_id` = (SELECT `id` FROM `site` WHERE `site_code` = 'PLANT_B')
+WHERE `location` LIKE '二车间%'
+  AND `site_id` != (SELECT `id` FROM `site` WHERE `site_code` = 'PLANT_B');
+
+--     三车间设备 → PLANT_C
+UPDATE `device`
+SET `site_id` = (SELECT `id` FROM `site` WHERE `site_code` = 'PLANT_C')
+WHERE `location` LIKE '三车间%'
+  AND `site_id` != (SELECT `id` FROM `site` WHERE `site_code` = 'PLANT_C');
+
+--     仓库设备 → WAREHOUSE
+UPDATE `device`
+SET `site_id` = (SELECT `id` FROM `site` WHERE `site_code` = 'WAREHOUSE')
+WHERE `location` LIKE '仓库%'
+  AND `site_id` != (SELECT `id` FROM `site` WHERE `site_code` = 'WAREHOUSE');
+
+--     中央控制室/配电房/数据中心/锅炉房/气动车间/机械车间/冲压车间/焊接车间/喷涂车间/物流区 → DEFAULT
+--     （已默认 site_id=1，无需更新）
+
+-- 7.3 operator01 → PLANT_A + PLANT_B OPERATOR
 INSERT INTO `user_site` (`user_id`, `site_id`, `role_id`)
 SELECT u.id, s.id, r.id
 FROM `user` u
-JOIN `site` s ON s.site_code = 'DEFAULT'
+JOIN `site` s ON s.site_code IN ('PLANT_A', 'PLANT_B')
 JOIN `role` r ON r.role_code = 'OPERATOR'
-WHERE u.username IN ('operator01', 'operator02')
+WHERE u.username = 'operator01'
   AND NOT EXISTS (SELECT 1 FROM `user_site` us WHERE us.user_id = u.id AND us.site_id = s.id);
 
+-- 7.4 operator02 → PLANT_C + WAREHOUSE OPERATOR
+INSERT INTO `user_site` (`user_id`, `site_id`, `role_id`)
+SELECT u.id, s.id, r.id
+FROM `user` u
+JOIN `site` s ON s.site_code IN ('PLANT_C', 'WAREHOUSE')
+JOIN `role` r ON r.role_code = 'OPERATOR'
+WHERE u.username = 'operator02'
+  AND NOT EXISTS (SELECT 1 FROM `user_site` us WHERE us.user_id = u.id AND us.site_id = s.id);
+
+-- 7.5 viewer01 → PLANT_A VIEWER（只能看一车间，演示站点隔离）
+INSERT INTO `user_site` (`user_id`, `site_id`, `role_id`)
+SELECT u.id, s.id, r.id
+FROM `user` u
+JOIN `site` s ON s.site_code = 'PLANT_A'
+JOIN `role` r ON r.role_code = 'VIEWER'
+WHERE u.username = 'viewer01'
+  AND NOT EXISTS (SELECT 1 FROM `user_site` us WHERE us.user_id = u.id AND us.site_id = s.id);
+
+-- 7.6 viewer02 → 全部站点 VIEWER（能看所有站点，演示跨站点权限）
+INSERT INTO `user_site` (`user_id`, `site_id`, `role_id`)
+SELECT u.id, s.id, r.id
+FROM `user` u
+JOIN `site` s ON s.site_code IN ('DEFAULT', 'PLANT_A', 'PLANT_B', 'PLANT_C', 'WAREHOUSE')
+JOIN `role` r ON r.role_code = 'VIEWER'
+WHERE u.username = 'viewer02'
+  AND NOT EXISTS (SELECT 1 FROM `user_site` us WHERE us.user_id = u.id AND us.site_id = s.id);
+
+-- 7.7 user05~20 → DEFAULT 站点 VIEWER
 INSERT INTO `user_site` (`user_id`, `site_id`, `role_id`)
 SELECT u.id, s.id, r.id
 FROM `user` u
 JOIN `site` s ON s.site_code = 'DEFAULT'
 JOIN `role` r ON r.role_code = 'VIEWER'
-WHERE u.username IN ('viewer01','viewer02',
-                     'user05','user06','user07','user08','user09','user10',
+WHERE u.username IN ('user05','user06','user07','user08','user09','user10',
                      'user11','user12','user13','user14','user15','user16',
                      'user17','user18','user19','user20')
   AND NOT EXISTS (SELECT 1 FROM `user_site` us WHERE us.user_id = u.id AND us.site_id = s.id);

@@ -312,3 +312,100 @@ Phase 5 模拟器应把异常码当作正常业务路径实现，而不是直接
 
 > Day 92 概念日结束。明天 Day 93 进入 MQTT 协议基础 + EMQX/Mosquitto 安装，
 > 然后在 Java 端把“模拟 PLC/网关”真正发布出来。
+
+---
+
+## 10. Day 95：Java 模拟 PLC 寄存器区模型与 MQTT 发布（2026-09-05）
+
+### 10.1 代码与职责边界
+
+Day 94 打通 Paho publish/subscribe 后，Day 95 把它升级为“一台 PLC 定时上报”的模拟器，
+代码只放在 learning 目录，不进 Spring 生产工程：
+
+| 文件 | 职责 |
+|------|------|
+| `backend/learning/java-code/day95/PlcSimulator.java` | 单台设备模型 + 状态机 + 定时发布 |
+| `backend/learning/java-code/day95/PlcSimulatorMain.java` | broker/秒数/多设备 CLI 启动入口 |
+
+Phase 5 的接入边界是“模拟 PLC/网关先证明 Topic 契约，后端 Day 96 再订阅落库”，
+因此模拟器不依赖 Spring、不依赖 `device_data` 表结构，只保证工程值与 Topic 语义可被消费。
+
+### 10.2 电机控制柜点位表（可运行版本）
+
+| 参考地址 | 区 | pointCode | 工程量程 / 单位 | scale | 说明 |
+|---------|-----|-----------|----------------|:-----:|------|
+| `00001` | Coil | `motorStart` | 0/1 | - | 启动命令，故障联锁清 0 |
+| `00002` | Coil | `motorRun` | 0/1 | - | 运行反馈 |
+| `10001` | Discrete Input | `estop` | 0/1 | - | 急停，正常 1、按下 0 |
+| `10002` | Discrete Input | `thermalOverload` | 0/1 | - | 热过载触点 |
+| `30001` | Input Register | `current` | 8.0~18.0 A | 0.1 | 电机电流 |
+| `30002` | Input Register | `windingTemp` | 18.0~46.0 °C | 0.1 | 绕组温度 |
+| `30003` | Input Register | `pressure` | 90.0~116.0 kPa | 0.1 | 管道压力 |
+| `30004` | Input Register | `speed` | 0~3400 RPM | 1 | 电机转速 |
+| `40001` | Holding Register | `ratedCurrent` | 15.0 A | 0.1 | 额定电流设定 |
+| `40002` | Holding Register | `tempAlarm` | 40.0 °C | 0.1 | 温度报警阈值 |
+| `40003` | Holding Register | `pressureHiAlarm` | 110.0 kPa | 0.1 | 压力上限 |
+| `40004` | Holding Register | `speedHiAlarm` | 3000.0 RPM | 1 | 转速上限 |
+
+输入寄存器保存 `value` 工程值，同时维护 `scale/offset`，任何时刻可由
+`raw = round(value / scale)` 还原寄存器原始整型。Holding Register 在 Day 95 只做
+“参数区读取与阈值联动”，写寄存器（05/06/16 功能码）留给真实 PLC/网关演示。
+
+### 10.3 MQTT Topic 命名空间
+
+```text
+plc/{siteCode}/{deviceCode}/telemetry   QoS 1, retained=false   每 1~5 秒 1 条遥测
+plc/{siteCode}/{deviceCode}/status      QoS 1, retained=true    在线状态 / 退出前 offline
+```
+
+默认设备 `PLANT_A/PLC-SIM-001`。ESP32 #1 + DHT22 烧录后按同一命名空间
+`plc/PLANT_A/esp32-dht-001/telemetry` 上报即可与模拟器共存；后端 Day 96 的 Listener
+不需要区分数据源，只依赖 payload 中的 `siteCode/deviceCode`。
+
+### 10.4 Payload 契约要点
+
+顶层字段是给业务层消费的：
+
+```json
+{
+  "deviceCode": "PLC-SIM-001",
+  "siteCode": "PLANT_A",
+  "ts": "2026-09-05T12:00:00+08:00",
+  "status": "running",
+  "version": "1.0",
+  "current": 12.6,
+  "windingTemp": 32.5,
+  "pressure": 102.5,
+  "speed": 1480.0,
+  "registerSnapshot": [
+    {"area": "inputRegister", "address": 30001, "pointCode": "current",
+     "raw": 126, "scale": 0.1, "offset": 0, "unit": "A"}
+  ]
+}
+```
+
+`status` 主题的 payload 更短：`deviceCode/siteCode/ts/online/status`。对 Day 96 的契约建议：
+
+1. 后端 Listener 订阅 `plc/+/+/telemetry`，**不做 retained 依赖**，以业务表为准；
+2. QoS 1 可能重复投递，入库前复用项目 Redis 幂等键思路（`mqtt:{deviceCode}:{ts}`）；
+3. `ts` 用 ISO-8601 带时区，与 `device_data` 时间戳语义对齐；
+4. 设备编码需要与 `device.device_code` 匹配，模拟器前缀 `PLC-SIM-*` 在 seed/测试库中预置；
+5. 布尔遥测与报警事件分开：线圈/离散状态适合“状态快照”，跳变才落 `alarm`（沿用 Day 92 §8 结论）。
+
+### 10.5 EMQX 验证结论
+
+EMQX 5.8.9 容器健康，`PlcSimulatorMain tcp://localhost:1883 14` 实跑时：
+
+- 独立 subscriber 能收到完整 telemetry，QoS 1、非 retained；
+- status 首条 retained `online=true`，进程停止前收到 retained `online=false, status=offline`；
+- payload 均为非空合法 JSON（修复 JsonBuilder 缺花括号后）；
+- 状态机 120 轮观测 `running=95 / alarm=23 / fault=2`，说明尖峰越阈值和故障恢复语义可验证。
+
+### 10.6 Day 95 结论
+
+Java 端已经从“协议冒烟”进入“设备仿真”：模拟器拥有四类寄存器区的统一点模型、
+scale/offset 工程换算、可触发的阈值尖峰与急停/过载事件、QoS 1 + retained 状态发布，
+足以支撑 Day 96 生产 Listener 的联调输入；真实 ESP32 接入不会改变 Topic 与 JSON 契约。
+
+> Day 95 模拟设备日结束。明天 Day 96 开始 MQTT → Spring Boot：订阅 `plc/+/+/telemetry`，
+> 把 Java 模拟 PLC 的报文变成 `device_data` 真实记录。

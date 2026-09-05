@@ -22,6 +22,7 @@
     <properties>
         <java.version>25</java.version>
         <mybatis-spring-boot.version>3.0.5</mybatis-spring-boot.version>
+        <paho.version>1.2.5</paho.version>
     </properties>
 
     <!-- ===== Spring Boot Core ===== -->
@@ -119,6 +120,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <!-- MQTT Client (Phase 5 Day 94 学习 + Day 96 后端 MQTT Listener 生产预埋)
+             选型：Eclipse Paho mqttv3 1.2.5（MQTT 3.1.1），备选 HiveMQ MQTT Client/Vert.x MQTT；
+             选型理由固化在 docs/notes/mqtt-learning-notes.md「Java 客户端选型」小节，
+             Day 96 生产接入时升级为 ADR 0034。 -->
+        <dependency>
+            <groupId>org.eclipse.paho</groupId>
+            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+            <version>${paho.version}</version>
         </dependency>
 
         <!-- Redisson (Day 46: distributed lock) -->

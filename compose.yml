@@ -1,7 +1,8 @@
 # ========================
 # industrial ai hub — unified docker compose
-# Version: v1.3 | Updated: 2026-09-04
-# Infrastructure Baseline V3 (EMQX MQTT broker added, Phase 5 Day 93)
+# Version: v1.4 | Updated: 2026-09-05
+# Infrastructure Baseline V3 (EMQX MQTT broker, Phase 5 Day 93)
+# Backend MQTT Listener enabled in container network (Phase 5 Day 96, ADR 0034)
 # ========================
 
 networks:
@@ -362,6 +363,10 @@ services:
       RABBITMQ_PORT: "5672"
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      # MQTT Listener（Phase 5 Day 96）：容器内默认启用并连接 EMQX 服务名
+      MQTT_ENABLED: "true"
+      MQTT_HOST: emqx
+      MQTT_PORT: "1883"
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173}
@@ -371,6 +376,8 @@ services:
       redis:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      emqx:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]

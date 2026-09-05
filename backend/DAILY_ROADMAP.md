@@ -569,7 +569,7 @@
 | Day 93 | MQTT 协议基础 + EMQX/Mosquitto 安装 ✅（mqtt-learning-notes.md：Broker 三角色/Topic 层级通配符/QoS 012/保留消息遗嘱/Keep Alive + Topic&Payload 草案；ADR 0033 选 EMQX 5.8.9；compose v1.3 新增 emqx 服务 1883/8083/18083 + env fail-fast + Infrastructure-Baseline V1.3） |
 | Day 94 | Java MQTT 客户端（Eclipse Paho）开发 ✅（pom 引 org.eclipse.paho.client.mqttv3 1.2.5；learning/java-code/day94/PlcMqttClientSmoke.java 连 EMQX 1883 + 订阅 QoS1 + publish QoS0/1/2 回环验证端到端 QoS=min(发布,订阅)；mqtt-learning-notes.md §10-12 选型+连接参数+坑位；后端 343/343 全绿） |
 | Day 95 | 模拟 PLC 设备：Java 程序定时发送模拟传感器数据 ✅（learning/java-code/day95：PlcSimulator 4 类 Modbus 寄存器区模型 + 点位表/量程/scale-offset + 尖峰/急停/过载状态机 + 1~5s QoS1 publish telemetry + retained status + offline 遗嘱清理；EMQX 5.8.9 实发验证合法 JSON；plc-modbus-learning-notes §10 契约草案） |
-| Day 96 | MQTT → 项目：接收 MQTT 数据并存入 device_data 表 |
+| Day 96 | MQTT → 项目：接收 MQTT 数据并存入 device_data 表 ✅（生产接入：MqttProperties/MqttConfig SmartLifecycle Paho subscribe QoS1 + MqttDeviceDataIngestService 字段映射 Redis SETNX 幂等 + 广播/报警链路；ADR 0034；compose v1.4 backend 注入 MQTT_ENABLED + EMQX depends_on；单测 12 新增，后端 355/355 全绿） |
 | Day 97 | 模拟多设备并发数据上报 + 压力测试 |
 | Day 98 | 周复盘 + PLC/MQTT 笔记 |
 

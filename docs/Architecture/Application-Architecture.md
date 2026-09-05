@@ -2,8 +2,8 @@
 
 > **Status:** Active
 > **Version:** 2.5
-> **Updated:** 2026-09-03
-> **Based on:** Phase 3 收官 + 安全治理合并（站点授权 / 用户安全状态 / JWT 生命周期 / 登录审计 / 限流 / 注册治理 + V7-V15 迁移）+ Phase 4 Day 66-91（DeepSeek / Spring AI / Function Calling / RAG / Agent / MCP Server + Client + 巡检联调 + Day 85 Phase1-7 SSE 推送链路全链路 + Day 86 AI→ALARM 业务闭环 + Day 87 前端 AI 4 页工业化打磨 + Day 88 推送链路架构图 V2.5 + Day 89 AI 模块重构 escapeHtml/AiJsonFallbackUtil/AiRateLimitInterceptor + Day 90 phase4-integration-guide runbook + Day 91 Week14 收官 + Git tag v2.0-ai + Day 91 Exit Audit P0 修复：5 分支合并 main + ADR 0032 E2E IT 策略 / InspectionPushChainIT 3 用例）
+> **Updated:** 2026-09-05
+> **Based on:** Phase 3 收官 + 安全治理合并（站点授权 / 用户安全状态 / JWT 生命周期 / 登录审计 / 限流 / 注册治理 + V7-V15 迁移）+ Phase 4 Day 66-91（DeepSeek / Spring AI / Function Calling / RAG / Agent / MCP Server + Client + 巡检联调 + Day 85 Phase1-7 SSE 推送链路全链路 + Day 86 AI→ALARM 业务闭环 + Day 87 前端 AI 4 页工业化打磨 + Day 88 推送链路架构图 V2.5 + Day 89 AI 模块重构 escapeHtml/AiJsonFallbackUtil/AiRateLimitInterceptor + Day 90 phase4-integration-guide runbook + Day 91 Week14 收官 + Git tag v2.0-ai + Day 91 Exit Audit P0 修复：5 分支合并 main + ADR 0032 E2E IT 策略 / InspectionPushChainIT 3 用例）+ Phase 5 Day 92-96（PLC/Modbus 概念 → EMQX/Paho → Java PLC 模拟 → MQTT Listener 生产接入，ADR 0033/0034）
 > **Governs:** All application-layer decisions for Industrial AI Hub Backend
 
 ---
@@ -299,6 +299,15 @@ HTTP Request
 | `controller/AiController` | `/api/ai/*`（VIEWER+），设备状态问答带 `@OperationLog(FUNCTION_CALL, {ret})`，巡检日报带 `@OperationLog(INSPECTION/MCP, {ret})` 且仅 ADMIN |
 | `mcp/` | `McpDeviceTools` 7 个只读 @Tool + `McpToolConfig` 显式 ToolCallbackProvider（ADR 0027 / ADR 0028）+ `McpClientService` / `McpController`（`/api/mcp/smoke`）+ `McpAccessFilter`（X-MCP-Token 传输鉴权，ADR 0029）+ `McpInspectionSession` / `McpToolCallbackAdapter`（巡检会话与工具适配，ADR 0030） |
 
+### MQTT 设备接入（Phase 5 Day 96 新增，ADR 0034）
+
+| 包/类 | 内容 |
+|--------|------|
+| `config/MqttProperties` | `mqtt.*` 配置：默认关闭，host/port/clientId/topicFilter/QoS/keepAlive/connectionTimeout |
+| `config/MqttConfig` | `@Profile(!test)` + `@ConditionalOnProperty`；SmartLifecycle 管理 Paho `MqttClient`，EMQX 连接与订阅，文件持久化 + 自动重连 |
+| `service/MqttDeviceDataIngestService` | MQTT Payload → `deviceCode` 匹配 → Redis 字段级幂等 → `device_data` 落库 → Fanout 广播 → AlarmDetector 报警；复用 REST 上报同一业务链路 |
+| `mqtt` 设备边界 | EMQX = 设备接入；RabbitMQ = 应用内部消息总线；两者保持上下游职责 |
+
 ### 横切关注点
 
 - GlobalExceptionHandler: BusinessException + @Valid + Exception 三层兜底
@@ -346,4 +355,4 @@ HTTP Request
 | Phase 2 | 第 4-6 周 | Day 22-42 | 项目 V1：CRUD / JWT / RBAC / 告警 / 前端 | ✅ v1.0 + Baseline V2.1 |
 | Phase 3 | 第 7-9 周 | Day 43-63 | 中间件武装：Redis + RabbitMQ + Docker + Linux | ✅ 2026-08-16 |
 | Phase 4 | 第 10-13 周 | Day 64-91 | AI 集成：DeepSeek → RAG → Agent/MCP → AI→业务闭环 → 前端 AI 工业化 | 🔨 Day 66-87 已完成 DeepSeek + ChatClient + Function Calling + RAG + Agent + MCP Server/Client + 巡检联调（ADR0030）+ SSE 推送链路 7 Phase 收官（ADR0031）+ AI 巡检异常自动生成报警 AiAlarmAutoCreator（Day86）+ 前端 4 AI 页面工业化打磨（Day87） |
-| Phase 5 | 第 14-16 周 | Day 92-112 | PLC + MQTT + 完整系统 | 📅 计划 |
+| Phase 5 | 第 14-16 周 | Day 92-112 | PLC + MQTT + 完整系统 | 🔨 Day 92-96 已完成：PLC/Modbus 概念 / EMQX / Paho / Java PLC 模拟器 / MQTT Listener 入库（ADR 0033-0034）；Day 97-112 计划 |

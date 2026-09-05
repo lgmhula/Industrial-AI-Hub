@@ -389,7 +389,8 @@ plc/{siteCode}/{deviceCode}/status      QoS 1, retained=true    在线状态 / �
 1. 后端 Listener 订阅 `plc/+/+/telemetry`，**不做 retained 依赖**，以业务表为准；
 2. QoS 1 可能重复投递，入库前复用项目 Redis 幂等键思路（`mqtt:{deviceCode}:{ts}`）；
 3. `ts` 用 ISO-8601 带时区，与 `device_data` 时间戳语义对齐；
-4. 设备编码需要与 `device.device_code` 匹配，模拟器前缀 `PLC-SIM-*` 在 seed/测试库中预置；
+4. 设备编码需要与 `device.device_code` 匹配；seed 预置的是 `PLC-M-001` / `PLC-A-*`，
+   `PLC-SIM-001` 不会自动存在——联调时先用 `PLC-M-001`，或先注册模拟器设备再启动 Listener；
 5. 布尔遥测与报警事件分开：线圈/离散状态适合“状态快照”，跳变才落 `alarm`（沿用 Day 92 §8 结论）。
 
 ### 10.5 EMQX 验证结论

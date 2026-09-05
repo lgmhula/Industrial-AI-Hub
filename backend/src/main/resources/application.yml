@@ -157,3 +157,19 @@ security:
     enabled: false
     invite-code: ${REGISTER_INVITE_CODE:}
     daily-limit: 100
+
+# ========================
+# MQTT Listener（Phase 5 Day 96，ADR 0034）
+# 默认关闭：没有 EMQX 的开发/测试环境不建连；
+# 容器化/联调时经环境变量注入 MQTT_ENABLED=true + MQTT_HOST=emqx（compose.yml v1.4）。
+# ========================
+mqtt:
+  enabled: ${MQTT_ENABLED:false}
+  host: ${MQTT_HOST:127.0.0.1}
+  port: ${MQTT_PORT:1883}
+  client-id: ${MQTT_CLIENT_ID:iah-backend-mqtt}
+  topic-filter: plc/+/+/telemetry
+  qos: 1
+  clean-session: true
+  keep-alive-seconds: 60
+  connection-timeout-seconds: 10

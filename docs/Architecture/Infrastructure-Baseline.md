@@ -1,9 +1,9 @@
-# Infrastructure Baseline V1.2
+# Infrastructure Baseline V1.3
 
 > **Status:** Active  
-> **Version:** 1.2
-> **Updated:** 2026-08-03
-> **Based on Commit:** Day 042
+> **Version:** 1.3
+> **Updated:** 2026-09-04
+> **Based on Commit:** Day 093 (Phase 5)
 > **Governs:** All infrastructure decisions for Industrial AI Hub
 
 ---
@@ -36,6 +36,7 @@
 | Nacos | 2.4.3 | 8848, 9848 | Configured | 预留基础设施：不纳入路线/不启动/无业务依赖 |
 | MinIO | RELEASE.2025-09-07 | 9000, 9001 | Configured | Phase 5 预留（对象存储/RAG 文档） |
 | Elasticsearch | 8.17 | 9200, 9300 | Configured | ELK 日志（Day 101，可选） |
+| EMQX | 5.8.9 | 1883, 8083, 18083 | Active | Phase 5 MQTT Broker：PLC/模拟设备接入，ADR 0033 |
 
 ---
 
@@ -72,3 +73,4 @@
 | V1.0 | 2026-07-16 | 初始基线 |
 | V1.1 | 2026-07-20 | 端口+Sentinel+连接策略 |
 | V1.2 | 2026-08-03 | Day 042 同步 |
+| V1.3 | 2026-09-04 | Phase 5 Day 93：新增 EMQX 5.8.9 MQTT Broker 服务（1883/8083/18083），compose.yml 同步 v1.3 |

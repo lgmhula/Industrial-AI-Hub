@@ -1,7 +1,7 @@
 # ========================
 # industrial ai hub — unified docker compose
-# Version: v1.2 | Updated: 2026-08-03
-# Infrastructure Baseline V2 (backend app service added)
+# Version: v1.3 | Updated: 2026-09-04
+# Infrastructure Baseline V3 (EMQX MQTT broker added, Phase 5 Day 93)
 # ========================
 
 networks:
@@ -83,6 +83,32 @@ services:
       timeout: 5s
       start_period: 45s
       retries: 5
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # EMQX 5.8 — MQTT Broker (Phase 5, ADR 0033)
+  # ==========================================
+  emqx:
+    image: emqx/emqx:5.8.9
+    container_name: emqx
+    restart: unless-stopped
+    ports:
+      - "1883:1883"    # MQTT over TCP
+      - "8083:8083"    # MQTT over WebSocket
+      - "18083:18083"  # Dashboard
+    environment:
+      EMQX_DASHBOARD__DEFAULT_USERNAME: admin
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: "${EMQX_DASHBOARD_PASSWORD:?EMQX_DASHBOARD_PASSWORD must be set in .env}"
+    volumes:
+      - emqx-data:/opt/emqx/data
+      - emqx-log:/opt/emqx/log
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - industrial-network
 
@@ -358,3 +384,5 @@ services:
 # Named volumes (managed by Docker, not bind-mounted)
 volumes:
   rabbitmq-data:
+  emqx-data:
+  emqx-log:

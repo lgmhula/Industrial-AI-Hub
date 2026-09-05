@@ -566,8 +566,8 @@
 | 天 | 任务 |
 |----|------|
 | Day 92 | PLC 基础概念：Modbus、寄存器、线圈 ✅（plc-modbus-learning-notes.md：PLC 扫描周期/I-O 映像/梯形图 + Modbus RTU/TCP/功能码 + 线圈/离散输入/输入寄存器/保持寄存器 4 类数据区 + 点位表到 device_data 映射） |
-| Day 93 | MQTT 协议基础 + EMQX/Mosquitto 安装 |
-| Day 94 | Java MQTT 客户端（Eclipse Paho）开发 |
+| Day 93 | MQTT 协议基础 + EMQX/Mosquitto 安装 ✅（mqtt-learning-notes.md：Broker 三角色/Topic 层级通配符/QoS 012/保留消息遗嘱/Keep Alive + Topic&Payload 草案；ADR 0033 选 EMQX 5.8.9；compose v1.3 新增 emqx 服务 1883/8083/18083 + env fail-fast + Infrastructure-Baseline V1.3） |
+| Day 94 | Java MQTT 客户端（Eclipse Paho）开发 ✅（pom 引 org.eclipse.paho.client.mqttv3 1.2.5；learning/java-code/day94/PlcMqttClientSmoke.java 连 EMQX 1883 + 订阅 QoS1 + publish QoS0/1/2 回环验证端到端 QoS=min(发布,订阅)；mqtt-learning-notes.md §10-12 选型+连接参数+坑位；后端 343/343 全绿） |
 | Day 95 | 模拟 PLC 设备：Java 程序定时发送模拟传感器数据 |
 | Day 96 | MQTT → 项目：接收 MQTT 数据并存入 device_data 表 |
 | Day 97 | 模拟多设备并发数据上报 + 压力测试 |

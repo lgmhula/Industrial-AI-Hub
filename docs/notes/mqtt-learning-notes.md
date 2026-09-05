@@ -454,3 +454,88 @@ options.setAutomaticReconnect(true);     // Day 96 生产开启自动重连（�
 ---
 
 > Day 94 结束。下一步 Day 95：Java 模拟 PLC 设备（寄存器区模型 + 量程）定时向 `plc/{site}/{device}/telemetry` publish，并行接入 ESP32 真实硬件（comprehensive-review-2026-08-22 第八章硬件清单）。
+
+---
+
+## 13. Day 96 生产 Listener：Paho 接入 + Redis 字段级幂等入库（2026-09-05）
+
+### 13.1 入站链路
+
+```text
+PLC / ESP32 / Java Simulator
+  → MQTT publish plc/{siteCode}/{deviceCode}/telemetry（QoS 1）
+  → EMQX
+  → MqttConfig.MqttLifecycle（Paho subscribe QoS 1，SmartLifecycle）
+  → MqttDeviceDataIngestService.ingest(topic, payload)
+  → deviceCode 匹配 DeviceMapper.findByCode
+  → Redis SETNX 字段级幂等（可选，null/异常降级）
+  → device_data insert
+  → DeviceDataProducer Fanout 广播
+  → AlarmDetector 规则检测 → alarm 落库 + AlarmProducer 发送/延迟升级
+```
+
+### 13.2 配置与开关
+
+```yaml
+mqtt:
+  enabled: ${MQTT_ENABLED:false}     # 默认关闭，无 EMQX 不建连
+  host: ${MQTT_HOST:127.0.0.1}
+  port: ${MQTT_PORT:1883}
+  client-id: iah-backend-mqtt        # 同一 broker 内必须唯一
+  topic-filter: plc/+/+/telemetry
+  qos: 1
+  clean-session: true
+  keep-alive-seconds: 60
+  connection-timeout-seconds: 10
+```
+
+容器模式由 `compose.yml` v1.4 注入 `MQTT_ENABLED=true / MQTT_HOST=emqx / MQTT_PORT=1883`，
+并让 backend 等 `emqx: service_healthy` 后再启动。
+
+### 13.3 为什么用文件持久化而不是 MemoryPersistence
+
+模拟器与后端都使用 QoS 1。Day 94 笔记第 11.3 节的坑位在生产接入时兑现：
+
+- `MqttDefaultFilePersistence` 保存未确认消息，JVM/连接闪断后可恢复；
+- `MqttLifecycle` 开启 `setAutomaticReconnect(true)`；
+- 停止时显式 disconnect + close + 删除临时持久化目录，避免 /tmp 残留；
+- `deliveryComplete` 对 `token.getMessage()` 判空；
+- `messageArrived` 业务异常全部由回调层捕获，禁止抛给 Paho。
+
+### 13.4 Redis 幂等键语义
+
+```text
+SETNX mqtt:{deviceId}:{yyyyMMddHHmmss}:{dataType} = 1 EX 86400
+```
+
+| Redis 状态 | Listener 行为 |
+|-----------|--------------|
+| 正常，键不存在 | 落库 + 广播 + 报警 |
+| 正常，键已存在（QoS1 重复） | 跳过该字段，视为未新增 |
+| Bean 为 null（test/简化部署） | 不幂等直接落库 |
+| SETNX 抛异常 | WARN 并降级，不幂等直接落库（宁重复不丢） |
+
+### 13.5 字段级映射与“坏字段不拖垮整条”
+
+顶层只消费 4 个工程值字段：
+
+| Payload | data_type | unit |
+|---------|-----------|------|
+| `current` | `CURRENT` | A |
+| `windingTemp` | `TEMPERATURE` | °C |
+| `pressure` | `PRESSURE` | kPa |
+| `speed` | `SPEED` | RPM |
+
+`registerSnapshot` 只保留审计含义，不写业务表。非法 JSON / 设备不存在跳过整条；
+ts 非法回退服务端时间；单字段非数值、Mapper 异常、广播异常、报警异常都 WARN 降级，
+不阻塞同一 Payload 的后续字段。
+
+### 13.6 Day 96 验证
+
+`MqttDeviceDataIngestServiceTest` 覆盖 12 个场景（完整 Payload、Redis 重复/异常/null、
+设备不存在、非法 ts、时区 ts、非法 JSON、坏字段、AlarmProducer null、报警异常、Mapper
+异常），目标测试与后端全量回归全绿。生产 Listener 在 `mqtt.enabled=false` 时不创建
+任何 Socket，因此本地无 EMQX 时后端启动与既有 343 个测试不受影响。
+
+> Day 96 结束。下一步 Day 97：模拟多设备并发上报 + 压力测试；若单实例 Paho 回调成为
+> 瓶颈，再把同步入库改为有界队列或 `MqttAsyncClient`。

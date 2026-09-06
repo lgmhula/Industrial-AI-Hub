@@ -605,3 +605,39 @@ ts 非法回退服务端时间；单字段非数值、Mapper 异常、广播异�
 | 压测只覆盖 publish 侧，未覆盖后端 messageArrived 入库吞吐 | Day 99 全链路联调时由后端日志观察入库速率与报警触发 |
 
 > Day 97 结束。下一步 Day 98：Week 15 周复盘 + PLC/MQTT 笔记整理。
+
+---
+
+## 15. Day 99 报警联动下行 command（2026-09-06，ADR 0035）
+
+### 15.1 背景：下行通道从「预留」到「落地」
+
+Day 95 预留了 `plc/{site}/{device}/command` 下行 Topic；Day 96 后端只有订阅能力。
+Day 99 完整系统联调把「真实硬件 6 段闭环（超限 → alarm → 继电器跳变）」作为核心目标，
+选定**后端下行 MQTT command** 驱动继电器（平台决策 → 设备执行），决策见 ADR 0035。
+
+### 15.2 契约与后端改动
+
+| 项 | 内容 |
+|----|------|
+| 下行 Topic | `plc/{siteCode}/{deviceCode}/command`（QoS 1），siteCode 优先 payload、缺失回退遥测 Topic 第二段 |
+| Payload | `{"cmd":"RELAY_ON","trigger":"OVER_HUMIDITY","ts":"…","value":96.0,"deviceCode":"esp32-dht-001"}` |
+| 触发 | 仅 `device_type=SENSOR` 设备 + 报警白名单 `{OVER_HUMIDITY, OVER_TEMP}`，hook 在 MQTT 入站报警链路内 |
+| 节流 | 后端 Redis SETNX `mqtt:relay:{deviceId}:{alarmType}` TTL 5s；固件 3s 命令去抖 + 3s 自动复位（双保险） |
+| 网关注入 | `service.MqttCommandGateway` 端口 + `MqttConfig.MqttLifecycle` 实现，`start()` 后运行时注入 ingest（打破循环依赖），停用/未连接时为 null 静默降级 |
+| 字段映射 | FIELD_MAP 增 `temperature→TEMPERATURE/°C`、`humidity→HUMIDITY/%`（ESP32/DHT22 画像真实字段名，与 PLC 画像共存） |
+
+### 15.3 软件链路验证（模拟 ESP32，FakeESP32）
+
+`learning/java-code/day99/FakeEsp32Device.java`（publish 序列 / watch 两种模式）两轮验证：
+
+```text
+发布 16 条（湿度 55,55,96×4,55,55 ×2 轮）
+  → device_data 32 行（HUMIDITY×16 + TEMPERATURE×16，device_id=51）
+  → 8 条 OVER_HUMIDITY alarm（status=0）
+  → 后端 RELAY_ON 下行 4 次 + 节流命中 4 次（5s 窗）
+  → 模拟订阅端实收 2 条/轮：{"cmd":"RELAY_ON","trigger":"OVER_HUMIDITY",…}
+```
+
+> Day 99 P1 结束（软件侧）。P2 真实 ESP32 固件烧录 + P3 哈气硬件闭环待硬件侧配合
+> （固件：learning/esp32/esp32-dht-relay/）。

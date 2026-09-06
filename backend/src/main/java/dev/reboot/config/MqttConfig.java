@@ -1,5 +1,6 @@
 package dev.reboot.config;
 
+import dev.reboot.service.MqttCommandGateway;
 import dev.reboot.service.MqttDeviceDataIngestService;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -53,7 +54,7 @@ public class MqttConfig {
         return new MqttLifecycle(properties, ingestService);
     }
 
-    static final class MqttLifecycle implements SmartLifecycle, MqttCallback {
+    static final class MqttLifecycle implements SmartLifecycle, MqttCallback, MqttCommandGateway {
 
         private static final Logger lifecycleLog = LoggerFactory.getLogger(MqttLifecycle.class);
         private static final String TCP_PREFIX = "tcp://";
@@ -93,6 +94,8 @@ public class MqttConfig {
                 mqttClient.subscribe(properties.getTopicFilter(), properties.getQos());
                 this.client = mqttClient;
                 this.running = true;
+                // Day 99（ADR 0035）：连接就绪后注入下行发布端口（运行时注入，避免构造期循环依赖）
+                ingestService.setCommandGateway(this);
                 lifecycleLog.info("MQTT Listener connected: broker={} topic={} qos={}",
                         serverUri(properties), properties.getTopicFilter(), properties.getQos());
             } catch (MqttException ex) {
@@ -114,6 +117,7 @@ public class MqttConfig {
         @Override
         public synchronized void stop() {
             running = false;
+            ingestService.setCommandGateway(null);
             if (client == null) {
                 return;
             }
@@ -139,6 +143,29 @@ public class MqttConfig {
         public int getPhase() {
             // 最后启动（在 Redis/RabbitMQ 等基础 Bean 之后建连）
             return Integer.MAX_VALUE;
+        }
+
+        @Override
+        public boolean publish(String topic, String payload, int qos) {
+            MqttClient mqttClient = client;
+            if (mqttClient == null || !mqttClient.isConnected()) {
+                lifecycleLog.warn("MQTT 下行发布失败：连接未就绪 topic={}", topic);
+                return false;
+            }
+            if (topic == null || topic.isBlank() || payload == null || qos < 0 || qos > 2) {
+                lifecycleLog.warn("MQTT 下行发布参数非法: topic={} payloadSize={} qos={}",
+                        topic, payload == null ? -1 : payload.length(), qos);
+                return false;
+            }
+            try {
+                MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
+                message.setQos(qos);
+                mqttClient.publish(topic, message);
+                return true;
+            } catch (MqttException ex) {
+                lifecycleLog.error("MQTT 下行发布失败: topic={} qos={}", topic, qos, ex);
+                return false;
+            }
         }
 
         @Override

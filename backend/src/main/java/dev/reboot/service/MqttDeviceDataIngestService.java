@@ -1,5 +1,6 @@
 package dev.reboot.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.reboot.dto.AlarmVO;
@@ -28,6 +29,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * MQTT 遥测入库服务（Day 96，ADR 0034）。
@@ -58,8 +60,15 @@ public class MqttDeviceDataIngestService {
     private static final DateTimeFormatter IDEMPOTENCY_TIME =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
-    /** 模拟器顶层字段 → device_data 的固定映射（Day 95 §2.4 契约）。 */
+    /** 模拟器顶层字段 → device_data 的固定映射（Day 95 §2.4 契约 + Day 99 ESP32/DHT22 画像）。 */
     private static final Map<String, FieldSpec> FIELD_MAP = fieldMap();
+
+    /** 触发继电器下行的报警类型（ADR 0035：仅传感器执行器设备，见 maybeSendRelayCommand）。 */
+    private static final Set<String> RELAY_ALARM_TYPES = Set.of("OVER_HUMIDITY", "OVER_TEMP");
+    private static final String RELAY_THROTTLE_PREFIX = "mqtt:relay:";
+    private static final Duration RELAY_THROTTLE_TTL = Duration.ofSeconds(5);
+    private static final String RELAY_CMD = "RELAY_ON";
+    private static final String RELAY_TYPE_SENSOR = "SENSOR";
 
     private final ObjectMapper objectMapper;
     private final DeviceMapper deviceMapper;
@@ -76,6 +85,13 @@ public class MqttDeviceDataIngestService {
 
     @Nullable
     private final AlarmProducer alarmProducer;
+
+    /**
+     * MQTT 下行发布端口（ADR 0035）。由 {@code MqttConfig.MqttLifecycle} 在连接就绪后
+     * 运行时注入（{@link #setCommandGateway}），MQTT 未启用/未连接时为 null → 下行降级跳过。
+     */
+    @Nullable
+    private volatile MqttCommandGateway commandGateway;
 
     public MqttDeviceDataIngestService(ObjectMapper objectMapper,
                                        DeviceMapper deviceMapper,
@@ -133,10 +149,11 @@ public class MqttDeviceDataIngestService {
         }
 
         LocalDateTime recordedAt = resolveRecordedAt(root.get("ts"));
+        String siteCode = resolveSiteCode(topic, root);
         int persisted = 0;
         for (FieldSpec spec : FIELD_MAP.values()) {
             try {
-                if (persistField(device, root, spec, recordedAt)) {
+                if (persistField(device, siteCode, root, spec, recordedAt)) {
                     persisted++;
                 }
             } catch (RuntimeException ex) {
@@ -150,7 +167,7 @@ public class MqttDeviceDataIngestService {
         return persisted > 0;
     }
 
-    private boolean persistField(Device device, JsonNode root, FieldSpec spec,
+    private boolean persistField(Device device, String siteCode, JsonNode root, FieldSpec spec,
                                  LocalDateTime recordedAt) {
         JsonNode valueNode = root.get(spec.payloadName);
         if (valueNode == null || valueNode.isNull() || valueNode.isMissingNode()) {
@@ -178,7 +195,7 @@ public class MqttDeviceDataIngestService {
         deviceDataMapper.insert(row);
 
         broadcast(row);
-        checkAndSendAlarms(row);
+        checkAndSendAlarms(device, siteCode, row);
         return true;
     }
 
@@ -199,31 +216,111 @@ public class MqttDeviceDataIngestService {
     }
 
     /** 报警检测与消息投递；AlarmDetector 自身负责 alarm 表持久化。 */
-    private void checkAndSendAlarms(DeviceData row) {
+    private void checkAndSendAlarms(Device device, String siteCode, DeviceData row) {
         try {
             List<AlarmVO> alarms = alarmDetector.check(
                     row.getDeviceId(), row.getDataType(), row.getDataValue());
-            if (alarms == null || alarms.isEmpty() || alarmProducer == null) {
+            if (alarms == null || alarms.isEmpty()) {
                 return;
             }
             for (AlarmVO alarm : alarms) {
                 if (alarm == null) {
                     continue;
                 }
-                AlarmMessage msg = new AlarmMessage(
-                        row.getDeviceId(),
-                        alarm.getAlarmType(),
-                        alarm.getAlarmLevel(),
-                        alarm.getAlarmMessage(),
-                        row.getDataValue(),
-                        row.getRecordedAt());
-                alarmProducer.send(msg);
-                alarmProducer.sendDelayCheck(msg);
+                if (alarmProducer != null) {
+                    AlarmMessage msg = new AlarmMessage(
+                            row.getDeviceId(),
+                            alarm.getAlarmType(),
+                            alarm.getAlarmLevel(),
+                            alarm.getAlarmMessage(),
+                            row.getDataValue(),
+                            row.getRecordedAt());
+                    alarmProducer.send(msg);
+                    alarmProducer.sendDelayCheck(msg);
+                }
+                maybeSendRelayCommand(device, siteCode, alarm, row);
             }
         } catch (RuntimeException ex) {
             log.warn("MQTT ingest 报警链路失败（数据已落库，不阻塞后续字段）: deviceId={} type={}",
                     row.getDeviceId(), row.getDataType(), ex);
         }
+    }
+
+    /**
+     * 报警联动下行（ADR 0035）：传感器执行器设备触发可执行报警时，向
+     * {@code plc/{siteCode}/{deviceCode}/command} 发布 RELAY_ON（QoS 1）。
+     *
+     * <p>降级语义：
+     * <ul>
+     *   <li>commandGateway 为 null（MQTT 未启用/未连接）→ 跳过（软件链路不中断）；</li>
+     *   <li>非 SENSOR 设备（如 PLC 模拟器）→ 跳过，避免向无执行器设备空发；</li>
+     *   <li>非 RELAY_ALARM_TYPES 报警 → 跳过；</li>
+     *   <li>Redis SETNX 节流（每设备每报警类型 5s 至多 1 次）→ 超限样本不重复下发，
+     *       Redis null 时降级为每次都发（由固件侧 3s 去抖兜底）。</li>
+     * </ul>
+     * </p>
+     */
+    private void maybeSendRelayCommand(Device device, String siteCode, AlarmVO alarm,
+                                       DeviceData row) {
+        if (commandGateway == null) {
+            return;
+        }
+        if (!RELAY_TYPE_SENSOR.equalsIgnoreCase(device.getDeviceType())) {
+            return;
+        }
+        if (!RELAY_ALARM_TYPES.contains(alarm.getAlarmType())) {
+            return;
+        }
+        String throttleKey = RELAY_THROTTLE_PREFIX + device.getId() + ":" + alarm.getAlarmType();
+        if (!acquireRelayThrottle(throttleKey)) {
+            log.info("MQTT 下行节流命中，跳过重复 RELAY_ON: deviceId={} type={}",
+                    device.getId(), alarm.getAlarmType());
+            return;
+        }
+        try {
+            Map<String, Object> command = new LinkedHashMap<>();
+            command.put("cmd", RELAY_CMD);
+            command.put("trigger", alarm.getAlarmType());
+            command.put("ts", row.getRecordedAt().toString());
+            command.put("value", row.getDataValue());
+            command.put("deviceCode", device.getDeviceCode());
+            String topic = "plc/" + siteCode + "/" + device.getDeviceCode() + "/command";
+            String payload = objectMapper.writeValueAsString(command);
+            if (commandGateway.publish(topic, payload, 1)) {
+                log.info("MQTT 下行 RELAY_ON 已发送: topic={}", topic);
+            } else {
+                log.warn("MQTT 下行 RELAY_ON 发送失败: topic={}", topic);
+            }
+        } catch (JsonProcessingException | RuntimeException ex) {
+            log.warn("MQTT 下行 RELAY_ON 构造/发布异常，已降级跳过: deviceId={} type={}",
+                    device.getId(), alarm.getAlarmType(), ex);
+        }
+    }
+
+    /**
+     * 运行时注入下行发布端口（由 MqttConfig.MqttLifecycle 连接就绪后调用，ADR 0035）。
+     * MQTT 停止时置 null 恢复降级。
+     */
+    public void setCommandGateway(@Nullable MqttCommandGateway gateway) {
+        this.commandGateway = gateway;
+    }
+
+    /**
+     * command 下行 Topic 的 siteCode：优先 payload.siteCode（ESP32/模拟器契约均带），
+     * 缺失时回退 Topic 第二段（plc/{site}/{device}/telemetry），再缺失返回 UNKNOWN。
+     */
+    private String resolveSiteCode(String topic, JsonNode root) {
+        String fromPayload = text(root.get("siteCode"));
+        if (fromPayload != null) {
+            return fromPayload;
+        }
+        if (topic != null) {
+            String[] segments = topic.split("/");
+            if (segments.length >= 2 && segments[1] != null && !segments[1].isBlank()) {
+                return segments[1];
+            }
+        }
+        return "UNKNOWN";
     }
 
     private LocalDateTime resolveRecordedAt(JsonNode tsNode) {
@@ -245,15 +342,24 @@ public class MqttDeviceDataIngestService {
      * Redis SETNX 幂等：null / 异常时降级为“放行写入”（宁愿重复不丢）。
      */
     private boolean acquireIdempotency(String key) {
+        return acquireOnce(key, IDEMPOTENCY_TTL, "MQTT ingest 幂等 Redis SETNX 异常，降级不幂等仍写入");
+    }
+
+    /** RELAY_ON 节流（5s 至多 1 次）：null / 异常降级为放行（固件侧 3s 去抖兜底）。 */
+    private boolean acquireRelayThrottle(String key) {
+        return acquireOnce(key, RELAY_THROTTLE_TTL, "MQTT 下行节流 Redis SETNX 异常，降级放行");
+    }
+
+    private boolean acquireOnce(String key, Duration ttl, String warnMessage) {
         if (redis == null) {
             return true;
         }
         try {
             Boolean acquired = redis.opsForValue()
-                    .setIfAbsent(key, "1", IDEMPOTENCY_TTL);
+                    .setIfAbsent(key, "1", ttl);
             return Boolean.TRUE.equals(acquired);
         } catch (RuntimeException ex) {
-            log.warn("MQTT ingest 幂等 Redis SETNX 异常，降级不幂等仍写入: key={}", key, ex);
+            log.warn("{}: key={}", warnMessage, key, ex);
             return true;
         }
     }
@@ -304,10 +410,14 @@ public class MqttDeviceDataIngestService {
 
     private static Map<String, FieldSpec> fieldMap() {
         Map<String, FieldSpec> map = new LinkedHashMap<>();
+        // PLC 画像（Day 95 契约定稿）
         map.put("current", new FieldSpec("current", "CURRENT", "A"));
         map.put("windingTemp", new FieldSpec("windingTemp", "TEMPERATURE", "°C"));
         map.put("pressure", new FieldSpec("pressure", "PRESSURE", "kPa"));
         map.put("speed", new FieldSpec("speed", "SPEED", "RPM"));
+        // ESP32 + DHT22 画像（Day 99 硬件接入，ADR 0035）——真实字段名直连同一 dataType
+        map.put("temperature", new FieldSpec("temperature", "TEMPERATURE", "°C"));
+        map.put("humidity", new FieldSpec("humidity", "HUMIDITY", "%"));
         return Collections.unmodifiableMap(map);
     }
 

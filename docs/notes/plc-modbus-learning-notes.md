@@ -408,5 +408,12 @@ Java 端已经从“协议冒烟”进入“设备仿真”：模拟器拥有四
 scale/offset 工程换算、可触发的阈值尖峰与急停/过载事件、QoS 1 + retained 状态发布，
 足以支撑 Day 96 生产 Listener 的联调输入；真实 ESP32 接入不会改变 Topic 与 JSON 契约。
 
+**Week 15 收口（Day 96-97）**：本契约已被消费并压测验证——`MqttDeviceDataIngestService`
+（Day 96）按 §10.4 把 `current/windingTemp/pressure/speed` 映射落 `device_data`，Redis
+字段级幂等 `mqtt:{deviceId}:{ts}:{dataType}`；Day 97 以 20 台并发 201 msg/s、3020 条
+100% 确认验证 Listener 承接能力。细节见 [mqtt-learning-notes.md](mqtt-learning-notes.md)
+§13/§14。模拟 PLC 至此作为真实数据源完成闭环，ESP32 真实硬件固件烧录在 Day 99 完整
+系统联调阶段按同一契约并行接入。
+
 > Day 95 模拟设备日结束。明天 Day 96 开始 MQTT → Spring Boot：订阅 `plc/+/+/telemetry`，
 > 把 Java 模拟 PLC 的报文变成 `device_data` 真实记录。

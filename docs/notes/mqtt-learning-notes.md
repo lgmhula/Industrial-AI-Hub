@@ -539,3 +539,64 @@ ts 非法回退服务端时间；单字段非数值、Mapper 异常、广播异�
 
 > Day 96 结束。下一步 Day 97：模拟多设备并发上报 + 压力测试；若单实例 Paho 回调成为
 > 瓶颈，再把同步入库改为有界队列或 `MqttAsyncClient`。
+
+---
+
+## 14. Day 97 多设备并发压测（2026-09-05）
+
+### 14.1 压测设计
+
+`learning/java-code/day97/MultiDeviceStressTest.java`：N 台模拟设备（默认 10 台）各自独立 Paho Client 并发向 EMQX publish `plc/PLANT_A/PLC-STRESS-NNN/telemetry`（QoS 1），按固定频率发送，采集聚合指标。
+
+| 参数 | 默认值 | CLI 位参 |
+|------|--------|---------|
+| 设备数 | 10 | arg1 |
+| 单设备发布频率 | 5 msg/s | arg2 |
+| 持续时间 | 30s | arg3 |
+| Broker | tcp://localhost:1883 | 可前缀 |
+
+幂等测试：每 20 条消息发一次与前一条相同的时间戳（模拟 QoS 1 重复投递），后端 Redis SETNX 应按 `mqtt:{deviceId}:{ts}:{dataType}` 去重。
+
+### 14.2 实测结果
+
+**小规模（3 台 × 2 msg/s × 10s）**
+
+| 指标 | 值 |
+|------|----|
+| 发送 | 60 |
+| 确认 | 60 (100%) |
+| 失败 | 0 |
+| 吞吐 | 6.0 msg/s |
+| 延迟 avg / max | 2ms / 2ms |
+| 幂等重复 | 3 sent / 3 confirmed |
+
+**正式压测（20 台 × 10 msg/s × 15s）**
+
+| 指标 | 值 |
+|------|----|
+| 发送 | 3020 |
+| 确认 | 3020 (100%) |
+| 失败 | 0 |
+| 吞吐 | 201.3 msg/s |
+| 延迟 avg | 2.26ms |
+| 延迟 p50 / p95 / p99 | 2 / 4 / 5ms |
+| 延迟 max | 5ms |
+| 幂等重复 | 140 sent / 140 confirmed |
+
+### 14.3 关键观察
+
+1. **EMQX 5.8.9 单机轻松承载 200+ msg/s**：20 台并发 × 10 msg/s = 200 msg/s，延迟稳定在 2-5ms，无丢包。
+2. **Paho deliveryComplete 在高频下可靠**：3020 条全部确认，无 null token 导致断连。
+3. **QoS 1 顺序性**：同一 client 的 `deliveryComplete` 按发送顺序回调，用确认计数器索引发送时间环可近似采样延迟。
+4. **幂等碰撞设计**：每 20 条发 1 条重复 ts（占 5%），后端 Redis SETNX 应按 `mqtt:{deviceId}:{yyyyMMddHHmmss}:{dataType}` 去重；客户端 Paho 层无法验证后端去重效果，需在后端日志或 `device_data` 行数中核实。
+5. **单实例 Paho 回调线程不是瓶颈**：当前 200 msg/s 同步入库可接受；Day 99 全链路联调时若速率提升至 500+ msg/s，可考虑有界队列或 `MqttAsyncClient`。
+
+### 14.4 压测局限与后续
+
+| 局限 | 后续改进 |
+|------|---------|
+| 设备 `PLC-STRESS-NNN` 未在 DB 注册，后端 `deviceMapper.findByCode` 返回 null 会跳过 | Day 99 联调前用 `scripts/seed-dev.sh` 预置 20 台压测设备 |
+| 幂等去重效果未在数据层验证 | Day 99 启动 backend + MQTT_ENABLED=true，压测后查 `SELECT COUNT(*) FROM device_data WHERE device_id IN (...)` |
+| 压测只覆盖 publish 侧，未覆盖后端 messageArrived 入库吞吐 | Day 99 全链路联调时由后端日志观察入库速率与报警触发 |
+
+> Day 97 结束。下一步 Day 98：Week 15 周复盘 + PLC/MQTT 笔记整理。

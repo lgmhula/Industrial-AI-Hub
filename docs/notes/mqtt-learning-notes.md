@@ -304,7 +304,12 @@ Dashboard 左侧可看到 Clients / Sessions / Topics，也可以从 WebSocket �
 
 ## 8. 本项目 Phase 5 Topic / Payload 设计草案
 
-> 只是设计草案，具体字段在 Day 95/96 与 Java 实现一起定稿。
+> ⚠️ **状态：草案已定稿并落地（Day 95-97）**。本节保留 Day 93 原稿作演进记录；
+> 最终契约与实现见 [plc-modbus-learning-notes.md](plc-modbus-learning-notes.md) §10.3/§10.4（Day 95 模拟器发布）
+> 与本节 §13（Day 96 生产 Listener 落库）、§14（Day 97 并发压测）。
+> 注意：下稿示例字段 `temperature/humidity` 是 **ESP32 + DHT22 画像**；PLC 画像字段
+> 以定稿契约为准（`current/windingTemp/pressure/speed`），两种画像共享同一
+> `plc/{siteCode}/{deviceCode}/telemetry` 命名空间。
 
 遥测主题：
 

@@ -571,7 +571,7 @@
 | Day 95 | 模拟 PLC 设备：Java 程序定时发送模拟传感器数据 ✅（learning/java-code/day95：PlcSimulator 4 类 Modbus 寄存器区模型 + 点位表/量程/scale-offset + 尖峰/急停/过载状态机 + 1~5s QoS1 publish telemetry + retained status + offline 遗嘱清理；EMQX 5.8.9 实发验证合法 JSON；plc-modbus-learning-notes §10 契约草案） |
 | Day 96 | MQTT → 项目：接收 MQTT 数据并存入 device_data 表 ✅（生产接入：MqttProperties/MqttConfig SmartLifecycle Paho subscribe QoS1 + MqttDeviceDataIngestService 字段映射 Redis SETNX 幂等 + 广播/报警链路；ADR 0034；compose v1.4 backend 注入 MQTT_ENABLED + EMQX depends_on；单测 12 新增，后端 355/355 全绿） |
 | Day 97 | 模拟多设备并发数据上报 + 压力测试 ✅（learning/java-code/day97/MultiDeviceStressTest：N 台并发 Paho QoS1 publish + 聚合吞吐/延迟/幂等指标；20 台×10msg/s=201msg/s 3020 条 100% 确认 0 失败 avg 2.26ms max 5ms；mqtt-learning-notes §14 压测设计+实测+关键观察+局限） |
-| Day 98 | 周复盘 + PLC/MQTT 笔记 |
+| Day 98 | 周复盘 + PLC/MQTT 笔记 ✅（REVIEW/Week15.md：Day 92-97 全段复盘（5 项关键收获/演进全景/指标/遗留&风险/Week16 计划）+ plc/mqtt 笔记通读修订（mqtt §8 草案「已定稿并落地」状态标注 + plc §10.6 补 Day96-97 契约消费与压测闭环）；Day 97 Git 收口合并 main `36f1699`；后端 surefire 355/355 全绿 + 前端 build 1.16s 0 errors） |
 
 ### 第 15 周：系统整合 + 运维
 | 天 | 任务 |

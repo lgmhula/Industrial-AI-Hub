@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -32,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -74,6 +76,7 @@ class MqttDeviceDataIngestServiceTest {
     @Mock private ValueOperations<String, String> valueOps;
     @Mock private DeviceDataProducer deviceDataProducer;
     @Mock private AlarmProducer alarmProducer;
+    @Mock private MqttCommandGateway commandGateway;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private MqttDeviceDataIngestService service;
@@ -266,6 +269,97 @@ class MqttDeviceDataIngestServiceTest {
         verify(deviceDataProducer, times(3)).publish(any(DeviceDataMessage.class));
     }
 
+    // —— Day 99：ESP32/DHT22 画像 + 报警联动下行（ADR 0035） ——
+
+    @Test
+    void esp32_highHumidity_shouldPersistTempHumidityAndPublishRelayCommand() {
+        MqttDeviceDataIngestService svc = buildService(redis, deviceDataProducer, alarmProducer);
+        svc.setCommandGateway(commandGateway);
+        when(deviceMapper.findByCode("esp32-dht-001"))
+                .thenReturn(device(200L, "esp32-dht-001", "SENSOR"));
+        when(valueOps.setIfAbsent(anyString(), eq("1"), any())).thenReturn(Boolean.TRUE);
+        when(alarmDetector.check(eq(200L), eq("TEMPERATURE"), eq(new BigDecimal("30.5"))))
+                .thenReturn(Collections.emptyList());
+        when(alarmDetector.check(eq(200L), eq("HUMIDITY"), eq(new BigDecimal("95.5"))))
+                .thenReturn(List.of(alarm("OVER_HUMIDITY", 1, "设备 200 湿度过高")));
+
+        boolean persisted = svc.ingest("plc/PLANT_A/esp32-dht-001/telemetry",
+                "{\"deviceCode\":\"esp32-dht-001\",\"siteCode\":\"PLANT_A\",\"ts\":\"" + TS + "\","
+                        + "\"temperature\":30.5,\"humidity\":95.5}");
+
+        assertTrue(persisted, "ESP32 temperature/humidity 应映射落库");
+        verify(deviceDataMapper, times(2)).insert(any(DeviceData.class));
+        verify(alarmProducer, times(1)).send(any(AlarmMessage.class));
+        verify(commandGateway).publish(eq("plc/PLANT_A/esp32-dht-001/command"),
+                argThat(p -> p != null
+                        && p.contains("\"cmd\":\"RELAY_ON\"")
+                        && p.contains("\"trigger\":\"OVER_HUMIDITY\"")
+                        && p.contains("\"deviceCode\":\"esp32-dht-001\"")),
+                eq(1));
+    }
+
+    @Test
+    void esp32_highHumidity_noGateway_shouldPersistAlarmWithoutPublishing() {
+        MqttDeviceDataIngestService svc = buildService(redis, deviceDataProducer, alarmProducer);
+        // commandGateway 未注入（MQTT 未启用/未连接）：下行应静默降级
+        when(deviceMapper.findByCode("esp32-dht-001"))
+                .thenReturn(device(200L, "esp32-dht-001", "SENSOR"));
+        when(valueOps.setIfAbsent(anyString(), eq("1"), any())).thenReturn(Boolean.TRUE);
+        when(alarmDetector.check(eq(200L), eq("HUMIDITY"), eq(new BigDecimal("98.0"))))
+                .thenReturn(List.of(alarm("OVER_HUMIDITY", 1, "设备 200 湿度过高")));
+
+        boolean persisted = svc.ingest("plc/PLANT_A/esp32-dht-001/telemetry",
+                "{\"deviceCode\":\"esp32-dht-001\",\"siteCode\":\"PLANT_A\",\"ts\":\"" + TS + "\","
+                        + "\"humidity\":98.0}");
+
+        assertTrue(persisted);
+        verify(alarmProducer, times(1)).send(any(AlarmMessage.class));
+        verify(deviceDataMapper, times(1)).insert(any(DeviceData.class));
+    }
+
+    @Test
+    void esp32_relayThrottle_shouldPublishOnlyOnceWithinWindow() {
+        MqttDeviceDataIngestService svc = buildService(redis, deviceDataProducer, alarmProducer);
+        svc.setCommandGateway(commandGateway);
+        when(deviceMapper.findByCode("esp32-dht-001"))
+                .thenReturn(device(200L, "esp32-dht-001", "SENSOR"));
+        when(alarmDetector.check(eq(200L), eq("HUMIDITY"), any()))
+                .thenReturn(List.of(alarm("OVER_HUMIDITY", 1, "设备 200 湿度过高")));
+        AtomicInteger relayCalls = new AtomicInteger();
+        when(valueOps.setIfAbsent(anyString(), eq("1"), any())).thenAnswer(inv -> {
+            String key = inv.getArgument(0);
+            if (key.contains(":relay:")) {
+                return relayCalls.incrementAndGet() == 1 ? Boolean.TRUE : Boolean.FALSE;
+            }
+            return Boolean.TRUE;
+        });
+
+        // 两条不同 ts 的超限样本（均在 5s 节流窗内）
+        svc.ingest("plc/PLANT_A/esp32-dht-001/telemetry",
+                "{\"deviceCode\":\"esp32-dht-001\",\"siteCode\":\"PLANT_A\",\"ts\":\"2026-09-06T10:00:00+08:00\",\"humidity\":96.0}");
+        svc.ingest("plc/PLANT_A/esp32-dht-001/telemetry",
+                "{\"deviceCode\":\"esp32-dht-001\",\"siteCode\":\"PLANT_A\",\"ts\":\"2026-09-06T10:00:01+08:00\",\"humidity\":96.1}");
+
+        verify(deviceDataMapper, times(2)).insert(any(DeviceData.class));
+        verify(commandGateway, times(1)).publish(eq("plc/PLANT_A/esp32-dht-001/command"),
+                anyString(), eq(1));
+    }
+
+    @Test
+    void plcTypeDevice_overTemp_shouldNotPublishRelayCommand() {
+        MqttDeviceDataIngestService svc = buildService(redis, deviceDataProducer, alarmProducer);
+        svc.setCommandGateway(commandGateway);
+        when(deviceMapper.findByCode("PLC-M-001")).thenReturn(device(101L, "PLC-M-001", "PLC"));
+        when(valueOps.setIfAbsent(anyString(), eq("1"), any())).thenReturn(Boolean.TRUE);
+        when(alarmDetector.check(eq(101L), eq("TEMPERATURE"), eq(new BigDecimal("45.2"))))
+                .thenReturn(List.of(alarm("OVER_TEMP", 2, "设备 101 温度过高")));
+
+        svc.ingest(TOPIC, payload(TS, "\"windingTemp\":45.2"));
+
+        verify(alarmProducer, times(1)).send(any(AlarmMessage.class));
+        verify(commandGateway, never()).publish(anyString(), anyString(), eq(1));
+    }
+
     // —— Helpers ——
 
     private MqttDeviceDataIngestService buildService(StringRedisTemplate redisTemplate,
@@ -277,11 +371,16 @@ class MqttDeviceDataIngestServiceTest {
     }
 
     private Device device(Long id, String code) {
+        return device(id, code, "PLC");
+    }
+
+    private Device device(Long id, String code, String type) {
         Device d = new Device();
         d.setId(id);
         d.setDeviceCode(code);
         d.setSiteId(1L);
-        d.setDeviceName("PLC");
+        d.setDeviceName("device-" + code);
+        d.setDeviceType(type);
         return d;
     }
 

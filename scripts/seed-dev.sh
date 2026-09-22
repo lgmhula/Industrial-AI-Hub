@@ -41,7 +41,7 @@ if [ ! -f "$SEED_SQL" ]; then
     exit 1
 fi
 
-echo "==> 灌入 Demo 数据：$HOST:$PORT/$DB（幂等，可重复执行）"
+echo "==> 灌入 Demo 数据：${HOST}:${PORT}/${DB}（幂等，可重复执行）"
 "$MYSQL_BIN" -h "$HOST" -P "$PORT" -u "$USER" -p"$PASS" \
     --default-character-set=utf8mb4 "$DB" < "$SEED_SQL"
 

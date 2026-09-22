@@ -304,7 +304,12 @@ Dashboard 左侧可看到 Clients / Sessions / Topics，也可以从 WebSocket �
 
 ## 8. 本项目 Phase 5 Topic / Payload 设计草案
 
-> 只是设计草案，具体字段在 Day 95/96 与 Java 实现一起定稿。
+> ⚠️ **状态：草案已定稿并落地（Day 95-97）**。本节保留 Day 93 原稿作演进记录；
+> 最终契约与实现见 [plc-modbus-learning-notes.md](plc-modbus-learning-notes.md) §10.3/§10.4（Day 95 模拟器发布）
+> 与本节 §13（Day 96 生产 Listener 落库）、§14（Day 97 并发压测）。
+> 注意：下稿示例字段 `temperature/humidity` 是 **ESP32 + DHT22 画像**；PLC 画像字段
+> 以定稿契约为准（`current/windingTemp/pressure/speed`），两种画像共享同一
+> `plc/{siteCode}/{deviceCode}/telemetry` 命名空间。
 
 遥测主题：
 
@@ -539,3 +544,100 @@ ts 非法回退服务端时间；单字段非数值、Mapper 异常、广播异�
 
 > Day 96 结束。下一步 Day 97：模拟多设备并发上报 + 压力测试；若单实例 Paho 回调成为
 > 瓶颈，再把同步入库改为有界队列或 `MqttAsyncClient`。
+
+---
+
+## 14. Day 97 多设备并发压测（2026-09-05）
+
+### 14.1 压测设计
+
+`learning/java-code/day97/MultiDeviceStressTest.java`：N 台模拟设备（默认 10 台）各自独立 Paho Client 并发向 EMQX publish `plc/PLANT_A/PLC-STRESS-NNN/telemetry`（QoS 1），按固定频率发送，采集聚合指标。
+
+| 参数 | 默认值 | CLI 位参 |
+|------|--------|---------|
+| 设备数 | 10 | arg1 |
+| 单设备发布频率 | 5 msg/s | arg2 |
+| 持续时间 | 30s | arg3 |
+| Broker | tcp://localhost:1883 | 可前缀 |
+
+幂等测试：每 20 条消息发一次与前一条相同的时间戳（模拟 QoS 1 重复投递），后端 Redis SETNX 应按 `mqtt:{deviceId}:{ts}:{dataType}` 去重。
+
+### 14.2 实测结果
+
+**小规模（3 台 × 2 msg/s × 10s）**
+
+| 指标 | 值 |
+|------|----|
+| 发送 | 60 |
+| 确认 | 60 (100%) |
+| 失败 | 0 |
+| 吞吐 | 6.0 msg/s |
+| 延迟 avg / max | 2ms / 2ms |
+| 幂等重复 | 3 sent / 3 confirmed |
+
+**正式压测（20 台 × 10 msg/s × 15s）**
+
+| 指标 | 值 |
+|------|----|
+| 发送 | 3020 |
+| 确认 | 3020 (100%) |
+| 失败 | 0 |
+| 吞吐 | 201.3 msg/s |
+| 延迟 avg | 2.26ms |
+| 延迟 p50 / p95 / p99 | 2 / 4 / 5ms |
+| 延迟 max | 5ms |
+| 幂等重复 | 140 sent / 140 confirmed |
+
+### 14.3 关键观察
+
+1. **EMQX 5.8.9 单机轻松承载 200+ msg/s**：20 台并发 × 10 msg/s = 200 msg/s，延迟稳定在 2-5ms，无丢包。
+2. **Paho deliveryComplete 在高频下可靠**：3020 条全部确认，无 null token 导致断连。
+3. **QoS 1 顺序性**：同一 client 的 `deliveryComplete` 按发送顺序回调，用确认计数器索引发送时间环可近似采样延迟。
+4. **幂等碰撞设计**：每 20 条发 1 条重复 ts（占 5%），后端 Redis SETNX 应按 `mqtt:{deviceId}:{yyyyMMddHHmmss}:{dataType}` 去重；客户端 Paho 层无法验证后端去重效果，需在后端日志或 `device_data` 行数中核实。
+5. **单实例 Paho 回调线程不是瓶颈**：当前 200 msg/s 同步入库可接受；Day 99 全链路联调时若速率提升至 500+ msg/s，可考虑有界队列或 `MqttAsyncClient`。
+
+### 14.4 压测局限与后续
+
+| 局限 | 后续改进 |
+|------|---------|
+| 设备 `PLC-STRESS-NNN` 未在 DB 注册，后端 `deviceMapper.findByCode` 返回 null 会跳过 | Day 99 联调前用 `scripts/seed-dev.sh` 预置 20 台压测设备 |
+| 幂等去重效果未在数据层验证 | Day 99 启动 backend + MQTT_ENABLED=true，压测后查 `SELECT COUNT(*) FROM device_data WHERE device_id IN (...)` |
+| 压测只覆盖 publish 侧，未覆盖后端 messageArrived 入库吞吐 | Day 99 全链路联调时由后端日志观察入库速率与报警触发 |
+
+> Day 97 结束。下一步 Day 98：Week 15 周复盘 + PLC/MQTT 笔记整理。
+
+---
+
+## 15. Day 99 报警联动下行 command（2026-09-06，ADR 0035）
+
+### 15.1 背景：下行通道从「预留」到「落地」
+
+Day 95 预留了 `plc/{site}/{device}/command` 下行 Topic；Day 96 后端只有订阅能力。
+Day 99 完整系统联调把「真实硬件 6 段闭环（超限 → alarm → 继电器跳变）」作为核心目标，
+选定**后端下行 MQTT command** 驱动继电器（平台决策 → 设备执行），决策见 ADR 0035。
+
+### 15.2 契约与后端改动
+
+| 项 | 内容 |
+|----|------|
+| 下行 Topic | `plc/{siteCode}/{deviceCode}/command`（QoS 1），siteCode 优先 payload、缺失回退遥测 Topic 第二段 |
+| Payload | `{"cmd":"RELAY_ON","trigger":"OVER_HUMIDITY","ts":"…","value":96.0,"deviceCode":"esp32-dht-001"}` |
+| 触发 | 仅 `device_type=SENSOR` 设备 + 报警白名单 `{OVER_HUMIDITY, OVER_TEMP}`，hook 在 MQTT 入站报警链路内 |
+| 节流 | 后端 Redis SETNX `mqtt:relay:{deviceId}:{alarmType}` TTL 5s；固件 3s 命令去抖 + 3s 自动复位（双保险） |
+| 网关注入 | `service.MqttCommandGateway` 端口 + `MqttConfig.MqttLifecycle` 实现，`start()` 后运行时注入 ingest（打破循环依赖），停用/未连接时为 null 静默降级 |
+| 字段映射 | FIELD_MAP 增 `temperature→TEMPERATURE/°C`、`humidity→HUMIDITY/%`（ESP32/DHT22 画像真实字段名，与 PLC 画像共存） |
+
+### 15.3 软件链路验证（模拟 ESP32，FakeESP32）
+
+`learning/java-code/day99/FakeEsp32Device.java`（publish 序列 / watch 两种模式）两轮验证：
+
+```text
+发布 16 条（湿度 55,55,96×4,55,55 ×2 轮）
+  → device_data 32 行（HUMIDITY×16 + TEMPERATURE×16，device_id=51）
+  → 8 条 OVER_HUMIDITY alarm（status=0）
+  → 后端 RELAY_ON 下行 4 次 + 节流命中 4 次（5s 窗）
+  → 模拟订阅端实收 2 条/轮：{"cmd":"RELAY_ON","trigger":"OVER_HUMIDITY",…}
+```
+
+> Day 99 P1 结束（软件侧）。P2 真实 ESP32 固件烧录 + P3 哈气硬件闭环待硬件侧配合
+> （固件：learning/esp32/esp32-dht-relay/）。

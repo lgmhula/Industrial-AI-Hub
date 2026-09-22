@@ -60,7 +60,7 @@ class DevSeedDemoDataTest {
         runSeed();
 
         assertEquals(21L, scalar("SELECT COUNT(*) FROM `user`"), "admin + 20 个演示用户");
-        assertEquals(50L, scalar("SELECT COUNT(*) FROM device"), "50 台演示设备");
+        assertEquals(52L, scalar("SELECT COUNT(*) FROM device"), "52 台演示设备（Day 99 新增 esp32-dht-001 / PLC-SIM-001）");
         assertEquals(12L, scalar("SELECT COUNT(*) FROM alarm"), "12 条演示告警");
         assertEquals(7L, scalar("SELECT COUNT(*) FROM operation_log"), "7 条演示操作日志");
         assertEquals(78L, scalar("SELECT COUNT(*) FROM device_data"), "78 条演示采集数据");
@@ -69,6 +69,8 @@ class DevSeedDemoDataTest {
         assertTrue(exists("SELECT 1 FROM `user` WHERE username = 'viewer02'"), "关键用户 viewer02 应存在");
         assertTrue(exists("SELECT 1 FROM device WHERE device_code = 'TEMP-001'"), "关键设备 TEMP-001 应存在");
         assertTrue(exists("SELECT 1 FROM device WHERE device_code = 'ROBOT-W-001'"), "关键设备 ROBOT-W-001 应存在");
+        assertTrue(exists("SELECT 1 FROM device WHERE device_code = 'esp32-dht-001'"), "Day99 设备 esp32-dht-001 应存在");
+        assertTrue(exists("SELECT 1 FROM device WHERE device_code = 'PLC-SIM-001'"), "Day99 设备 PLC-SIM-001 应存在");
         assertTrue(exists("SELECT 1 FROM alarm WHERE alarm_type = 'OVER_TEMP'"), "关键告警 OVER_TEMP 应存在");
 
         // 角色分配正确：operator01 → OPERATOR，viewer01 → VIEWER
@@ -128,7 +130,7 @@ class DevSeedDemoDataTest {
         );
         // 语义化兜底：关键计数明确
         assertEquals(21L, afterSecond[0], "用户数应为 21（admin + 20）");
-        assertEquals(50L, afterSecond[1], "设备数应为 50");
+        assertEquals(52L, afterSecond[1], "设备数应为 52（Day 99 新增 esp32-dht-001 / PLC-SIM-001）");
         assertEquals(12L, afterSecond[2], "告警数应为 12");
     }
 

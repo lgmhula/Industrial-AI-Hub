@@ -99,7 +99,7 @@ WHERE u.username IN ('user05','user06','user07','user08','user09','user10',
   AND NOT EXISTS (SELECT 1 FROM `user_role` ur WHERE ur.user_id = u.id AND ur.role_id = r.id);
 
 -- ================================================================
--- 3. 测试设备（50 条）—— 覆盖 6 种设备类型
+-- 3. 测试设备（52 条）—— 覆盖 6 种设备类型 + Day99 MQTT 联调设备（esp32-dht-001 / PLC-SIM-001）
 --    守卫键：device.device_code（uk_device_code）
 -- ================================================================
 INSERT INTO `device` (`device_name`, `device_code`, `device_type`, `status`, `ip_address`, `port`, `location`)
@@ -155,6 +155,8 @@ FROM (
     UNION ALL SELECT '锅炉监测-01', 'BOIL-001', 'SENSOR', 1, '192.168.3.1', 502, '锅炉房-1号'
     UNION ALL SELECT '锅炉监测-02', 'BOIL-002', 'SENSOR', 0, '192.168.3.2', 502, '锅炉房-2号'
     UNION ALL SELECT '电动阀门-01', 'VALVE-001', 'OTHER', 1, '192.168.4.1', 502, '管道区-蒸汽主管'
+    UNION ALL SELECT 'ESP32-边缘网关-01', 'esp32-dht-001', 'SENSOR', 1, '192.168.123.10', 1883, '一车间-边缘网关测试台'
+    UNION ALL SELECT 'PLC-模拟器-01', 'PLC-SIM-001', 'PLC', 1, '127.0.0.1', 1883, '一车间-仿真测试台'
 ) t
 WHERE NOT EXISTS (SELECT 1 FROM `device` d WHERE d.device_code = t.device_code);
 

@@ -10,6 +10,8 @@ import dev.reboot.mq.AlarmMessage;
 import dev.reboot.mq.AlarmProducer;
 import dev.reboot.mq.DeviceDataMessage;
 import dev.reboot.mq.DeviceDataProducer;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -362,12 +364,42 @@ class MqttDeviceDataIngestServiceTest {
 
     // —— Helpers ——
 
+    @Test
+    void metrics_shouldCountIngestAlarmAndRelayCommand() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        MqttDeviceDataIngestService svc = buildService(redis, deviceDataProducer, alarmProducer, registry);
+        svc.setCommandGateway(commandGateway);
+        when(deviceMapper.findByCode("esp32-dht-001")).thenReturn(device(51L, "esp32-dht-001", "SENSOR"));
+        when(valueOps.setIfAbsent(anyString(), eq("1"), any())).thenReturn(Boolean.TRUE);
+        when(alarmDetector.check(eq(51L), eq("HUMIDITY"), eq(new BigDecimal("96.0"))))
+                .thenReturn(List.of(alarm("OVER_HUMIDITY", 1, "设备 51 湿度过高")));
+        when(commandGateway.publish(anyString(), anyString(), eq(1))).thenReturn(true);
+
+        svc.ingest("plc/PLANT_A/esp32-dht-001/telemetry",
+                "{\"deviceCode\":\"esp32-dht-001\",\"siteCode\":\"PLANT_A\",\"ts\":\"" + TS
+                        + "\",\"humidity\":96.0}");
+
+        assertEquals(1.0, registry.get("mqtt.ingest.messages")
+                .tag("device_code", "esp32-dht-001").tag("outcome", "ok").counter().count());
+        assertEquals(1.0, registry.get("mqtt.alarm.triggered")
+                .tag("device_code", "esp32-dht-001").tag("alarm_type", "OVER_HUMIDITY").counter().count());
+        assertEquals(1.0, registry.get("mqtt.relay.command")
+                .tag("device_code", "esp32-dht-001").tag("outcome", "sent").counter().count());
+    }
+
     private MqttDeviceDataIngestService buildService(StringRedisTemplate redisTemplate,
                                                      DeviceDataProducer dataProducer,
                                                      AlarmProducer alarmProd) {
+        return buildService(redisTemplate, dataProducer, alarmProd, null);
+    }
+
+    private MqttDeviceDataIngestService buildService(StringRedisTemplate redisTemplate,
+                                                     DeviceDataProducer dataProducer,
+                                                     AlarmProducer alarmProd,
+                                                     MeterRegistry meterRegistry) {
         return new MqttDeviceDataIngestService(
                 objectMapper, deviceMapper, deviceDataMapper, alarmDetector,
-                redisTemplate, dataProducer, alarmProd);
+                redisTemplate, dataProducer, alarmProd, meterRegistry);
     }
 
     private Device device(Long id, String code) {

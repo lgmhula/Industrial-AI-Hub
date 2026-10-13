@@ -69,7 +69,9 @@
 
 * **Day 99 已完成（2026-09-06 P1 → 2026-10-13 P2 收口，Phase 5 Week 16 第 1 天）**：完整系统联调 + 真实 ESP32 硬件 6 段闭环 GO——P1（`d661474`，09-06）：**ADR 0035** MQTT 下行 command 契约（`MqttCommandGateway` + RELAY_ON Redis 5s 节流 + `plc/{site}/{device}/command`）+ `esp32-dht-relay.ino` 固件（WiFi→EMQX→telemetry 2s QoS1 + command 订阅吸合 3s 自动复位 + LWT，`RELAY_PIN 5→14` 引脚修正避开 N16R8 PSRAM 35/36/37）+ ESP32 零基础学习路线（`c08fc68`）；P2（10-13）：按实拍板校准的接线图册（`docs/notes/hardware-wiring-guide/`，乐高式六线分步 + 引脚安全地图）+ 真机联调——静置基线 29°C/52% 每 2s 稳定落库 → 哈气湿度 100% 触发 `OVER_HUMIDITY`×9→RELAY_ON×3 继电器吸合 → 吹风机热风 68°C 触发 `OVER_TEMP` 持续报警→RELAY_ON 每 5s→停止后自动恢复 30°C/49.7%，温度/湿度双报警分支实测打通「传感器→Broker→后端→规则→执行器」完整物理回路；`.env` 补 MQTT 三变量回归 SSOT（ADR 0015）；测试报警 226 条批量 resolved；踩坑方法论：热风吹传感器=OVER_TEMP 分支（RH 随温升降低），哈气才是湿度触发正解，野值判别先看静置基线再看物理来源；后端 359/359 基线沿用 P1（P2 无生产代码变更）；技术债新增：报警风暴无合并/去重（持续超限每 2s 一条）
 
-* **下一步**：Day 100 系统监控（DAILY_ROADMAP Week 15）：Spring Boot Actuator + Micrometer Prometheus Registry + compose 增 Prometheus 服务抓 `/actuator/prometheus`，自定义业务指标（`mqtt_ingest_total`/`mqtt_relay_command_total`/`alarm_triggered_total`）为 Day 102 JMeter 压测建立观测基线；排队项：报警合并/去重（技术债）、SSE 真实浏览器 E2E（Day 91 P0-4 遗留）、节点 B 固件（ESP32 #2+DHT22#2+BH1750+OLED，I2C `Wire.begin(6,7)` 方案已定）
+* **Day 100 已完成（2026-10-13，Phase 5 Week 16 第 2 天）**：系统监控 Actuator + Prometheus——pom 引 `spring-boot-starter-actuator` + `micrometer-registry-prometheus`（parent 管版本）+ `application.yml` 合并既有 `management:` 段（暴露 health/info/prometheus + 全局 tag application）+ **三把业务指标尺**（`mqtt.ingest.messages` device_code/outcome=ok|skipped、`mqtt.alarm.triggered` alarm_type、`mqtt.relay.command` outcome=sent|failed|throttled，`count()` helper registry 缺失/异常全降级不阻塞业务，`MeterRegistry` @Nullable 注入）+ 测试 +1（buildService 4 参重载 + SimpleMeterRegistry 断言三计数器，17/17）+ **compose v1.5** 新增 `prometheus` 服务（2.55.1，9090，`prometheus/prometheus.yml` 抓 `host.docker.internal:8080/actuator/prometheus`，host-gateway 兼容 Linux，prometheus-data volume）+ **ADR 0036**（选型/拉取模式/备选 ELK·Pushgateway·APM/安全边界 actuator 无 JWT 需网络层限制）+ Infrastructure-Baseline **V1.5**；验证 360/360 全绿 + `/actuator/prometheus` 200 实时 `mqtt_ingest_messages_total{esp32-dht-001,ok}=13` + Prometheus target up + API 查询返回 20 全链路通；踩坑：application.yml 已有 `management:` 段重复键 → DuplicateKey → 4 个 @SpringBootTest 挂 7 errors（教训：加顶级键先 grep）
+
+* **下一步**：Day 101 日志系统（DAILY_ROADMAP）：Logback 滚动策略 / MDC traceId（可选 JSON 格式）+ ELK 可选评估（ES 8.17 已锁定）；可选补位：报警合并/去重（Day 99 技术债）、节点 B 固件（ESP32 #2+DHT22#2+BH1750+OLED）、Grafana 面板
 
 * **阶段**：Phase 3 学习路线与稳定化全部收官（Redis/RabbitMQ/Docker/Linux + Day 64 质量加固 + Day 65 pc\_hula 合并验收）；**Phase 4 AI 集成收官**（Day 66：DeepSeek API 基础 + 告警摘要/设备诊断，ADR 0021；Day 67：Spring AI ChatClient/PromptTemplate 抽象 + 前端 AI 入口 + AI 操作日志，ADR 0022 / TD-028；Day 68：Function Calling @Tool 声明式工具 + 3 轮硬限 Agent + 设备详情问答面板，ADR 0023；Day 69：前端工业化视觉升级落地，DESIGN.md 设计系统；Day 70：Week 10 复盘 + Phase 4 AI 模块学习笔记；Day 71：RAG 概念 + 向量库选型，ADR 0024；Day 72：文档切片 + 哈希向量 + 内存向量库入库；Day 73：知识检索服务 + KnowledgeChunk 结果映射；Day 74：PDFBox 知识文档导入 + Flyway V11；Day 75：RAG AI 运维助手问答；Day 76：前端 AI 助手对话页面；Day 77：Week 11 复盘 + RAG 笔记；Day 78：Agent 概念 + ReAct 循环治理，ADR 0026；Day 79：多步推理 Agent + ToolCallingAgent 通用循环；Day 80：MCP Server + SSE 端点 + 只读设备工具 + ADR 0027；Day 81：MCP 数据查询/统计/搜索工具 + ADR 0028；Day 82：MCP 客户端集成 + 传输鉴权 + ADR 0029；Day 83：Agent + MCP 联调巡检日报，ADR 0030；Day 85：Phase 1-7 全链路 SSE 推送链路收官，ADR 0031 架构边界冻结；Day 86：AI 巡检异常自动生成报警（AI 与业务闭环，330/330 全绿）；Day 87：前端 AI 功能 4 页工业化打磨（InspectionReport + RagAssistant + DeviceDetail AI 面板 + AlarmList AI 摘要 Dialog，前端 build 698ms 0 errors）；Day 88：Week13 周复盘 Week13.md + Application-Architecture.md V2.5 §2a AI 巡检日报推送链路 ASCII 完整图 + 三道幂等/安全/扩展点附表；Day 89：AI 模块代码重构——前端 escapeText 4 页面去重统一 escapeHtml.js util、后端 AiJsonFallbackUtil JSON 解析降级统一（AiService 2 处 net-删 14 行）、AiRateLimitInterceptor 独立 AI 限流（userId/ip/admin 三粒度桶 + 429 JSON，order=-1 先于通用限流），单测 343/343 0 failures；Day 90：AI 模块集成文档——docs/ai/phase4-integration-guide.md（SETUP 级 6 步 runbook：启用 DeepSeek+MCP→RAG PDF 入库→巡检触发 alarm 落库→SSE 推送验证→限流 429 验证→10 故障速查+5 回滚策略+验收矩阵，端点纠正 /api/rag/documents）；Day 91：Phase 4 收官——Week14.md 全段复盘（Day 66-91，26 天，4 关键收获 + 演进全景 + 指标 + 遗留 + Phase 5 计划）+ Git tag v2.0-ai（annotated，Phase 4 收官检查点达成，AI 不再是 demo）+ AGENTS §3 基线 bump
 
@@ -170,6 +172,9 @@
 | Knife4j             | 4.5.0            | API 文档（ADR 0013）               |
 | JJWT                | 0.12.6           | JWT 认证（Day 23）                 |
 | DeepSeek API        | deepseek-chat / deepseek-reasoner | OpenAI 兼容，Phase 4 LLM（ADR 0021，可选启用） |
+| Eclipse Paho mqttv3 | 1.2.5            | MQTT 客户端（Day 94/96，ADR 0034）         |
+| Spring Boot Actuator + Micrometer Prometheus | Boot 3.5.0 parent 管理 | 指标观测（Day 100，ADR 0036） |
+| Prometheus (Docker) | 2.55.1           | compose v1.5 锁定，抓 /actuator/prometheus |
 
 > **规则**：未经讨论，不得升级任何依赖版本。新增依赖必须在 ADR 中记录理由。
 
@@ -285,4 +290,4 @@ prod : 由部署环境注入，不依赖开发 .env
 
 ***
 
-> 最后更新：2026-10-13（Day 99 P2 收口：真实 ESP32+DHT22+继电器硬件 6 段闭环 GO——温度/湿度双报警分支实测触发 RELAY_ON 继电器跳变；接线图册按实拍板校准入库；`.env` 补 MQTT 三变量回归 SSOT；226 条测试报警 resolved；后端 359/359 基线沿用 P1；下一步 Day 100 Actuator+Prometheus 系统监控）| 维护者：AI 助手 + hula0710
+> 最后更新：2026-10-13（Day 100 系统监控：Actuator+Micrometer Prometheus 三把业务指标尺（ingest/alarm/relay command）+ compose v1.5 Prometheus 2.55.1 + ADR 0036 + Baseline V1.5；360/360 全绿 + Prometheus target up 查询链路实测；下一步 Day 101 Logback+ELK（可选））| 维护者：AI 助手 + hula0710

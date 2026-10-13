@@ -1,5 +1,6 @@
 package dev.reboot.config;
 
+import dev.reboot.filter.TraceIdFilter;
 import dev.reboot.security.AuthInterceptor;
 import dev.reboot.security.AiRateLimitInterceptor;
 import dev.reboot.security.JwtAuthFilter;
@@ -23,22 +24,35 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
+    private final TraceIdFilter traceIdFilter;
     private final JwtAuthFilter jwtAuthFilter;
     private final AuthInterceptor authInterceptor;
     private final RateLimitInterceptor rateLimitInterceptor;
     private final AiRateLimitInterceptor aiRateLimitInterceptor;
     private final McpAccessFilter mcpAccessFilter;
 
-    public WebMvcConfig(JwtAuthFilter jwtAuthFilter,
+    public WebMvcConfig(TraceIdFilter traceIdFilter,
+                        JwtAuthFilter jwtAuthFilter,
                         AuthInterceptor authInterceptor,
                         RateLimitInterceptor rateLimitInterceptor,
                         AiRateLimitInterceptor aiRateLimitInterceptor,
                         McpAccessFilter mcpAccessFilter) {
+        this.traceIdFilter = traceIdFilter;
         this.jwtAuthFilter = jwtAuthFilter;
         this.authInterceptor = authInterceptor;
         this.rateLimitInterceptor = rateLimitInterceptor;
         this.aiRateLimitInterceptor = aiRateLimitInterceptor;
         this.mcpAccessFilter = mcpAccessFilter;
+    }
+
+    /** 链路追踪 Filter（Day 101）— order = -2 最外层，先于 MCP/JWT，全路径生效。 */
+    @Bean
+    public FilterRegistrationBean<TraceIdFilter> traceIdFilterRegistration() {
+        FilterRegistrationBean<TraceIdFilter> bean = new FilterRegistrationBean<>();
+        bean.setFilter(traceIdFilter);
+        bean.addUrlPatterns("/*");
+        bean.setOrder(-2);
+        return bean;
     }
 
     /** JWT Filter 注册 — 对所有 /api/* 生效。 */

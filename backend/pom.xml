@@ -132,6 +132,18 @@
             <version>${paho.version}</version>
         </dependency>
 
+        <!-- Actuator + Prometheus (Day 100: metrics/observability, ADR 0036)
+             版本由 Spring Boot 3.5.0 parent 管理，不显式锁版本。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- Redisson (Day 46: distributed lock) -->
         <dependency>
             <groupId>org.redisson</groupId>

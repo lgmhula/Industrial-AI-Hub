@@ -1,9 +1,9 @@
-# Infrastructure Baseline V1.4
+# Infrastructure Baseline V1.5
 
 > **Status:** Active  
-> **Version:** 1.4
-> **Updated:** 2026-09-05
-> **Based on Commit:** Day 096 (Phase 5)
+> **Version:** 1.5
+> **Updated:** 2026-10-13
+> **Based on Commit:** Day 100 (Phase 5)
 > **Governs:** All infrastructure decisions for Industrial AI Hub
 
 ---
@@ -37,6 +37,7 @@
 | MinIO | RELEASE.2025-09-07 | 9000, 9001 | Configured | Phase 5 预留（对象存储/RAG 文档） |
 | Elasticsearch | 8.17 | 9200, 9300 | Configured | ELK 日志（Day 101，可选） |
 | EMQX | 5.8.9 | 1883, 8083, 18083 | Active | Phase 5 MQTT Broker：PLC/模拟设备接入，ADR 0033；backend 容器自 v1.4 注入 `MQTT_ENABLED=true/MQTT_HOST=emqx` 并等待 healthy（Day 96, ADR 0034） |
+| Prometheus | 2.55.1 | 9090 | Active | Day 100 指标观测（ADR 0036）：抓 `host.docker.internal:8080/actuator/prometheus`（dev 后端在宿主机；容器化部署后增 `backend:8080` 目标），`prometheus/prometheus.yml` bind mount + `prometheus-data` named volume |
 
 ---
 
@@ -75,3 +76,4 @@
 | V1.2 | 2026-08-03 | Day 042 同步 |
 | V1.3 | 2026-09-04 | Phase 5 Day 93：新增 EMQX 5.8.9 MQTT Broker 服务（1883/8083/18083），compose.yml 同步 v1.3 |
 | V1.4 | 2026-09-05 | Phase 5 Day 96：backend MQTT Listener 容器启用（compose v1.4 注入 MQTT_ENABLED/MQTT_HOST/MQTT_PORT + depends_on EMQX healthy），ADR 0034 |
+| V1.5 | 2026-10-13 | Phase 5 Day 100：新增 Prometheus 2.55.1 指标观测服务（9090，抓宿主机后端 `/actuator/prometheus`），compose v1.5 + `prometheus/prometheus.yml` + `prometheus-data` volume，ADR 0036 |

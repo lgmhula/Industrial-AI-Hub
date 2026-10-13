@@ -12,6 +12,8 @@ import dev.reboot.mq.AlarmMessage;
 import dev.reboot.mq.AlarmProducer;
 import dev.reboot.mq.DeviceDataMessage;
 import dev.reboot.mq.DeviceDataProducer;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -70,6 +72,11 @@ public class MqttDeviceDataIngestService {
     private static final String RELAY_CMD = "RELAY_ON";
     private static final String RELAY_TYPE_SENSOR = "SENSOR";
 
+    // 业务指标（Day 100, ADR 0036）：Prometheus 名为 mqtt_ingest_messages_total 等
+    private static final String METRIC_INGEST = "mqtt.ingest.messages";
+    private static final String METRIC_ALARM = "mqtt.alarm.triggered";
+    private static final String METRIC_RELAY = "mqtt.relay.command";
+
     private final ObjectMapper objectMapper;
     private final DeviceMapper deviceMapper;
     private final DeviceDataMapper deviceDataMapper;
@@ -86,6 +93,10 @@ public class MqttDeviceDataIngestService {
     @Nullable
     private final AlarmProducer alarmProducer;
 
+    /** nullable：MeterRegistry（Day 100 指标）；测试直构未传时降级为不记指标。 */
+    @Nullable
+    private final MeterRegistry meterRegistry;
+
     /**
      * MQTT 下行发布端口（ADR 0035）。由 {@code MqttConfig.MqttLifecycle} 在连接就绪后
      * 运行时注入（{@link #setCommandGateway}），MQTT 未启用/未连接时为 null → 下行降级跳过。
@@ -99,7 +110,8 @@ public class MqttDeviceDataIngestService {
                                        AlarmDetector alarmDetector,
                                        @Nullable StringRedisTemplate redis,
                                        @Nullable DeviceDataProducer deviceDataProducer,
-                                       @Nullable AlarmProducer alarmProducer) {
+                                       @Nullable AlarmProducer alarmProducer,
+                                       @Nullable MeterRegistry meterRegistry) {
         this.objectMapper = objectMapper;
         this.deviceMapper = deviceMapper;
         this.deviceDataMapper = deviceDataMapper;
@@ -107,6 +119,7 @@ public class MqttDeviceDataIngestService {
         this.redis = redis;
         this.deviceDataProducer = deviceDataProducer;
         this.alarmProducer = alarmProducer;
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -119,17 +132,20 @@ public class MqttDeviceDataIngestService {
     public boolean ingest(String topic, String payload) {
         if (payload == null || payload.isBlank()) {
             log.warn("MQTT ingest 跳过空 payload: topic={}", topic);
+            count(METRIC_INGEST, "device_code", "unknown", "outcome", "skipped");
             return false;
         }
         try {
             JsonNode root = objectMapper.readTree(payload);
             if (root == null || !root.isObject()) {
                 log.warn("MQTT ingest 跳过非 JSON Object payload: topic={}", topic);
+                count(METRIC_INGEST, "device_code", "unknown", "outcome", "skipped");
                 return false;
             }
             return ingestObject(topic, root);
         } catch (IOException ex) {
             log.warn("MQTT ingest JSON 解析失败: topic={}", topic, ex);
+            count(METRIC_INGEST, "device_code", "unknown", "outcome", "skipped");
             return false;
         }
     }
@@ -138,6 +154,7 @@ public class MqttDeviceDataIngestService {
         String deviceCode = text(root.get("deviceCode"));
         if (deviceCode == null) {
             log.warn("MQTT ingest payload 缺少 deviceCode，跳过: topic={}", topic);
+            count(METRIC_INGEST, "device_code", "unknown", "outcome", "skipped");
             return false;
         }
         checkTopicMismatch(topic, deviceCode);
@@ -145,6 +162,7 @@ public class MqttDeviceDataIngestService {
         Device device = deviceMapper.findByCode(deviceCode);
         if (device == null) {
             log.warn("MQTT ingest 设备不存在或已删除: deviceCode={} topic={}", deviceCode, topic);
+            count(METRIC_INGEST, "device_code", deviceCode, "outcome", "skipped");
             return false;
         }
 
@@ -164,6 +182,8 @@ public class MqttDeviceDataIngestService {
         }
         log.info("MQTT ingest 完成: deviceCode={} topic={} persisted={}/{}",
                 deviceCode, topic, persisted, FIELD_MAP.size());
+        count(METRIC_INGEST, "device_code", deviceCode,
+                "outcome", persisted > 0 ? "ok" : "skipped");
         return persisted > 0;
     }
 
@@ -227,6 +247,8 @@ public class MqttDeviceDataIngestService {
                 if (alarm == null) {
                     continue;
                 }
+                count(METRIC_ALARM, "device_code", device.getDeviceCode(),
+                        "alarm_type", String.valueOf(alarm.getAlarmType()));
                 if (alarmProducer != null) {
                     AlarmMessage msg = new AlarmMessage(
                             row.getDeviceId(),
@@ -275,6 +297,7 @@ public class MqttDeviceDataIngestService {
         if (!acquireRelayThrottle(throttleKey)) {
             log.info("MQTT 下行节流命中，跳过重复 RELAY_ON: deviceId={} type={}",
                     device.getId(), alarm.getAlarmType());
+            count(METRIC_RELAY, "device_code", device.getDeviceCode(), "outcome", "throttled");
             return;
         }
         try {
@@ -288,12 +311,15 @@ public class MqttDeviceDataIngestService {
             String payload = objectMapper.writeValueAsString(command);
             if (commandGateway.publish(topic, payload, 1)) {
                 log.info("MQTT 下行 RELAY_ON 已发送: topic={}", topic);
+                count(METRIC_RELAY, "device_code", device.getDeviceCode(), "outcome", "sent");
             } else {
                 log.warn("MQTT 下行 RELAY_ON 发送失败: topic={}", topic);
+                count(METRIC_RELAY, "device_code", device.getDeviceCode(), "outcome", "failed");
             }
         } catch (JsonProcessingException | RuntimeException ex) {
             log.warn("MQTT 下行 RELAY_ON 构造/发布异常，已降级跳过: deviceId={} type={}",
                     device.getId(), alarm.getAlarmType(), ex);
+            count(METRIC_RELAY, "device_code", device.getDeviceCode(), "outcome", "failed");
         }
     }
 
@@ -361,6 +387,18 @@ public class MqttDeviceDataIngestService {
         } catch (RuntimeException ex) {
             log.warn("{}: key={}", warnMessage, key, ex);
             return true;
+        }
+    }
+
+    /** 指标记录（Day 100, ADR 0036）：registry 缺失或任何异常都降级为不记，绝不阻塞业务。 */
+    private void count(String name, String... tags) {
+        if (meterRegistry == null) {
+            return;
+        }
+        try {
+            Counter.builder(name).tags(tags).register(meterRegistry).increment();
+        } catch (RuntimeException ex) {
+            log.warn("指标记录失败（不阻塞业务）: name={}", name, ex);
         }
     }
 

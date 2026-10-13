@@ -1,7 +1,7 @@
 # ========================
 # industrial ai hub — unified docker compose
-# Version: v1.4 | Updated: 2026-09-05
-# Infrastructure Baseline V3 (EMQX MQTT broker, Phase 5 Day 93)
+# Version: v1.5 | Updated: 2026-10-13
+# Infrastructure Baseline V3 + Prometheus metrics scraping (Phase 5 Day 100, ADR 0036)
 # Backend MQTT Listener enabled in container network (Phase 5 Day 96, ADR 0034)
 # ========================
 
@@ -110,6 +110,25 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # Prometheus 2.x — metrics scraping (Day 100, ADR 0036)
+  # 默认抓宿主机后端 :8080/actuator/prometheus（dev 模式后端跑在宿主机）；
+  # 容器化部署后端时在 prometheus.yml 增加目标 backend:8080
+  # ==========================================
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"    # Web UI + query API
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - industrial-network
 
@@ -393,3 +412,4 @@ volumes:
   rabbitmq-data:
   emqx-data:
   emqx-log:
+  prometheus-data:

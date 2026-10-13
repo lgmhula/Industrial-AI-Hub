@@ -7,6 +7,9 @@ out/
 backend/logs/
 .playwright-cli/
 
+# 压测运行时产物（JTL / HTML dashboard / watermark / jmeter.log；JMX 与脚本照常入库）
+backend/performance/results/
+
 # 本地 Compose 覆盖（机器级补丁，禁止入库；部署修复一律走仓库 main）
 compose.override.yml
 

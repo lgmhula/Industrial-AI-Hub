@@ -110,10 +110,31 @@ management:
   metrics:
     tags:
       application: ${spring.application.name:industrial-ai-hub}
+    distribution:
+      # Day 103：为 HTTP 请求开启延迟直方图 → Prometheus 产出 http_server_requests_seconds_bucket，
+      # 才能算 p95/p99（Day 102 压测发现只有 count/sum，分位数只能靠 JMeter 原始采样）
+      percentiles-histogram:
+        http.server.requests: true
   prometheus:
     metrics:
       export:
         enabled: true
+
+# ========================
+# 通用接口限流（Day 37 引入，Day 103 按压测结果加固）
+# ========================
+rate:
+  limit:
+    # 每个参数化路径（数字段归一化为 {id}）独立的令牌桶速率
+    permits: ${RATE_LIMIT_PERMITS:50}
+    # 拿不到令牌时的等待上限（毫秒）：500 = 保持 Day 37 以来行为（有界背压队列，
+    # 把一部分本该拒绝的突发请求转为「稍慢但成功」；占用线程数上界 ≈ permits×timeout ≈ 25）。
+    # 置 0 = 立即 429、不排队（延迟可预测，但牺牲突发容忍度）。
+    # Day 102 按响应码拆分实测：429 路径 avg 0.9ms/p99 3ms（从不阻塞），等待只发生在被放行的 200 上。
+    acquire-timeout-ms: ${RATE_LIMIT_ACQUIRE_TIMEOUT_MS:500}
+    # 拒绝日志节流窗口：每窗口每路径最多一行（含窗口内抑制条数）；0 = 不节流（排障用）。
+    # Day 102 实测未节流时 30s 突发写 146,077 行 ≈ 23.2MB 日志。
+    log-interval-ms: ${RATE_LIMIT_LOG_INTERVAL_MS:5000}
 
 mybatis:
   mapper-locations: classpath*:mapper/**/*Mapper.xml

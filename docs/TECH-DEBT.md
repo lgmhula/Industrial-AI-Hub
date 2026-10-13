@@ -1,7 +1,7 @@
 # 技术债务清单（Technical Debt）
 
 > **SSOT**：本文档是技术债务的唯一权威清单（迁移自 `backend/REVIEW/Phase2-Summary.md` §四，并持续更新）。
-> **最后更新**：2026-10-13（Day 102 压测后：TD-005 结清，新增 TD-034~038）
+> **最后更新**：2026-10-13（Day 103 性能优化后：TD-034/036/037 结清；TD-035 修正描述；新增 TD-038）
 
 ---
 
@@ -24,6 +24,9 @@
 | 28 | AI 端点无操作日志（TD-028） | 2026-08-28（Day 67：Flyway V9 扩展 `CHAT/SUMMARY/DIAGNOSE` + `target_type=AI`，AiController 三端点补 `@OperationLog`） |
 | 32 | OperationLogAspect 失败场景 `{ret}` 输出 "null"（TD-032） | 2026-08-29（`formatResult` 接收 `Throwable error`，失败时替换为异常消息而非 "null"；`around` 捕获异常传入 `recordLog`） |
 | 33 | DeviceStatusAgentService 校验顺序：AI 可用性检查先于资源校验（TD-033） | 2026-08-29（调整为 requireDevice → assertSiteAccess → ensureAvailable，避免 503 掩盖 404/403） |
+| 34 | 限流拒绝日志放大（TD-034） | 2026-10-13（Day 103：拒绝日志按窗口节流 + 汇总抑制条数；同强度突发 **137,568 行 → 6 行**、日志增量 **23.2MB → 1.67MB（−92.8%）**，且放行数/慢样本数逐项对齐证明限流策略未变；ADR 0037） |
+| 36 | 缺 HTTP 延迟直方图（TD-036） | 2026-10-13（Day 103：开启 `management.metrics.distribution.percentiles-histogram.http.server.requests`；运行时 `http_server_requests_seconds_bucket` 系列 **0 → 69**，Prometheus 可算 p95/p99） |
+| 37 | 写路径尾部延迟不稳定（TD-037） | 2026-10-13（Day 103：定位为**环境噪声而非 SQL/连接池**——2.5× 速率（50.2 req/s）写入 1,506 次 100% 成功且 0 条 >100ms 慢查询（带对照组）、Hikari acquire max 8ms / pending 0、GC pause max 27ms，读组同期 max 136ms；进一步压缩需移出压测机 + 分段埋点，非当前债务） |
 
 ---
 
@@ -47,10 +50,7 @@
 | 9 | 零外键约束 | 可能孤儿数据 | 应用层保证 + 定期审计脚本 |
 | 10 | Swagger 示例值注解不丰富 | API 文档可读性 | 补 `@Schema`/`@ExampleObject` |
 | 25 | AI 业务 DTO 枚举字段为纯 String（priority/healthLevel） | 前端映射/校验依赖约定 | 引入枚举或 `@Schema(allowableValues)` |
-| 34 | 限流拒绝日志放大：`RateLimitInterceptor` 每拒绝 1 行 WARN | 实测约 168 字节/次；30s / 4639 req/s 突发 → 日志 +23.2MB（约 780KB/s），持续洪泛可写满磁盘 | 首 N 条 + 采样输出，或降级 DEBUG（Day 102 §F5） |
-| 35 | 限流桶全局单桶 + 阻塞式获取：key 只有 path，`tryAcquire(500ms)` | 单客户端可耗尽全站某路径配额（饥饿型 DoS）；被拒请求阻塞 Tomcat 线程最长 500ms（实测突发 p99 504ms = 超时镜像） | 桶按 userId/IP 细分（或全局+客户端双桶）+ 快速失败 `tryAcquire()`（Day 102 §F4） |
-| 36 | 缺 HTTP 延迟直方图（未开 `management.metrics.distribution.percentiles-histogram`） | Prometheus 无 `http_server_requests_seconds_bucket` → 只能算 count/sum，算不出 p95/p99 | 开启 percentiles-histogram + SLO（Day 102 §F8） |
-| 37 | 写路径尾部延迟不稳定（p99 35ms↔176ms、max 446ms，两次运行差 5 倍） | 写入 SLA 不可承诺 | MySQL 落库 / RabbitMQ publish / 日志 I/O 分段计时定位（Day 102 §F3） |
+| 35 | 限流桶全局单桶（TD-035）：key 只有 path，非 per-user/IP | 单客户端可耗尽某路径的全站配额（饥饿型 DoS，多租户下危险）。~~被拒请求阻塞线程最长 500ms~~ → **Day 103 按响应码拆分 JTL 证伪**：429 avg 0.9ms/p99 3ms（从不阻塞），~500ms 等待只属于被放行的 200（有界背压队列，占用线程上界 ≈ permits×timeout ≈ 25） | 桶按 userId/IP 细分（全局桶 + 客户端桶双层设计），需独立 ADR + 安全评审（Day 103 未做） |
 
 ### P3（后续迭代）
 

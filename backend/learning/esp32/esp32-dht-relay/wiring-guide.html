@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESP32-S3 + DHT22 + 继电器 · 乐高式分步接线说明书（Day 99 闭环）</title>
+<style>
+  :root{
+    --v33:#ff9800; --v5:#e53935; --gnd:#222; --sig4:#fdd835; --sig5:#43a047;
+    --ink:#1a1a1a; --paper:#fff; --line:#cfcfcf; --hi:#fff8e1;
+  }
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+       color:var(--ink);background:#f4f5f7;margin:0;line-height:1.7}
+  header{background:#1f2933;color:#fff;padding:22px 28px}
+  header h1{margin:0 0 6px;font-size:22px}
+  header p{margin:0;color:#b9c2cc;font-size:14px}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px 18px 60px}
+  section{background:var(--paper);border-radius:12px;padding:20px 22px;margin:16px 0;
+          box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  h2{font-size:19px;margin:0 0 12px;border-left:5px solid #2f6fed;padding-left:10px}
+  h3{font-size:16px;margin:18px 0 8px;color:#0b4f9c}
+  svg{width:100%;height:auto;display:block;background:#fcfcfc;border:1px solid var(--line);
+      border-radius:10px}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:10px 0;font-size:13px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:22px;height:6px;border-radius:3px;display:inline-block}
+  table{border-collapse:collapse;width:100%;font-size:14px;margin:10px 0}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:#eef3fb}
+  .warn{background:#fff3cd;border:1px solid #ffe08a;border-radius:8px;padding:12px 16px;margin:12px 0}
+  .warn b{color:#9a6b00}
+  .danger{background:#fdecea;border:1px solid #f5b5ad}
+  .danger b{color:#b71c1c}
+  .step{display:flex;gap:16px;align-items:flex-start;margin:6px 0 4px}
+  .step .n{flex:0 0 38px;height:38px;border-radius:50%;background:#2f6fed;color:#fff;
+          display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px}
+  .step .t{flex:1}
+  code{background:#eef1f4;padding:1px 6px;border-radius:4px;font-size:13px}
+  .pill{display:inline-block;background:#e8f0fe;color:#0b4f9c;border-radius:20px;
+        padding:2px 10px;font-size:12px;margin:2px 4px 2px 0}
+  footer{text-align:center;color:#8a929b;font-size:12px;padding:20px}
+  .pin{font-size:11px;fill:#333;font-weight:700}
+  .pinbox{fill:#fff;stroke:#999;stroke-width:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>📦 ESP32-S3 + DHT22 + 1路继电器 · 乐高式分步接线说明书</h1>
+  <p>对应固件 <code>esp32-dht-relay.ino</code>（Day 99 六段闭环）· 引脚已对照代码锁定 · 可放大 / 打印 / 照着插</p>
+</header>
+
+<div class="wrap">
+
+<!-- ============ 先看这个 ============ -->
+<section>
+  <h2>0. 先搞懂：这套东西最后要干什么</h2>
+  <p>你买的零件拼好、烧录固件后，会组成一个<strong>真实传感器 → 平台</strong>的闭环（这就是"项目所需要的场景环境"）：</p>
+  <div style="text-align:center;font-size:14px;padding:10px;background:var(--hi);border-radius:8px">
+    DHT22 测温湿度 → ESP32 每2秒发到 <b>EMQX</b>(1883) → 后端落库 device_data → 湿度&gt;90% 触发报警 →<br>
+    后端下发 <b>RELAY_ON</b> → 继电器吸合3秒 → （你哈气就能演示）
+  </div>
+  <p style="margin-top:12px"><b>⚠️ 重要：你买的设备里，这次只接 3 件。</b> OLED 屏、BH1750 光照传感器、第2块 ESP32 是<b>以后阶段</b>才用，当前固件没写它们，<b>现在不接，接了反而乱</b>。等这套跑通了再扩展。</p>
+  <p>本图是<strong>接线地图</strong>（每根线从哪个脚到哪个脚都标了），不是面包板每个洞的精确坐标——你照着丝印字样和颜色插进洞里即可，标准面包板的洞排列方式都一样。</p>
+</section>
+
+<!-- ============ 零件清单 ============ -->
+<section>
+  <h2>1. 零件清单（你已购买）</h2>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--v33)"></i>3V3 线（橙）</span>
+    <span><i class="sw" style="background:var(--v5)"></i>5V 线（红）</span>
+    <span><i class="sw" style="background:var(--gnd)"></i>GND 地线（黑）</span>
+    <span><i class="sw" style="background:var(--sig4)"></i>GPIO4→DHT22 DATA（黄）</span>
+    <span><i class="sw" style="background:var(--sig5)"></i>GPIO14→继电器 IN（绿）</span>
+  </div>
+  <table>
+    <tr><th>零件</th><th>数量</th><th>在项目里的角色</th><th>实物样子（简化）</th></tr>
+    <tr>
+      <td><b>ESP32-S3 开发板</b><br>(N16R8 / Dev Module)</td><td>1</td>
+      <td>大脑：连WiFi、跑MQTT、读DHT22、控继电器</td>
+      <td>
+        <svg viewBox="0 0 120 80" style="width:120px;height:auto;background:#fff;border:none">
+          <rect x="10" y="14" width="100" height="52" rx="6" fill="#1b4332" stroke="#0b2818"/>
+          <text x="60" y="44" fill="#fff" font-size="11" text-anchor="middle">ESP32-S3</text>
+          <text x="60" y="60" fill="#cfe" font-size="8" text-anchor="middle">Type-C 在左</text>
+        </svg>
+      </td>
+    </tr>
+    <tr>
+      <td><b>DHT22</b> 温湿度传感器</td><td>1</td>
+      <td>采集温度+湿度（哈气演示用）</td>
+      <td>
+        <svg viewBox="0 0 120 60" style="width:120px;height:auto;background:#fff;border:none">
+          <rect x="20" y="10" width="80" height="34" rx="8" fill="#fff" stroke="#444"/>
+          <text x="60" y="32" fill="#333" font-size="11" text-anchor="middle">DHT22</text>
+          <line x1="35" y1="44" x2="35" y2="54" stroke="#444"/><line x1="60" y1="44" x2="60" y2="54" stroke="#444"/><line x1="85" y1="44" x2="85" y2="54" stroke="#444"/>
+        </svg>
+      </td>
+    </tr>
+    <tr>
+      <td><b>1路继电器模块</b></td><td>1</td>
+      <td>执行器：收到 RELAY_ON 吸合（本固件低电平触发）</td>
+      <td>
+        <svg viewBox="0 0 130 60" style="width:130px;height:auto;background:#fff;border:none">
+          <rect x="6" y="10" width="118" height="40" rx="4" fill="#2e7d32" stroke="#1b4d20"/>
+          <text x="65" y="34" fill="#fff" font-size="10" text-anchor="middle">RELAY 1CH</text>
+          <circle cx="100" cy="30" r="4" fill="#ffd54f" stroke="#a07a00"/>
+        </svg>
+      </td>
+    </tr>
+    <tr><td>面包板</td><td>1</td><td>插所有零件+走线</td><td>—</td></tr>
+    <tr><td>杜邦线（公对公）</td><td>~8根</td><td>按颜色接（橙/红/黑/黄/绿）</td><td>—</td></tr>
+    <tr><td>USB Type-C 线</td><td>1</td><td>供电+烧录（插电脑）</td><td>—</td></tr>
+    <tr><td>10kΩ 电阻</td><td>1</td><td><b>仅当</b>DHT22是4脚裸件时需要（模块版自带，可免）</td><td>—</td></tr>
+    <tr><td>万用表（9205）</td><td>1（已有）</td><td>验证继电器 COM-NO 通断，<b>最安全不用接强电</b></td><td>—</td></tr>
+  </table>
+</section>
+
+<!-- ============ 分步 ============ -->
+<section>
+  <h2>2. 五步拼装（像乐高，一步加一根/一组线）</h2>
+
+  <!-- 步骤0：放板 -->
+  <h3>步骤 1 · 把 ESP32 放上面包板</h3>
+  <div class="step"><div class="n">1</div><div class="t">
+    把 ESP32-S3 <b>跨在面包板中间的凹槽上</b>（板子两排针脚分别插在凹槽两侧，别插同一排，否则会短路）。
+    Type-C 口朝左，方便插 USB 线。
+  </div></div>
+  <svg viewBox="0 0 960 320">
+    <rect x="20" y="20" width="920" height="280" rx="10" fill="#fcfcfc" stroke="#ccc"/>
+    <line x1="40" y1="160" x2="920" y2="160" stroke="#ddd" stroke-dasharray="6 6"/>
+    <text x="44" y="150" fill="#bbb" font-size="12">← 中间凹槽（板子跨过它）→</text>
+    <rect x="300" y="70" width="200" height="180" rx="8" fill="#1b4332" stroke="#0b2818"/>
+    <text x="400" y="160" fill="#fff" font-size="16" text-anchor="middle">ESP32-S3</text>
+    <text x="400" y="182" fill="#cfe" font-size="11" text-anchor="middle">Type-C 朝左插 USB</text>
+    <!-- 右侧针脚标记 -->
+    <circle cx="500" cy="110" r="4" fill="#ff9800"/><text x="512" y="114" class="pin" fill="#ff9800">3V3</text>
+    <circle cx="500" cy="140" r="4" fill="#fdd835"/><text x="512" y="144" class="pin" fill="#b58900">GPIO4</text>
+    <circle cx="500" cy="170" r="4" fill="#43a047"/><text x="512" y="174" class="pin" fill="#1b7a2e">GPIO14</text>
+    <circle cx="500" cy="210" r="4" fill="#e53935"/><text x="512" y="214" class="pin" fill="#e53935">5V</text>
+    <circle cx="500" cy="240" r="4" fill="#222"/><text x="512" y="244" class="pin">GND</text>
+    <text x="300" y="270" font-size="12" fill="#666">只标了"要接的"脚，其它脚不用动</text>
+  </svg>
+
+  <!-- 步骤2：电源轨 -->
+  <h3>步骤 2 · 铺两条"电源轨"（先给面包板通电）</h3>
+  <div class="step"><div class="n">2</div><div class="t">
+    用杜邦线把 ESP32 的电源引到面包板两侧的供电条上，后面 DHT22 和继电器都从这两条"轨道"取电：
+    <ul style="margin:6px 0">
+      <li><b>橙线</b>：ESP32 <code>3V3</code> → 面包板<b>上排红条</b>（给 DHT22 用）</li>
+      <li><b>红线</b>：ESP32 <code>5V</code> → 面包板<b>下排红条</b>（给继电器用）</li>
+      <li><b>黑线×2</b>：ESP32 <code>GND</code> → 上下两条<b>蓝条</b>（并用一根黑线把上下蓝条连起来，保证共地）</li>
+    </ul>
+  </div></div>
+  <svg viewBox="0 0 960 340">
+    <rect x="20" y="20" width="920" height="300" rx="10" fill="#fcfcfc" stroke="#ccc"/>
+    <!-- 电源条 -->
+    <line x1="60" y1="70" x2="900" y2="70" stroke="#ff9800" stroke-width="7"/>
+    <line x1="60" y1="100" x2="900" y2="100" stroke="#222" stroke-width="7"/>
+    <line x1="60" y1="250" x2="900" y2="250" stroke="#e53935" stroke-width="7"/>
+    <line x1="60" y1="280" x2="900" y2="280" stroke="#222" stroke-width="7"/>
+    <text x="66" y="62" font-size="12" fill="#ff9800">▲ 上排红条 = 3V3（给DHT22）</text>
+    <text x="66" y="92" font-size="12" fill="#444">▲ 上排蓝条 = GND</text>
+    <text x="66" y="242" font-size="12" fill="#e53935">▲ 下排红条 = 5V（给继电器）</text>
+    <text x="66" y="272" font-size="12" fill="#444">▲ 下排蓝条 = GND</text>
+    <!-- ESP32 -->
+    <rect x="380" y="120" width="180" height="100" rx="8" fill="#1b4332" stroke="#0b2818"/>
+    <text x="470" y="175" fill="#fff" font-size="14" text-anchor="middle">ESP32-S3</text>
+    <!-- 橙 3V3 -> 上红条 -->
+    <path d="M470,120 L470,70" stroke="#ff9800" stroke-width="4" fill="none"/>
+    <!-- 黑 GND -> 上蓝条 -->
+    <path d="M440,120 L440,100" stroke="#222" stroke-width="4" fill="none"/>
+    <!-- 红 5V -> 下红条 -->
+    <path d="M500,220 L500,250" stroke="#e53935" stroke-width="4" fill="none"/>
+    <!-- 黑 GND -> 下蓝条 -->
+    <path d="M520,220 L520,280" stroke="#222" stroke-width="4" fill="none"/>
+    <!-- 上下蓝条桥接 -->
+    <path d="M900,100 L900,280" stroke="#222" stroke-width="4" fill="none" stroke-dasharray="4 4"/>
+    <text x="850" y="200" font-size="11" fill="#222">黑线桥接</text>
+  </svg>
+
+  <!-- 步骤3：DHT22 -->
+  <h3>步骤 3 · 接 DHT22（温湿度）</h3>
+  <div class="step"><div class="n">3</div><div class="t">
+    DHT22 模块有 3 个脚：<b>VCC / DATA / GND</b>（从左到右）。按颜色接：
+    <ul style="margin:6px 0">
+      <li><b>橙线</b>：DHT22 <code>VCC</code> → 面包板<b>上排红条(3V3)</b></li>
+      <li><b>黑线</b>：DHT22 <code>GND</code> → 面包板<b>上排蓝条(GND)</b></li>
+      <li><b>黄线</b>：DHT22 <code>DATA</code> → ESP32 <code>GPIO4</code></li>
+    </ul>
+    <div class="warn" style="margin-top:8px">
+      <b>裸件提醒：</b>如果你的 DHT22 是 4 脚裸件（没有小板），DATA 和 VCC 之间要串一个 <b>10kΩ 电阻</b>当上拉；
+      如果是带小绿/蓝板的<b>模块版</b>，板子已自带，直接接就行。
+    </div>
+  </div></div>
+  <svg viewBox="0 0 960 340">
+    <rect x="20" y="20" width="920" height="300" rx="10" fill="#fcfcfc" stroke="#ccc"/>
+    <line x1="60" y1="70" x2="900" y2="70" stroke="#ff9800" stroke-width="7"/>
+    <line x1="60" y1="100" x2="900" y2="100" stroke="#222" stroke-width="7"/>
+    <line x1="60" y1="250" x2="900" y2="250" stroke="#e53935" stroke-width="7"/>
+    <line x1="60" y1="280" x2="900" y2="280" stroke="#222" stroke-width="7"/>
+    <!-- ESP32 -->
+    <rect x="360" y="120" width="180" height="100" rx="8" fill="#1b4332" stroke="#0b2818"/>
+    <text x="450" y="150" fill="#fff" font-size="11" text-anchor="middle">ESP32-S3</text>
+    <circle cx="450" cy="185" r="5" fill="#fdd835"/><text x="462" y="189" class="pin" fill="#b58900">GPIO4</text>
+    <!-- DHT22 模块 -->
+    <rect x="680" y="120" width="120" height="60" rx="8" fill="#fff" stroke="#444"/>
+    <text x="740" y="142" fill="#333" font-size="12" text-anchor="middle">DHT22</text>
+    <circle cx="700" cy="180" r="4" fill="#ff9800"/><text x="690" y="198" class="pin" fill="#ff9800">VCC</text>
+    <circle cx="740" cy="180" r="4" fill="#fdd835"/><text x="732" y="198" class="pin" fill="#b58900">DATA</text>
+    <circle cx="780" cy="180" r="4" fill="#222"/><text x="772" y="198" class="pin">GND</text>
+    <!-- 橙 VCC->上红条 -->
+    <path d="M700,180 L700,70" stroke="#ff9800" stroke-width="4" fill="none"/>
+    <!-- 黑 GND->上蓝条 -->
+    <path d="M780,180 L780,100" stroke="#222" stroke-width="4" fill="none"/>
+    <!-- 黄 GPIO4->DATA -->
+    <path d="M450,185 L740,180" stroke="#fdd835" stroke-width="4" fill="none"/>
+  </svg>
+
+  <!-- 步骤4：继电器 -->
+  <h3>步骤 4 · 接继电器（执行器）</h3>
+  <div class="step"><div class="n">4</div><div class="t">
+    继电器模块控制侧有 3 个脚：<b>VCC / GND / IN</b>。按颜色接：
+    <ul style="margin:6px 0">
+      <li><b>红线</b>：继电器 <code>VCC</code> → 面包板<b>下排红条(5V)</b></li>
+      <li><b>黑线</b>：继电器 <code>GND</code> → 面包板<b>下排蓝条(GND)</b></li>
+      <li><b>绿线</b>：继电器 <code>IN</code> → ESP32 <code>GPIO14</code></li>
+    </ul>
+    <div class="warn" style="margin-top:8px">
+      <b>触发方向：</b>固件设的是<b>低电平触发</b>（IN 收到低电平→吸合）。模块上若有个 <code>JD-VCC</code> 跳线帽，
+      保持默认插着即可（VCC 和 JD-VCC 连通）。烧录后看模块上的 LED：IN 变低时灯亮=吸合。
+    </div>
+  </div></div>
+  <svg viewBox="0 0 960 340">
+    <rect x="20" y="20" width="920" height="300" rx="10" fill="#fcfcfc" stroke="#ccc"/>
+    <line x1="60" y1="70" x2="900" y2="70" stroke="#ff9800" stroke-width="7"/>
+    <line x1="60" y1="100" x2="900" y2="100" stroke="#222" stroke-width="7"/>
+    <line x1="60" y1="250" x2="900" y2="250" stroke="#e53935" stroke-width="7"/>
+    <line x1="60" y1="280" x2="900" y2="280" stroke="#222" stroke-width="7"/>
+    <!-- ESP32 -->
+    <rect x="360" y="120" width="180" height="100" rx="8" fill="#1b4332" stroke="#0b2818"/>
+    <text x="450" y="150" fill="#fff" font-size="11" text-anchor="middle">ESP32-S3</text>
+    <circle cx="450" cy="185" r="5" fill="#43a047"/><text x="462" y="189" class="pin" fill="#1b7a2e">GPIO14</text>
+    <!-- 继电器模块 -->
+    <rect x="660" y="120" width="160" height="70" rx="6" fill="#2e7d32" stroke="#1b4d20"/>
+    <text x="740" y="142" fill="#fff" font-size="12" text-anchor="middle">继电器 1路</text>
+    <circle cx="690" cy="180" r="4" fill="#e53935"/><text x="678" y="198" class="pin" fill="#e53935">VCC</text>
+    <circle cx="730" cy="180" r="4" fill="#222"/><text x="720" y="198" class="pin">GND</text>
+    <circle cx="770" cy="180" r="4" fill="#43a047"/><text x="760" y="198" class="pin" fill="#1b7a2e">IN</text>
+    <!-- 红 VCC->下红条 -->
+    <path d="M690,180 L690,250" stroke="#e53935" stroke-width="4" fill="none"/>
+    <!-- 黑 GND->下蓝条 -->
+    <path d="M730,180 L730,280" stroke="#222" stroke-width="4" fill="none"/>
+    <!-- 绿 GPIO14->IN -->
+    <path d="M450,185 L770,180" stroke="#43a047" stroke-width="4" fill="none"/>
+  </svg>
+
+  <!-- 步骤5：总装 -->
+  <h3>步骤 5 · 全部接好 = 最终总装图</h3>
+  <div class="step"><div class="n">5</div><div class="t">
+    把步骤 2~4 的线全插上，就是下面这张<strong>完整总装图</strong>。照着颜色一根根核对，确认没接错再通电。
+  </div></div>
+</section>
+
+<!-- ============ 总装大图 ============ -->
+<section>
+  <h2>3. 🧩 完整总装图（放大看，每根线都标了）</h2>
+  <svg viewBox="0 0 960 460">
+    <rect x="20" y="20" width="920" height="420" rx="12" fill="#fcfcfc" stroke="#cfcfcf"/>
+    <!-- 电源条 -->
+    <line x1="60" y1="80" x2="900" y2="80" stroke="#ff9800" stroke-width="8"/>
+    <line x1="60" y1="112" x2="900" y2="112" stroke="#222" stroke-width="8"/>
+    <line x1="60" y1="350" x2="900" y2="350" stroke="#e53935" stroke-width="8"/>
+    <line x1="60" y1="382" x2="900" y2="382" stroke="#222" stroke-width="8"/>
+    <text x="66" y="72" font-size="12" fill="#ff9800">上排红条=3V3</text>
+    <text x="66" y="104" font-size="12" fill="#444">上排蓝条=GND</text>
+    <text x="66" y="342" font-size="12" fill="#e53935">下排红条=5V</text>
+    <text x="66" y="374" font-size="12" fill="#444">下排蓝条=GND</text>
+    <!-- 上下蓝条桥接 -->
+    <path d="M900,112 L900,382" stroke="#222" stroke-width="5" fill="none" stroke-dasharray="5 5"/>
+
+    <!-- ESP32 -->
+    <rect x="120" y="170" width="190" height="110" rx="10" fill="#1b4332" stroke="#0b2818"/>
+    <text x="215" y="210" fill="#fff" font-size="15" text-anchor="middle">ESP32-S3</text>
+    <text x="215" y="230" fill="#cfe" font-size="10" text-anchor="middle">Type-C 朝左插电脑</text>
+    <!-- ESP32 引脚 -->
+    <circle cx="310" cy="185" r="6" fill="#ff9800"/><text x="320" y="189" class="pin" fill="#ff9800">3V3</text>
+    <circle cx="310" cy="205" r="6" fill="#fdd835"/><text x="320" y="209" class="pin" fill="#b58900">GPIO4</text>
+    <circle cx="310" cy="225" r="6" fill="#43a047"/><text x="320" y="229" class="pin" fill="#1b7a2e">GPIO14</text>
+    <circle cx="310" cy="255" r="6" fill="#e53935"/><text x="320" y="259" class="pin" fill="#e53935">5V</text>
+    <circle cx="310" cy="275" r="6" fill="#222"/><text x="320" y="279" class="pin">GND</text>
+    <circle cx="120" cy="275" r="6" fill="#222"/><text x="60" y="279" class="pin">GND</text>
+
+    <!-- DHT22 -->
+    <rect x="640" y="150" width="130" height="70" rx="10" fill="#fff" stroke="#444"/>
+    <text x="705" y="172" fill="#333" font-size="13" text-anchor="middle">DHT22</text>
+    <circle cx="662" cy="215" r="5" fill="#ff9800"/><text x="650" y="234" class="pin" fill="#ff9800">VCC</text>
+    <circle cx="705" cy="215" r="5" fill="#fdd835"/><text x="697" y="234" class="pin" fill="#b58900">DATA</text>
+    <circle cx="748" cy="215" r="5" fill="#222"/><text x="740" y="234" class="pin">GND</text>
+
+    <!-- 继电器 -->
+    <rect x="630" y="300" width="190" height="80" rx="8" fill="#2e7d32" stroke="#1b4d20"/>
+    <text x="725" y="324" fill="#fff" font-size="13" text-anchor="middle">继电器 1路</text>
+    <circle cx="660" cy="360" r="5" fill="#e53935"/><text x="648" y="380" class="pin" fill="#e53935">VCC</text>
+    <circle cx="705" cy="360" r="5" fill="#222"/><text x="695" y="380" class="pin">GND</text>
+    <circle cx="750" cy="360" r="5" fill="#43a047"/><text x="740" y="380" class="pin" fill="#1b7a2e">IN</text>
+    <!-- 继电器输出端子 -->
+    <circle cx="820" cy="335" r="5" fill="#888"/><text x="828" y="338" class="pin">COM</text>
+    <circle cx="820" cy="360" r="5" fill="#888"/><text x="828" y="363" class="pin">NO</text>
+    <circle cx="820" cy="385" r="5" fill="#888"/><text x="828" y="388" class="pin">NC</text>
+
+    <!-- 所有线 -->
+    <path d="M310,185 L310,80" stroke="#ff9800" stroke-width="5" fill="none"/>
+    <path d="M662,215 L662,80" stroke="#ff9800" stroke-width="5" fill="none"/>
+    <path d="M310,275 L310,112" stroke="#222" stroke-width="5" fill="none"/>
+    <path d="M748,215 L748,112" stroke="#222" stroke-width="5" fill="none"/>
+    <path d="M310,205 L705,215" stroke="#fdd835" stroke-width="5" fill="none"/>
+    <path d="M310,255 L310,350" stroke="#e53935" stroke-width="5" fill="none"/>
+    <path d="M660,360 L660,350" stroke="#e53935" stroke-width="5" fill="none"/>
+    <path d="M120,275 L120,382" stroke="#222" stroke-width="5" fill="none"/>
+    <path d="M705,360 L705,382" stroke="#222" stroke-width="5" fill="none"/>
+    <path d="M310,225 L750,360" stroke="#43a047" stroke-width="5" fill="none"/>
+
+    <text x="470" y="445" font-size="12" fill="#666" text-anchor="middle">继电器输出侧 COM/NO 先不接负载，用万用表蜂鸣档测通断验证即可</text>
+  </svg>
+
+  <table>
+    <tr><th>线色</th><th>从</th><th>到</th><th>作用</th></tr>
+    <tr><td><span class="pill" style="background:#ff9800;color:#fff">橙</span></td><td>ESP32 3V3</td><td>上排红条 → DHT22 VCC</td><td>给传感器供电</td></tr>
+    <tr><td><span class="pill" style="background:#222;color:#fff">黑</span></td><td>ESP32 GND</td><td>上排蓝条 → DHT22 GND</td><td>传感器地线</td></tr>
+    <tr><td><span class="pill" style="background:#fdd835;color:#333">黄</span></td><td>ESP32 GPIO4</td><td>DHT22 DATA</td><td>读温湿度</td></tr>
+    <tr><td><span class="pill" style="background:#e53935;color:#fff">红</span></td><td>ESP32 5V</td><td>下排红条 → 继电器 VCC</td><td>给继电器线圈供电</td></tr>
+    <tr><td><span class="pill" style="background:#222;color:#fff">黑</span></td><td>ESP32 GND(左)</td><td>下排蓝条 → 继电器 GND</td><td>继电器地线</td></tr>
+    <tr><td><span class="pill" style="background:#43a047;color:#fff">绿</span></td><td>ESP32 GPIO14</td><td>继电器 IN</td><td>控制吸合（低电平触发）</td></tr>
+  </table>
+</section>
+
+<!-- ============ 安全 ============ -->
+<section>
+  <h2>4. ⚠️ 安全与排错（先看这个再通电）</h2>
+  <div class="danger">
+    <b>强电警告：</b>继电器输出侧 COM/NO/NC 是<b>高压隔离区</b>。新手阶段<b>千万不要</b>接 220V 交流电！
+    验证继电器有没有跳，用你已有的<b>万用表 9205 蜂鸣档</b>测 COM 和 NO 之间的通断就行——
+    吸合时蜂鸣响（导通），复位时无声（断开）。这样既安全又能确认整条链路通了。
+  </div>
+  <div class="warn">
+    <b>常见坑：</b>
+    <ul style="margin:6px 0">
+      <li>ESP32 <b>只能接 3V3 信号</b>，别把 5V 接到 GPIO 脚上，会烧板子。</li>
+      <li>DHT22 读出来是 <code>NaN</code> → 九成是橙/黑线反了或 DATA 没上拉（裸件加 10k）。</li>
+      <li>继电器不动作 → IN 触发电平反了，改 <code>esp32-dht-relay.ino</code> 里的 <code>RELAY_ON_LEVEL</code>。</li>
+      <li>避开 GPIO0 / 3 / 45 / 46（strapping 脚），本图用的是 4 和 5，安全。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 接项目 ============ -->
+<section>
+  <h2>5. 接好之后，怎么跟你的项目联动</h2>
+  <ol style="margin:6px 0">
+    <li>电脑上确保 EMQX 在跑：<code>docker compose up -d emqx</code>（Dashboard <code>http://localhost:18083</code>）。</li>
+    <li>打开 <code>esp32-dht-relay.ino</code>，改顶部 3 处：<code>WIFI_SSID</code> / <code>WIFI_PASSWORD</code> / <code>MQTT_HOST</code>（填你 Mac 的局域网 IP，<code>ipconfig getifaddr en0</code> 查）。</li>
+    <li>Arduino IDE：装 esp32 板包 + PubSubClient + Adafruit DHT 库；板型选 <b>ESP32S3 Dev Module</b>；原生 USB 板把 <code>USB CDC On Boot: Enabled</code>。</li>
+    <li>烧录 → 打开串口监视器(115200)：看到 <code>[wifi] 已连接</code> 和 <code>[mqtt] 已订阅 .../command</code> 就成功了。</li>
+    <li>我对 DHT22 <b>哈气几秒</b>（湿度&gt;90%）→ 后端报警落库 → 下发 RELAY_ON → 继电器吸合 3 秒（串口打 <code>[relay] ON</code>）。闭环完成！</li>
+  </ol>
+  <p style="color:#0b4f9c;font-size:14px">📌 这张图严格对应你项目固件写死的引脚（GPIO4 / GPIO14 / 3V3 / 5V / 共GND）。网上教程引脚不同，<b>以这张图为准</b>。</p>
+</section>
+
+<footer>Industrial AI Hub · Day 99 硬件闭环接线说明书 · 由项目固件引脚自动生成 · 仅供本项目使用</footer>
+</div>
+</body>
+</html>

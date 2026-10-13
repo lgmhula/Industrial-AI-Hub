@@ -10,6 +10,8 @@
 | 机制 | 位置 | 阈值 | 对压测的影响 |
 |------|------|------|--------------|
 | 通用限流 | `RateLimitInterceptor`（Guava RateLimiter，**按 path 分桶**） | `rate.limit.permits` 默认 **50 req/s** | 超过即 429；读路径故意压到 40 req/s 才测得到「无刹车」延迟 |
+| 取令牌等待 | 同上，`rate.limit.acquire-timeout-ms` | 默认 **500ms** | 有界背压：所需等待 ≤500ms 会等到令牌并放行（延迟升高），否则**立即** 429。**429 从不阻塞**（实测 avg 0.9ms / p99 3ms），~500ms 延迟只出现在被放行的 200 上 |
+| 拒绝日志节流 | 同上，`rate.limit.log-interval-ms` | 默认 **5000ms** | 每窗口每 path 只记一行（含抑制条数）；`0` = 不节流（排障用）。**改前 30s 突发可写 137,568 行 / 23.2MB** |
 | 登录 IP 限流 | `AuthRateLimitService`（Redis ZSET 滑动窗口） | **30 次 / 5 分钟 / IP** | 登录只能测极少量；主压测用外部注入 token |
 | 登录失败锁定 | `AuthRateLimitService` + `user.failed_attempts` | 连续 **5 次失败** → 锁 15 分钟 | 压测必须用**正确密码**，否则把 admin 锁死 |
 | 报警规则 | `AlarmRuleConfig` | TEMPERATURE 正常区间 `(0, 40)` | 写入用 `25.0` 落在安全区间 → 不产生报警噪音 |
@@ -95,3 +97,17 @@ grep '<某个 X-Trace-Id>' backend/logs/industrial-ai-hub.log
 
 > 注：Prometheus（compose v1.5）抓的是 `host.docker.internal:8080`；若压测跑在 8081，Prometheus 不覆盖该实例，
 > 请直接用实例自身 `/actuator/prometheus` 取数（同源指标，口径一致）。
+
+## 六、读数陷阱（Day 103 血泪）
+
+1. **p99 不可跨运行直接比较**：突发组曾出现「p99 504ms → 10ms」的假改善，实际慢样本都是
+   1,505 条，只因总样本数不同（139,143 vs 154,871）导致慢样本占比在 1% 两侧
+   （1.082% vs 0.972%）跨过了 99% 分位线。**报分位数必须同时给尾部绝对条数**。
+2. **聚合分位数会掩盖分组差异**：按 `responseCode` 拆开后才发现"429 阻塞 500ms"是误读
+   （429 p99=3ms，等待全在 200 上）。分析 JTL 时先 `analyze-jtl.py`，再按需要拆维度。
+3. **节流后看拒绝总量要看 Prometheus**：`http_server_requests_seconds_count{status="429"}`
+   才是准确口径，日志行数已不再等于拒绝次数。
+4. **"没有发现"的结论要先证明仪器在工作**：Day 103 定位慢查询时误删了 MySQL 正在写的
+   `slow.log`（MySQL 继续写已删除 inode），得到"0 条慢查询"的无效结论；加对照组
+   （`SELECT SLEEP(0.25)` 必须被记录）才发现。
+5. JMeter 侧的两个坑（4xx 记为 error、断言 `Equals|Or` 失效）见上文「踩坑」表。

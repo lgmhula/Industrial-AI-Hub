@@ -44,9 +44,9 @@ const char* TELEMETRY_TOPIC = "plc/PLANT_A/esp32-dht-001/telemetry";
 const char* STATUS_TOPIC    = "plc/PLANT_A/esp32-dht-001/status";
 const char* COMMAND_TOPIC   = "plc/PLANT_A/esp32-dht-001/command";
 
-// 引脚（接线见 README.md；避免 strapping pin 0/3/45/46）
+// 引脚（接线见 README.md；避免 strapping pin 0/3/45/46；N16R8 勿用 26-37：26-32=Flash，33-37=八线 PSRAM）
 const uint8_t DHT_PIN      = 4;    // DHT22 DATA
-const uint8_t RELAY_PIN    = 5;    // 继电器 IN
+const uint8_t RELAY_PIN    = 14;   // 继电器 IN（GPIO14：与 5V0/GND 脚位相邻，继电器三线成束走线；旧值 GPIO5 弃用）
 const bool    RELAY_ON_LEVEL = LOW;  // true=高电平触发, false=低电平触发(常见光耦低触发)
 
 // 采样与去抖

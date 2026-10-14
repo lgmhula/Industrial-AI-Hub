@@ -1,43 +1,90 @@
 # Industrial AI Hub
 
-> 工业 AI 设备管理平台 — 从 Java 基础到 AI 集成的完整技术栈闭环
+> 工业 AI 设备管理平台 — 从 Java 基础到 AI 集成与真实硬件接入的完整技术栈闭环（112 天路线图）
 
-[![v2.1.0](https://img.shields.io/badge/version-v2.1.0-blue)](https://github.com/lgmhula/Industrial-AI-Hub)
+[![v2.4.0](https://img.shields.io/badge/version-v2.4.0-blue)](https://github.com/lgmhula/Industrial-AI-Hub)
 [![JDK](https://img.shields.io/badge/JDK-25_LTS-orange)](https://adoptium.net/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.0-green)](https://spring.io/projects/spring-boot)
+[![tests](https://img.shields.io/badge/tests-375%2F375-brightgreen)](#质量与性能)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
 ---
 
 ## 项目简介
 
-Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台。支持设备 CRUD、传感器数据采集、报警规则引擎、RBAC 权限控制、操作日志审计等功能。前端 Vue3 + ECharts 可视化，后端 Spring Boot 3.5 + MyBatis，基础设施 Docker Compose 统一编排（MySQL 主从、Redis Stack、RabbitMQ、Nacos、Elasticsearch 等 13 个服务）。
+Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台：**真实 ESP32 硬件 + MQTT 上报传感器数据 → 规则引擎报警 → 继电器下行联动 → AI 诊断与巡检日报 → SSE 实时推送**，全链路可观测、可压测、可一键编排。
 
----
+- 后端 Spring Boot 3.5 + MyBatis，前端 Vue 3 + Element Plus + ECharts（12 页面，深色工业控制中心风格）
+- 基础设施 Docker Compose 统一编排：**默认 6 服务一键启动，`--profile full` 15 服务**
+- 按 16 周路线图渐进构建（Day 1-112），Phase 5 已完成真实硬件 6 段物理闭环
+
+## 核心亮点
+
+| 亮点 | 说明 | 证据 |
+|------|------|------|
+| 🏭 **真实硬件闭环** | ESP32-S3 + DHT22 → EMQX → 后端 → 规则报警 → **继电器下行联动**（哈气触发湿度报警、热风触发温度报警，双分支实测） | ADR 0033-0035，Day 99 真机 6 段闭环 |
+| 🤖 **AI 不再是 demo** | DeepSeek 驱动 5 项业务价值：告警摘要 / 设备健康诊断 / RAG 知识库问答（PDF 入库 + 向量检索）/ Agent 巡检日报（ReAct 循环 + Function Calling）/ **AI 巡检自动生成报警** | ADR 0021-0030，9 个 AI 端点 + 7 个 MCP 只读工具 |
+| 📊 **可观测三件套** | Prometheus 三把业务指标尺 + 全链路 traceId（`X-Trace-Id` 透传回传）+ 滚动日志归档（ERROR 独立文件） | ADR 0036，Day 100-101 |
+| ⚡ **性能有证据** | JMeter 压测：读 40.3 req/s（p99 18ms）、写 20.1 req/s；突发 4639 req/s 下限流拒绝率 98.87%、142,771 样本 traceId 零回归；优化后限流日志量 **−92.8%** | Day 102-103 报告，ADR 0037 |
+| 🧪 **375/375 全绿** | 57 个测试类；压测守卫样本级验证幂等/限流/traceId 语义 | 全量 `./mvnw test` |
+| 🐳 **一键编排** | compose v1.6：默认 6 服务；`--profile full` 15 服务全部 healthy（~75s）；Prometheus 双部署模式并存观测 | Baseline V1.6，Day 104 |
+
+## 架构总览
+
+```text
+                 浏览器（Vue 3 + Element Plus + ECharts，12 页面）
+                      │ REST /api/*（JWT + RBAC + 站点作用域）
+                      ▼
+   ┌──────────────────────── Spring Boot 3.5 后端 ────────────────────────┐
+   │  Filter 链：TraceId(-2) → AI 限流(-1) → JWT → 通用限流 → Auth        │
+   │                                                                    │
+   │  业务：设备 CRUD / 数据查询统计 / 报警规则引擎(8 规则) / 操作日志 AOP  │
+   │  AI  ：ChatClient + PromptTemplate + RAG(向量检索) + Agent(ReAct)   │
+   │        + 巡检日报 Agent → RabbitMQ → Redis 幂等 → SSE Push Gateway  │
+   │  IoT ：MQTT Listener(Paho) → Redis SETNX 字段级幂等 → device_data   │
+   │        → AlarmDetector → MqttCommandGateway(下行, 5s 节流)          │
+   └────┬──────────────┬──────────────┬───────────────┬─────────────────┘
+        ▼              ▼              ▼               ▼
+   MySQL 8.4      Redis Stack     RabbitMQ        EMQX 5.8 MQTT Broker
+   (9 表/Flyway)  (缓存/幂等/锁)  (队列/DLQ/延迟)    ▲              │
+                                                     │ telemetry    ▼ command
+   Prometheus 2.55 ◀── /actuator/prometheus（双部署模式并存观测）
+                                                     ESP32-S3 + DHT22 + 继电器（真机）
+                                                     PlcSimulator（Java 模拟 PLC，并行接入）
+```
+
+> 完整分层架构、全链路 ASCII 图与三道附表见 [`docs/Architecture/Application-Architecture.md`](docs/Architecture/Application-Architecture.md)；
+> 基础设施基线见 [`docs/Architecture/Infrastructure-Baseline.md`](docs/Architecture/Infrastructure-Baseline.md)（V1.6）。
 
 ## 技术栈
 
 | 层级 | 技术 | 版本 |
 |------|------|------|
 | **运行时** | JDK (Eclipse Temurin) | 25 LTS |
-| **构建** | Maven Wrapper | 3.9.6 |
-| **后端** | Spring Boot | 3.5.0 |
-| | MyBatis Spring Boot | 3.0.5 |
-| | PageHelper | 2.1.0 |
-| | Knife4j (Swagger) | 4.5.0 |
-| **安全** | JJWT | 0.12.6 |
-| | BCrypt (spring-security-crypto) | — |
-| **限流** | Guava RateLimiter | 33.4.0-jre |
-| **数据库** | MySQL 8.4 (Docker) | 8.4 |
-| **缓存** | Redis Stack | 7.4.0-v1 |
-| **消息** | RabbitMQ | 4.0-management |
-| **注册** | Nacos | 2.4.3 |
-| **搜索** | Elasticsearch | 8.17.0 |
-| **前端** | Vue 3 + Vite | — |
-| | ECharts + vue-echarts | — |
-| | Axios | — |
+| **后端** | Spring Boot + MyBatis + PageHelper + Knife4j | 3.5.0 / 3.0.5 / 2.1.0 / 4.5.0 |
+| **安全** | JJWT + BCrypt + Guava RateLimiter | 0.12.6 / — / 33.4.0-jre |
+| **AI** | DeepSeek API（OpenAI 兼容）+ Spring AI 1.0.3 + MCP SDK 0.10.0 + PDFBox | opt-in（ADR 0021） |
+| **IoT** | Eclipse Paho mqttv3 + EMQX | 1.2.5 / 5.8.9 |
+| **数据** | MySQL 8.4（Flyway 管理 14 迁移 / 9 表） | — |
+| **缓存** | Redis Stack（Jedis + Redisson） | 7.4.0-v1 |
+| **消息** | RabbitMQ（工作队列/发布订阅/DLQ/延迟队列） | 4.0-management |
+| **观测** | Spring Boot Actuator + Micrometer + Prometheus | Boot parent / 2.55.1 |
+| **前端** | Vue 3 + Vite + Element Plus + ECharts + Axios | — |
+| **预留** | Nacos 2.4.3 / Elasticsearch 8.17 / MinIO（`full` profile，不纳入主线） | — |
 
----
+## 功能模块
+
+| 模块 | 说明 |
+|------|------|
+| **认证与权限** | JWT 登录/注册、BCrypt、RBAC 三级角色（ADMIN/OPERATOR/VIEWER）+ 站点资源作用域（ADR 0020） |
+| **设备管理** | CRUD + 逻辑删除 + 分页搜索 + 设备详情（含 AI 诊断/问答面板） |
+| **设备数据** | MQTT 真机/模拟器双来源上报、时间范围查询、聚合统计 |
+| **报警管理** | 8 条规则引擎（MQTT 数据实时触发）、确认/解决工作流、AI 摘要、AI 巡检自动生成报警 |
+| **AI 助手** | RAG 知识库问答（PDF 上传入库 + 引文溯源）、告警摘要、设备健康诊断 |
+| **巡检日报** | Agent 单会话巡检（MCP 7 只读工具）→ MQ → Redis 幂等 → SSE 实时推送前端 |
+| **MCP** | Server（SSE + 传输鉴权）+ 客户端联调冒烟，显式工具注册边界 |
+| **操作日志** | AOP 自动记录（含 AI 操作审计：CHAT/SUMMARY/DIAGNOSE/INSPECTION/AUTO_ALARM） |
+| **观测与治理** | Prometheus 业务指标、traceId 链路追踪、滚动日志、多层限流（通用 + AI 独立桶） |
 
 ## 快速开始
 
@@ -45,183 +92,138 @@ Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台�
 
 ### 环境要求
 
-- JDK 25 (Eclipse Temurin)
-- Docker Desktop / OrbStack（含 Compose v2）
-- Node.js 20+
-- Maven 无需手动安装（项目内置 Maven Wrapper）
+- JDK 25 (Eclipse Temurin) · Docker（含 Compose v2）· Node.js 20+
+- Maven 无需手动安装（内置 Maven Wrapper）
 
 ### 1. 配置环境变量
 
 ```bash
 cp .env.example .env
-# 编辑 .env：至少设置 MYSQL_ROOT_PASSWORD / REDIS_PASSWORD / RABBITMQ_DEFAULT_PASS / JWT_SECRET（≥32 字符）
+# 至少设置：MYSQL_ROOT_PASSWORD / REDIS_PASSWORD / RABBITMQ_DEFAULT_PASS /
+#          JWT_SECRET(≥32字符) / EMQX_DASHBOARD_PASSWORD（缺失将 fail-fast，ADR 0015）
 ```
 
-### 2. 启动基础设施 + 后端（路径 A：全容器）
+### 2. 启动（路径 A：全容器一键编排）
 
 ```bash
-docker compose up -d
-# 默认启动 4 个核心服务：mysql / redis / rabbitmq / backend
-# 全量 13 服务：docker compose --profile full up -d
+docker compose up -d                     # 默认 6 服务：mysql/redis/rabbitmq/emqx/prometheus/backend
+docker compose --profile full up -d      # 15 服务（另含 nacos/minio/es/mysql 主从×3/sentinel×3）
 ```
-
-数据库 `reboot` 在容器首次启动时自动初始化（7 张表 + 默认角色 + admin 账户，见 `mysql/init/`）。
-
-默认管理员：`admin / admin123`
 
 ### 3. 或：后端本地开发（路径 B：热更）
 
 ```bash
-docker compose up -d mysql redis rabbitmq
-cd backend
-./mvnw spring-boot:run     # http://localhost:8080
+docker compose up -d mysql redis rabbitmq emqx
+cd backend && ./mvnw spring-boot:run     # http://localhost:8080
 ```
 
-### 4. 启动前端
+> 容器化后端与宿主机后端并存时：`BACKEND_HOST_PORT=8082 docker compose up -d backend`
+> （端口避让 + MQTT clientId 自动隔离，Day 104）
+
+### 4. 演示数据（可选）
 
 ```bash
-cd frontend
-npm install
-npm run dev     # http://localhost:5173（Vite 代理 /api → localhost:8080）
+./scripts/seed-dev.sh                    # 幂等注入设备/传感器演示数据（ADR 0019 §5）
 ```
 
-### 5. 验证
+### 5. 启动前端
 
 ```bash
-curl http://localhost:8080/actuator/health   # 期望 {"status":"UP"}
-# Knife4j（仅 dev）：http://localhost:8080/doc.html
+cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
-登录：`admin / admin123`
+### 6. 验证
 
----
+```bash
+curl http://localhost:8080/actuator/health          # {"status":"UP"}
+curl http://localhost:8080/actuator/prometheus      # 指标（mqtt_* 业务尺 + JVM）
+```
+
+登录：`admin / admin123`（生产请立即修改）
 
 ## API 文档
 
-启动后端后访问：
-
-```
-http://localhost:8080/doc.html
-```
-
-Knife4j 提供交互式 Swagger UI，含所有 25 个 API 端点的请求/响应示例。
-
----
-
-## 功能模块
-
-| 模块 | 说明 |
-|------|------|
-| **认证 (Auth)** | JWT 登录/注册，BCrypt 密码加密 |
-| **RBAC 权限** | 三级角色 (ADMIN/OPERATOR/VIEWER)，`@RequireRole` 注解驱动 |
-| **设备管理 (Device)** | CRUD + 逻辑删除 + 分页搜索 (关键字/类型/状态) |
-| **设备数据 (DeviceData)** | 传感器数据上报、时间范围查询、聚合统计 (avg/min/max) |
-| **报警管理 (Alarm)** | 8 条报警规则引擎，确认/解决工作流 |
-| **操作日志 (OperationLog)** | AOP 自动记录，支持按用户查询 |
-| **接口限流** | Guava RateLimiter，按 URI 独立限流 (默认 50 req/s) |
-| **Postman 测试集** | 47 个测试用例 (auth/device/alarm/log/data 全覆盖) |
-
----
+启动后端后访问 `http://localhost:8080/doc.html`（Knife4j，dev 环境）。
 
 ## 项目结构
 
-```
+```text
 Industrial-AI-Hub/
-├── README.md
-├── AGENTS.md                  # AI 助手入口
-├── compose.yml                # Docker 编排
-├── .env / .env.example
-│
+├── compose.yml                  # Docker 编排 v1.6（core 6 / full 15）
+├── .env / .env.example          # 密钥 SSOT（ADR 0015）
 ├── backend/
-│   ├── pom.xml                # Maven POM
-│   ├── .mvn/maven-wrapper.properties
-│   ├── DAILY_ROADMAP.md       # 16 周路线图
-│   ├── DAILY/                 # 每日日志
-│   ├── REVIEW/                # 周复盘
-│   ├── postman/               # Postman 测试集合
-│   └── src/
-│       ├── main/java/dev/reboot/
-│       │   ├── controller/    # REST API (6 controllers, 25 endpoints)
-│       │   ├── service/       # 业务逻辑
-│       │   ├── mapper/        # MyBatis Mapper
-│       │   ├── entity/        # 实体类
-│       │   ├── dto/           # DTO + VO + ApiResponse
-│       │   ├── config/        # Spring 配置
-│       │   ├── security/      # JWT Filter + Auth/RateLimit Interceptor
-│       │   ├── enums/         # ErrorCode / RoleEnum
-│       │   ├── annotation/    # @RequireRole / @OperationLog
-│       │   └── exception/     # BusinessException + GlobalExceptionHandler
-│       ├── main/resources/
-│       │   ├── application.yml
-│       │   └── sql/init.sql   # 数据库初始化
-│       └── test/              # 89 单元测试
-│
-├── frontend/
-│   ├── src/
-│   │   ├── views/             # 6 页面 (登录/仪表盘/设备列表/设备详情/报警/日志)
-│   │   ├── components/        # Toast / LoadingSpinner
-│   │   ├── router/            # Vue Router
-│   │   └── api/               # Axios 封装
-│   └── vite.config.js
-│
+│   ├── pom.xml                  # Spring Boot 3.5 parent
+│   ├── DAILY_ROADMAP.md         # 112 天路线图
+│   ├── DAILY/ REVIEW/           # 每日日志 + 周复盘
+│   ├── performance/             # JMeter 压测资产（jmx/脚本/分析器）
+│   ├── learning/                # 学习代码（Day 94-97 MQTT 实验等，不参与构建）
+│   └── src/main/java/dev/reboot/
+│       ├── controller/ service/ mapper/ entity/ dto/     # 分层架构
+│       ├── client/ mcp/ rule/ mq/                        # DeepSeek / MCP 工具 / 规则引擎 / 消息
+│       ├── config/ security/ aop/ annotation/ enums/ exception/ util/
+├── frontend/src/                # 12 页面（含 AI 助手/巡检日报/设备 AI 面板）
+├── prometheus/                  # 抓取配置（双部署模式并存观测）
 ├── docs/
-│   ├── Architecture/          # 架构文档
-│   ├── decision-log/          # ADR 决策记录
-│   └── reports/               # 审计报告
-│
-├── mysql/                     # MySQL 配置 + 数据 (主从)
-├── redis/                     # Redis 配置 + 数据
-├── nginx/                     # Nginx 配置
-├── rabbitmq/                  # RabbitMQ 数据
-├── minio/                     # MinIO 数据
-├── nacos/                     # Nacos 数据
-└── elasticsearch/             # ES 数据
+│   ├── Architecture/            # 应用架构 V2.5 + 基础设施基线 V1.6
+│   ├── decision-log/            # ADR 0001-0037
+│   ├── ai/                      # AI 集成 Runbook + 学习笔记
+│   └── reports/                 # 压测/性能/审计报告
+├── mysql/ redis/ rabbitmq/      # 中间件配置与数据
+└── scripts/                     # seed-dev.sh 等运维脚本
 ```
-
----
 
 ## 数据库
 
-数据库名 `reboot`，7 张表：
+`reboot` 库，**9 张表**，schema 由 **Flyway** 管理（14 个版本化迁移，`db/migration/`）：
+`user` / `role` / `user_role` / `device` / `device_data` / `alarm` / `operation_log` + `site` / `user_site`（站点作用域）。
+8 个 CHECK 约束覆盖全部枚举字段；演示种子数据与生产迁移链隔离（`db/seed/dev/`，显式执行）。
 
-| 表 | 说明 |
-|----|------|
-| `user` | 用户表 (BCrypt + 逻辑删除) |
-| `role` | 角色表 (ADMIN/OPERATOR/VIEWER) |
-| `user_role` | 用户角色关联 |
-| `device` | 设备表 (逻辑删除) |
-| `device_data` | 设备数据 (DECIMAL 精度) |
-| `alarm` | 告警表 (确认/解决工作流) |
-| `operation_log` | 操作日志 (AOP 自动写入) |
+## 质量与性能
 
----
+| 指标 | 数值 | 来源 |
+|------|------|------|
+| 单元测试 | **375/375**（57 测试类） | `./mvnw test` |
+| 前端构建 | 0 errors（~1s） | `npm run build` |
+| 读性能 | 40.3 req/s，avg 8.5ms，p99 18ms（100% 200） | JMeter 5.6.3 压测（Day 102） |
+| 写性能 | 20.1 req/s，avg 22ms，100% 落库 | 同上 |
+| 突发抗压 | 4639 req/s 施压 → 拒绝率 98.87%，限流行为稳定 | 同上 |
+| 链路追踪 | 142,771 样本 traceId 回传断言零失败 | 压测守卫 |
+| 日志优化 | 限流拒绝日志 −99.996% 行数 / −92.8% 体积（行为零变化） | Day 103（ADR 0037） |
+| 压力吞吐 | 20 台模拟 PLC × 10 msg/s = 201 msg/s，p99 5ms，0 失败 | Day 97 EMQX 实测 |
 
 ## 学习路线
 
-项目按照 16 周路线图 (`backend/DAILY_ROADMAP.md`) 渐进式构建：
+按 16 周路线图（`backend/DAILY_ROADMAP.md`）渐进构建：
 
 | 阶段 | 周期 | 内容 |
 |------|------|------|
-| Phase 1 | Week 1-3 | Java 基础复苏 (Day 1-21) |
-| Phase 2 | Week 4-6 | Industrial AI Hub V1 (Day 22-42) |
-| Phase 3 | Week 7-9 | 中间件武装 (Day 43-63) |
-| Phase 4 | Week 10-13 | AI 集成 (Day 64-91) |
-| Phase 5 | Week 14-16 | PLC + 完整系统 (Day 92-112) |
+| Phase 1 | Week 1-3 | Java 基础复苏（Day 1-21） |
+| Phase 2 | Week 4-6 | Industrial AI Hub V1（Day 22-42） |
+| Phase 3 | Week 7-9 | 中间件武装（Day 43-63） |
+| Phase 4 | Week 10-13 | AI 集成（Day 64-91，tag `v2.0-ai`） |
+| Phase 5 | Week 14-16 | PLC + MQTT + 真实硬件 + 完整系统上线（Day 92-112） |
 
-> 当前进度：Day 63 完成，Phase 3 收官（Redis/RabbitMQ/Docker/Linux），下一步 Phase 4 AI 集成
+> 当前进度：Day 106（Week 17 收尾周），Phase 5 系统主线完整收官。
 
----
+## 文档索引
+
+| 文档 | 说明 |
+|------|------|
+| [`docs/SETUP.md`](docs/SETUP.md) | 从零复刻指南（克隆→配置→运行→验证） |
+| [`docs/Architecture/Application-Architecture.md`](docs/Architecture/Application-Architecture.md) | 应用架构 V2.5（分层 + 全链路图 + 附表） |
+| [`docs/Architecture/Infrastructure-Baseline.md`](docs/Architecture/Infrastructure-Baseline.md) | 基础设施基线 V1.6（服务清单 + Profile 分级） |
+| [`docs/ai/phase4-integration-guide.md`](docs/ai/phase4-integration-guide.md) | AI 模块 6 步集成 Runbook + 故障速查 |
+| [`docs/decision-log/`](docs/decision-log/) | ADR 0001-0037（关键技术决策） |
+| [`docs/reports/`](docs/reports/) | 压测报告 / 性能优化报告 / 审计报告 |
+| [`docs/TECH-DEBT.md`](docs/TECH-DEBT.md) | 技术债务 SSOT 清单 |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | 分支流程 + 自测清单 |
 
 ## 开发约定
 
-- **构造器注入** — 禁止 `@Autowired` 字段注入
-- **统一响应** — 所有 API 返回 `ApiResponse<T>`
-- **Javadoc** — 所有公共类和方法必须有 Javadoc 注释
-- **4 空格缩进** — `.editorconfig` 管理
-- **Git commit** — 格式 `Day XXX: 简要说明`
-- **逻辑删除** — `user`/`device` 使用 `is_deleted` 字段
-
----
+- **构造器注入**（禁 `@Autowired` 字段注入）· **统一响应** `ApiResponse<T>` · **4 空格缩进**（`.editorconfig`）
+- **Git**：`main` 唯一发布线禁止直推（ADR 0017）；日常走分支 + PR；commit 格式 `Day XXX: 简要说明`
+- **密钥**：根目录 `.env` 唯一事实源，禁入 Git（ADR 0015）；敏感变量缺失 fail-fast
+- **架构变更**：新增依赖/重大决策必须记录 ADR；schema 变更走 Flyway 新迁移
 
 ## License
 
@@ -229,4 +231,4 @@ MIT
 
 ---
 
-> 最后更新：2026-08-16 | 维护者：[hula0710](https://github.com/lgmhula)
+> 最后更新：2026-10-14（Day 106，v2.4.0 基线：375 tests / compose v1.6 / ADR 0037 / Phase 5 主线收官）| 维护者：[hula0710](https://github.com/lgmhula)

@@ -1,8 +1,14 @@
 # ========================
 # industrial ai hub — unified docker compose
-# Version: v1.5 | Updated: 2026-10-13
+# Version: v1.6 | Updated: 2026-10-14
 # Infrastructure Baseline V3 + Prometheus metrics scraping (Phase 5 Day 100, ADR 0036)
 # Backend MQTT Listener enabled in container network (Phase 5 Day 96, ADR 0034)
+# Day 104 完整编排：
+#   · 默认（无 profile）= core：mysql/redis/rabbitmq/emqx/prometheus/backend（6 服务）
+#   · --profile full = 全量 15 服务（另含 nacos/minio/elasticsearch/mysql 主从×3/redis-sentinel×3）
+#   · backend 日志卷 backend-logs（logback FILE/ERROR_FILE 落盘，Day 101）
+#   · 容器 MQTT clientId 独立（与宿主机实例并存不互踢，Day 101 坑位）
+#   · 限流/节流 rate.limit.* 经环境变量注入（Day 103, ADR 0037）
 # ========================
 
 networks:
@@ -365,9 +371,11 @@ services:
     container_name: iah-backend
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      # 宿主机 dev 后端占用 8080 时：BACKEND_HOST_PORT=8082 docker compose up -d backend
+      - "${BACKEND_HOST_PORT:-8080}:8080"
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      TZ: Asia/Shanghai
       # 容器网络内使用服务名 + 容器内端口
       MYSQL_HOST: mysql
       MYSQL_PORT: "3306"
@@ -386,9 +394,23 @@ services:
       MQTT_ENABLED: "true"
       MQTT_HOST: emqx
       MQTT_PORT: "1883"
+      # Day 101 坑位：与宿主机实例并存时 clientId 必须不同，否则 EMQX 互踢下线
+      MQTT_CLIENT_ID: ${MQTT_CLIENT_ID:-iah-backend-container}
+      # 限流/节流（Day 103, ADR 0037）：rate.limit.* 经环境变量注入，.env 或 shell 可覆盖
+      RATE_LIMIT_PERMITS: ${RATE_LIMIT_PERMITS:-50}
+      RATE_LIMIT_ACQUIRE_TIMEOUT_MS: ${RATE_LIMIT_ACQUIRE_TIMEOUT_MS:-500}
+      RATE_LIMIT_LOG_INTERVAL_MS: ${RATE_LIMIT_LOG_INTERVAL_MS:-5000}
+      # DeepSeek AI（opt-in，ADR 0021）：容器默认关闭；未配置 Key 时 /api/ai/* 返回 503
+      DEEPSEEK_ENABLED: ${DEEPSEEK_ENABLED:-false}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      # MCP 传输门（ADR 0029）：默认内网可信直连
+      MCP_ACCESS_TOKEN: ${MCP_ACCESS_TOKEN:-}
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173}
+    volumes:
+      # Day 101 logback FILE/ERROR_FILE 落盘目录（容器内 /app/logs，Dockerfile 已授权 app 用户）
+      - backend-logs:/app/logs
     depends_on:
       mysql:
         condition: service_healthy
@@ -413,3 +435,4 @@ volumes:
   emqx-data:
   emqx-log:
   prometheus-data:
+  backend-logs:

@@ -17,7 +17,10 @@ RUN ./mvnw -s .mvn/settings.xml package -DskipTests -B
 # Stage 2: Runtime
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
-RUN addgroup -S app && adduser -S app -G app
+# logs 目录预建并授权 app 用户：logback FILE/ERROR_FILE appender（Day 101）启动即落盘，
+# 容器编排将该目录挂载为 named volume backend-logs（compose v1.6，Day 104）
+RUN addgroup -S app && adduser -S app -G app \
+ && mkdir -p /app/logs && chown -R app:app /app/logs
 USER app
 COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8080

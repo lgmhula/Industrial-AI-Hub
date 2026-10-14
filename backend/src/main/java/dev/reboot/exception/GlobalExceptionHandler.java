@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>{@link BusinessException} → 按 ErrorCode 定义的状态码和消息返回</li>
  *   <li>{@link MethodArgumentNotValidException} → 400，列出所有字段校验失败信息</li>
+ *   <li>{@link HttpMessageNotReadableException} → 400，畸形 JSON / 缺失请求体（TD-038）</li>
  *   <li>其他未捕获异常 → 500，隐藏内部细节，打印完整堆栈</li>
  * </ul>
  *
@@ -79,6 +81,19 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
         log.warn("参数类型错误: {}={}", e.getName(), e.getValue());
         return ApiResponse.error(400, "参数类型错误: " + e.getName());
+    }
+
+    /**
+     * 请求体不可读（畸形 JSON / 缺失必填请求体）— 返回 400（TD-038）。
+     *
+     * <p>这是客户端错误而非服务器故障：此前落入 {@link Exception} 兜底会被
+     * 误标为 500 并写入 error.log（Day 102 压测实测畸形 JSON 返回 500）。</p>
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleUnreadableBody(HttpMessageNotReadableException e) {
+        log.warn("请求体不可读: {}", e.getMostSpecificCause().getMessage());
+        return ApiResponse.error(400, "请求体格式错误，请检查 JSON 语法与必填字段");
     }
 
     /** 兜底 — 所有未预期的异常。 */

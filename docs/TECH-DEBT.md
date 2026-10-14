@@ -1,7 +1,7 @@
 # 技术债务清单（Technical Debt）
 
 > **SSOT**：本文档是技术债务的唯一权威清单（迁移自 `backend/REVIEW/Phase2-Summary.md` §四，并持续更新）。
-> **最后更新**：2026-10-13（Day 103 性能优化后：TD-034/036/037 结清；TD-035 修正描述；新增 TD-038）
+> **最后更新**：2026-10-14（Day 104 编排日：TD-038 结清）
 
 ---
 
@@ -27,6 +27,7 @@
 | 34 | 限流拒绝日志放大（TD-034） | 2026-10-13（Day 103：拒绝日志按窗口节流 + 汇总抑制条数；同强度突发 **137,568 行 → 6 行**、日志增量 **23.2MB → 1.67MB（−92.8%）**，且放行数/慢样本数逐项对齐证明限流策略未变；ADR 0037） |
 | 36 | 缺 HTTP 延迟直方图（TD-036） | 2026-10-13（Day 103：开启 `management.metrics.distribution.percentiles-histogram.http.server.requests`；运行时 `http_server_requests_seconds_bucket` 系列 **0 → 69**，Prometheus 可算 p95/p99） |
 | 37 | 写路径尾部延迟不稳定（TD-037） | 2026-10-13（Day 103：定位为**环境噪声而非 SQL/连接池**——2.5× 速率（50.2 req/s）写入 1,506 次 100% 成功且 0 条 >100ms 慢查询（带对照组）、Hikari acquire max 8ms / pending 0、GC pause max 27ms，读组同期 max 136ms；进一步压缩需移出压测机 + 分段埋点，非当前债务） |
+| 38 | `HttpMessageNotReadableException`（畸形 JSON）走兜底 `@ExceptionHandler(Exception)`（TD-038） | 2026-10-14（Day 104：新增显式处理器 → **400** + WARN 日志，不再污染 error.log；standalone MockMvc 3 用例锁定语义；容器化实测畸形 JSON 返回 `{"code":400,"message":"请求体格式错误…"}`） |
 
 ---
 
@@ -60,7 +61,6 @@
 | 14 | 报警规则硬编码 AlarmRuleConfig | 不可动态调整 | 规则入库 + 动态加载 |
 | 15 | DeviceData 时间范围查询无分页 | 大数据量内存风险 | 加时间分页/聚合下推 |
 | 26 | AI DTO 缺 `@Schema` 注解 | Knife4j 文档可读性一般 | 补注解（与其余模块 DTO 风格一致） |
-| 38 | `HttpMessageNotReadableException`（畸形 JSON）走兜底 `@ExceptionHandler(Exception)` | 客户端错误返回 **500** 并记 ERROR 日志，语义应为 400，且污染 error.log | 显式处理器返回 400（实测于 Day 101 复核） |
 
 ---
 

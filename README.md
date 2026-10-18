@@ -46,7 +46,7 @@ Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台�
    └────┬──────────────┬──────────────┬───────────────┬─────────────────┘
         ▼              ▼              ▼               ▼
    MySQL 8.4      Redis Stack     RabbitMQ        EMQX 5.8 MQTT Broker
-   (9 表/Flyway)  (缓存/幂等/锁)  (队列/DLQ/延迟)    ▲              │
+   (10 表/Flyway) (缓存/幂等/锁)  (队列/DLQ/延迟)    ▲              │
                                                      │ telemetry    ▼ command
    Prometheus 2.55 ◀── /actuator/prometheus（双部署模式并存观测）
                                                      ESP32-S3 + DHT22 + 继电器（真机）
@@ -65,7 +65,7 @@ Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台�
 | **安全** | JJWT + BCrypt + Guava RateLimiter | 0.12.6 / — / 33.4.0-jre |
 | **AI** | DeepSeek API（OpenAI 兼容）+ Spring AI 1.0.3 + MCP SDK 0.10.0 + PDFBox | opt-in（ADR 0021） |
 | **IoT** | Eclipse Paho mqttv3 + EMQX | 1.2.5 / 5.8.9 |
-| **数据** | MySQL 8.4（Flyway 管理 14 迁移 / 9 表） | — |
+| **数据** | MySQL 8.4（Flyway 管理 14 迁移 / 10 表） | — |
 | **缓存** | Redis Stack（Jedis + Redisson） | 7.4.0-v1 |
 | **消息** | RabbitMQ（工作队列/发布订阅/DLQ/延迟队列） | 4.0-management |
 | **观测** | Spring Boot Actuator + Micrometer + Prometheus | Boot parent / 2.55.1 |
@@ -174,8 +174,8 @@ Industrial-AI-Hub/
 
 ## 数据库
 
-`reboot` 库，**9 张表**，schema 由 **Flyway** 管理（14 个版本化迁移，`db/migration/`）：
-`user` / `role` / `user_role` / `device` / `device_data` / `alarm` / `operation_log` + `site` / `user_site`（站点作用域）。
+`reboot` 库，**10 张表**，schema 由 **Flyway** 管理（V1 + V3-V15，共 14 个活动迁移，`db/migration/`）：
+`user` / `role` / `user_role` / `device` / `device_data` / `alarm` / `operation_log` / `site` / `user_site` / `login_audit`。
 8 个 CHECK 约束覆盖全部枚举字段；演示种子数据与生产迁移链隔离（`db/seed/dev/`，显式执行）。
 
 ## 质量与性能
@@ -203,7 +203,7 @@ Industrial-AI-Hub/
 | Phase 4 | Week 10-13 | AI 集成（Day 64-91，tag `v2.0-ai`） |
 | Phase 5 | Week 14-16 | PLC + MQTT + 真实硬件 + 完整系统上线（Day 92-112） |
 
-> 当前进度：Day 106（Week 17 收尾周），Phase 5 系统主线完整收官。
+> 当前进度：Day 108（Week 17 收尾周），Phase 5 系统主线完整收官。
 
 ## 文档索引
 
@@ -213,8 +213,8 @@ Industrial-AI-Hub/
 | [`docs/Architecture/Application-Architecture.md`](docs/Architecture/Application-Architecture.md) | 应用架构 V2.5（分层 + 全链路图 + 附表） |
 | [`docs/Architecture/Infrastructure-Baseline.md`](docs/Architecture/Infrastructure-Baseline.md) | 基础设施基线 V1.6（服务清单 + Profile 分级） |
 | [`docs/ai/phase4-integration-guide.md`](docs/ai/phase4-integration-guide.md) | AI 模块 6 步集成 Runbook + 故障速查 |
-| [`docs/decision-log/`](docs/decision-log/) | ADR 0001-0037（关键技术决策） |
-| [`docs/reports/`](docs/reports/) | 压测报告 / 性能优化报告 / 审计报告 |
+| [`docs/decision-log/`](docs/decision-log/) | ADR 0001-0037 + [一页决策导览](docs/decision-log/README.md) |
+| [`docs/reports/`](docs/reports/) | 压测 / 性能 / 审计报告 + [工程踩坑手册](docs/reports/engineering-pitfalls.md) |
 | [`docs/TECH-DEBT.md`](docs/TECH-DEBT.md) | 技术债务 SSOT 清单 |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | 分支流程 + 自测清单 |
 
@@ -231,4 +231,4 @@ MIT
 
 ---
 
-> 最后更新：2026-10-14（Day 106，v2.4.0 基线：375 tests / compose v1.6 / ADR 0037 / Phase 5 主线收官）| 维护者：[hula0710](https://github.com/lgmhula)
+> 最后更新：2026-10-18（Day 108：ADR 0001-0037 导览 + 43 条工程踩坑手册 + V15/10 表文档口径校正；375 tests 基线不变）| 维护者：[hula0710](https://github.com/lgmhula)

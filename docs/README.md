@@ -1,6 +1,6 @@
-# Industrial AI Hub — 文档总索引
+# Industrial AI Hub - 文档总索引
 
-> 最后更新：2026-08-30 | 维护：AI 助手 + hula0710
+> 最后更新：2026-10-18 | 维护：AI 助手 + hula0710
 
 ---
 
@@ -9,8 +9,8 @@
 | 目录 | 用途 | 入口 |
 |------|------|------|
 | [Architecture/](Architecture/README.md) | 应用架构、系统架构、API、ER、基础设施基线 | 6 份核心架构文档 |
-| [decision-log/](decision-log/) | ADR 决策记录（编号 0001-0029） | 29 份 ADR |
-| [reports/](reports/README.md) | 审计报告、Release Note、部署手册 | 当前有效 + 历史归档 |
+| [decision-log/](decision-log/README.md) | ADR 决策记录（编号 0001-0037）+ 一页决策导览 | 37 份 ADR |
+| [reports/](reports/README.md) | 审计报告、压测报告、工程踩坑手册、部署手册 | 当前有效 + 历史归档 |
 | [security/](security/) | 安全治理设计与审计（P1-01/P1-02 系列） | 6 份安全文档 |
 | [plans/](plans/) | 阶段计划（Phase 3-A 已收官） | 1 份归档计划 |
 | [docker/](docker/docker-basics.md) | Docker 学习笔记 | 1 份笔记 |
@@ -23,6 +23,8 @@
 |------|------|
 | [SETUP.md](SETUP.md) | 从零复刻指南（克隆 → 配置 → 运行 → 验证） |
 | [TECH-DEBT.md](TECH-DEBT.md) | 技术债务 SSOT 清单（已解决 / 未解决 / 遗留决策） |
+| [decision-log/README.md](decision-log/README.md) | ADR 0001-0037 一页导览（决策、理由、当前边界） |
+| [reports/engineering-pitfalls.md](reports/engineering-pitfalls.md) | Day 1-107 工程踩坑手册（按主题归并 43 条真实故障） |
 
 ## 上级文档
 

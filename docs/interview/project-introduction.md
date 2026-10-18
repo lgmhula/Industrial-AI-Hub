@@ -1,7 +1,7 @@
 # Industrial AI Hub 面试项目介绍
 
 > 适用场景：Java 后端面试中的项目主讲述、技术追问与复盘演练
-> 事实基线：Day 109 / 2026-10-18
+> 事实基线：Day 112 / 2026-10-18
 > 核心原则：只讲可验证的结果；明确区分“已落地”“opt-in”“后续演进”
 
 ---
@@ -144,7 +144,7 @@
 | 为什么没有加缓存、改 SQL、调连接池？ | 证据不支持。优化动作应针对已证明的瓶颈；Day 102 的真实放大器是限流拒绝日志，因此只做日志节流，行为保持不变 | ADR 0037 |
 | 375 个测试是否等于高质量？ | 不等于。数字只说明当前回归范围；关键是风险映射，包括真实 RabbitMQ/Redis IT、MQTT 幂等矩阵、限流并发与大样本 traceId 守卫 | README 质量表、Day 91/103 |
 | 数据库为什么是 10 张表、14 个活动迁移？ | 以 Flyway 文件为 SSOT；V2 已退役，当前是 V1 + V3-V15，Schema 版本 V15。演示种子与生产链隔离 | ADR 0012/0019、SQL README |
-| Compose 是否整合成微服务？ | 没有。当前是模块化单体加 15 服务编排，Nacos、MinIO、ES 等属于 full-profile 基础设施验证，不代表业务已拆微服务 | Baseline V1.6、README |
+| Compose 是否整合成微服务？ | 没有。当前是模块化单体加 15 服务编排，Nacos、MinIO、ES 等属于 full-profile 基础设施验证，不代表业务已拆微服务 | Baseline V1.7、README |
 
 ### 回答追问时的三个避免
 
@@ -209,12 +209,12 @@
 
 | 指标 | 口径 | 来源 |
 |------|------|------|
-| 路线进度 | Day 109 / 112 | `backend/DAILY_ROADMAP.md` |
+| 路线进度 | Day 112 / 112 | `backend/DAILY_ROADMAP.md` |
 | ADR | 37 份，0001-0037 | `docs/decision-log/README.md` |
-| 后端测试 | 375/375，57 个测试类 | Day 108 回归 |
-| 前端构建 | 915ms，0 errors | Day 108 回归 |
+| 后端测试 | 375/375，57 个测试类 | Day 112 全量回归 |
+| 前端构建 | 1.12s，0 errors | Day 112 回归 |
 | 数据库 | Schema V15，14 个活动迁移，10 张表 | Flyway / ADR 0012 |
-| 编排 | 默认 6 服务；full 15 服务，约 75s 全 healthy | Baseline V1.6 / Day 104 |
+| 编排 | 默认 6 服务；full 15 服务，约 75s 全 healthy | Baseline V1.7 / Day 111 |
 | MCP | 7 个只读工具 | ADR 0027-0030 |
 
 ### 真实 IoT 闭环
@@ -267,6 +267,8 @@
 ## 十、参考入口
 
 - [项目 README](../../README.md)
+- [112 天路线完成报告](../../ROADMAP-COMPLETE.md)
+- [v3.0-final 发布报告](../reports/v3.0-final-release-report.md)
 - [ADR 0001-0037 一页导览](../decision-log/README.md)
 - [工程踩坑手册](../reports/engineering-pitfalls.md)
 - [Day 102 JMeter 压测报告](../reports/day102-jmeter-loadtest-report.md)

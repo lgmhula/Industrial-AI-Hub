@@ -593,7 +593,7 @@
 | Day 109 | 准备面试项目介绍（3 分钟版本 + 10 分钟版本） |
 | Day 110 | Java 八股文梳理（集合、多线程、JVM、Spring） |
 | Day 111 | 简历重写（以 Industrial AI Hub 为核心）✅（`docs/interview/resume-materials.md`：一句话/紧凑/扩展简历、37 ADR 与 375 tests 证据口径、3 个 STAR 故事、可写/不可写边界；清理重复 Actuator 依赖；运行镜像修复 `/app/data` + `/app/logs` 非 root 写权限并挂载 `backend-data` 持久卷，Baseline V1.7；full profile 15/15 healthy + 容器 8082 重建验证） |
-| Day 112 | 最终复盘：ROADMAP-COMPLETE.md + Git tag: v3.0-final |
+| Day 112 | 最终复盘：ROADMAP-COMPLETE.md + Git tag: v3.0-final ✅（新增 112 天路线完成报告 + v3.0-final Release Gate GO 报告；统一 Day 112/112、375/375、57 测试类、37 ADR、V15/14 活动迁移/10 表、Compose v1.7/Baseline V1.7 口径；后端 375/375 + 前端 1.12s 0 errors + Compose config + 8080/5173 运行态检查；`--no-ff` 合并后在实际 `main` commit 打 annotated tag） |
 
 ---
 

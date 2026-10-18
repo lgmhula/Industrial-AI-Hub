@@ -2,7 +2,7 @@
 
 > 工业 AI 设备管理平台 — 从 Java 基础到 AI 集成与真实硬件接入的完整技术栈闭环（112 天路线图）
 
-[![v2.4.0](https://img.shields.io/badge/version-v2.4.0-blue)](https://github.com/lgmhula/Industrial-AI-Hub)
+[![v3.0-final](https://img.shields.io/badge/version-v3.0--final-blue)](https://github.com/lgmhula/Industrial-AI-Hub)
 [![JDK](https://img.shields.io/badge/JDK-25_LTS-orange)](https://adoptium.net/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.0-green)](https://spring.io/projects/spring-boot)
 [![tests](https://img.shields.io/badge/tests-375%2F375-brightgreen)](#质量与性能)
@@ -149,7 +149,7 @@ curl http://localhost:8080/actuator/prometheus      # 指标（mqtt_* 业务尺 
 
 ```text
 Industrial-AI-Hub/
-├── compose.yml                  # Docker 编排 v1.6（core 6 / full 15）
+├── compose.yml                  # Docker 编排 v1.7（core 6 / full 15）
 ├── .env / .env.example          # 密钥 SSOT（ADR 0015）
 ├── backend/
 │   ├── pom.xml                  # Spring Boot 3.5 parent
@@ -183,7 +183,7 @@ Industrial-AI-Hub/
 | 指标 | 数值 | 来源 |
 |------|------|------|
 | 单元测试 | **375/375**（57 测试类） | `./mvnw test` |
-| 前端构建 | 0 errors（~1s） | `npm run build` |
+| 前端构建 | 1.12s，0 errors | Day 112 `npm run build` |
 | 读性能 | 40.3 req/s，avg 8.5ms，p99 18ms（100% 200） | JMeter 5.6.3 压测（Day 102） |
 | 写性能 | 20.1 req/s，avg 22ms，100% 落库 | 同上 |
 | 突发抗压 | 4639 req/s 施压 → 拒绝率 98.87%，限流行为稳定 | 同上 |
@@ -201,20 +201,22 @@ Industrial-AI-Hub/
 | Phase 2 | Week 4-6 | Industrial AI Hub V1（Day 22-42） |
 | Phase 3 | Week 7-9 | 中间件武装（Day 43-63） |
 | Phase 4 | Week 10-13 | AI 集成（Day 64-91，tag `v2.0-ai`） |
-| Phase 5 | Week 14-16 | PLC + MQTT + 真实硬件 + 完整系统上线（Day 92-112） |
+| Phase 5 | Week 15-17 | PLC + MQTT + 真实硬件 + 完整系统上线（Day 92-112） |
 
-> 当前进度：Day 111 / 112（Week 17 收尾周），简历材料与 v3.0-final 全量预演完成，等待 Day 112 最终发布收口。
+> 当前进度：**Day 112 / 112 已完成**。官方路线以 `v3.0-final` 收口，Day 113-120 不属于当前路线。
 
 ## 文档索引
 
 | 文档 | 说明 |
 |------|------|
+| [`ROADMAP-COMPLETE.md`](ROADMAP-COMPLETE.md) | 112 天路线完成报告（阶段成果 + 最终证据 + 路线后待办） |
 | [`docs/SETUP.md`](docs/SETUP.md) | 从零复刻指南（克隆→配置→运行→验证） |
 | [`docs/Architecture/Application-Architecture.md`](docs/Architecture/Application-Architecture.md) | 应用架构 V2.5（分层 + 全链路图 + 附表） |
 | [`docs/Architecture/Infrastructure-Baseline.md`](docs/Architecture/Infrastructure-Baseline.md) | 基础设施基线 V1.7（服务清单 + Profile 分级 + 持久卷） |
 | [`docs/ai/phase4-integration-guide.md`](docs/ai/phase4-integration-guide.md) | AI 模块 6 步集成 Runbook + 故障速查 |
 | [`docs/decision-log/`](docs/decision-log/) | ADR 0001-0037 + [一页决策导览](docs/decision-log/README.md) |
 | [`docs/reports/`](docs/reports/) | 压测 / 性能 / 审计报告 + [工程踩坑手册](docs/reports/engineering-pitfalls.md) |
+| [`docs/reports/v3.0-final-release-report.md`](docs/reports/v3.0-final-release-report.md) | v3.0-final Release Gate、验证矩阵、已知边界与后续优先级 |
 | [`docs/interview/project-introduction.md`](docs/interview/project-introduction.md) | 面试项目介绍（30 秒 / 3 分钟 / 10 分钟 + 高频追问与数字证据） |
 | [`docs/interview/java-interview-guide.md`](docs/interview/java-interview-guide.md) | Java 后端八股（集合 / 并发 / JVM / Spring）+ 项目证据映射 + 30 题自测 |
 | [`docs/interview/resume-materials.md`](docs/interview/resume-materials.md) | 简历材料（一句话 / 紧凑 / 扩展版 + STAR 故事 + 可写边界 + 投递检查） |
@@ -234,4 +236,4 @@ MIT
 
 ---
 
-> 最后更新：2026-10-18（Day 111：简历材料、依赖清理、容器数据目录与持久卷修复、v3.0-final 全量预演；演示视频按用户安排延后）| 维护者：[hula0710](https://github.com/lgmhula)
+> 最后更新：2026-10-18（Day 112：112/112 路线完成，`v3.0-final` 发布报告与最终事实收口；演示视频按用户安排延后）| 维护者：[hula0710](https://github.com/lgmhula)

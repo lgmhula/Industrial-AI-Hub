@@ -11,6 +11,7 @@
 | [Architecture/](Architecture/README.md) | 应用架构、系统架构、API、ER、基础设施基线 | 6 份核心架构文档 |
 | [decision-log/](decision-log/README.md) | ADR 决策记录（编号 0001-0037）+ 一页决策导览 | 37 份 ADR |
 | [reports/](reports/README.md) | 审计报告、压测报告、工程踩坑手册、部署手册 | 当前有效 + 历史归档 |
+| [interview/](interview/project-introduction.md) | 面试项目介绍（3 分钟 / 10 分钟口述稿 + 追问证据） | 1 份面试材料 |
 | [security/](security/) | 安全治理设计与审计（P1-01/P1-02 系列） | 6 份安全文档 |
 | [plans/](plans/) | 阶段计划（Phase 3-A 已收官） | 1 份归档计划 |
 | [docker/](docker/docker-basics.md) | Docker 学习笔记 | 1 份笔记 |
@@ -25,6 +26,7 @@
 | [TECH-DEBT.md](TECH-DEBT.md) | 技术债务 SSOT 清单（已解决 / 未解决 / 遗留决策） |
 | [decision-log/README.md](decision-log/README.md) | ADR 0001-0037 一页导览（决策、理由、当前边界） |
 | [reports/engineering-pitfalls.md](reports/engineering-pitfalls.md) | Day 1-107 工程踩坑手册（按主题归并 43 条真实故障） |
+| [interview/project-introduction.md](interview/project-introduction.md) | 面试项目介绍：30 秒 / 3 分钟 / 10 分钟 + 高频追问与数字证据 |
 
 ## 上级文档
 

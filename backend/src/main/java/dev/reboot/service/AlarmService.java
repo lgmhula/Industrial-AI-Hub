@@ -11,6 +11,7 @@ import dev.reboot.exception.BusinessException;
 import dev.reboot.mapper.AlarmMapper;
 import dev.reboot.mapper.DeviceMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -81,18 +82,32 @@ public class AlarmService {
         return alarmMapper.resolve(id, userId) > 0;
     }
 
-    /** 创建告警记录（系统内部：规则引擎/MQ 触发，非用户请求）。 */
+    /**
+     * 创建或合并活动告警（系统内部：规则引擎/MQ 触发，非用户请求）。
+     *
+     * <p>状态 0/1 的同设备同类型告警视为同一活动事件：重复触发只累加
+     * repeatCount、刷新最后触发时间与最新描述；解决后再次触发才创建新记录。</p>
+     */
+    @Transactional
     public AlarmVO createAlarm(Long deviceId, String alarmType, Integer alarmLevel,
                                String alarmMessage, LocalDateTime triggeredAt) {
+        LocalDateTime eventTime = triggeredAt == null ? LocalDateTime.now() : triggeredAt;
         Alarm alarm = new Alarm();
         alarm.setDeviceId(deviceId);
         alarm.setAlarmType(alarmType);
         alarm.setAlarmLevel(alarmLevel);
         alarm.setAlarmMessage(alarmMessage);
         alarm.setStatus(0);
-        alarm.setTriggeredAt(triggeredAt);
-        alarmMapper.insert(alarm);
-        return AlarmVO.from(alarm);
+        alarm.setTriggeredAt(eventTime);
+        alarm.setLastTriggeredAt(eventTime);
+        alarm.setRepeatCount(1);
+        alarmMapper.upsertActive(alarm);
+        Alarm persisted = alarmMapper.findActiveByDeviceAndType(deviceId, alarmType);
+        if (persisted == null) {
+            throw new IllegalStateException("活动告警合并后未找到记录: deviceId="
+                    + deviceId + ", alarmType=" + alarmType);
+        }
+        return AlarmVO.from(persisted);
     }
 
     /** 告警不存在 → 返回 false（保持原语义，不抛 404）；设备已删 → 跳过站点校验（孤立告警可操作）。 */

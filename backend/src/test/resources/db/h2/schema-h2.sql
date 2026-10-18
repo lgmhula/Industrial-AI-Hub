@@ -101,18 +101,25 @@ CREATE TABLE IF NOT EXISTS `alarm` (
     `alarm_message` VARCHAR(512)  NOT NULL                 COMMENT '告警描述',
     `status`        TINYINT       NOT NULL DEFAULT 0       COMMENT '状态：0-未处理 1-已确认 2-已解决',
     CONSTRAINT `chk_alarm_status` CHECK (`status` IN (0,1,2)),
+    `repeat_count`  INT           NOT NULL DEFAULT 1       COMMENT '活动周期内重复触发次数（V16）',
     `triggered_at`  DATETIME      NOT NULL                 COMMENT '触发时间',
+    `last_triggered_at` DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最近一次触发时间（V16）',
     `resolved_at`   DATETIME      DEFAULT NULL             COMMENT '解决时间',
     `acknowledged_at` DATETIME    DEFAULT NULL             COMMENT '确认时间（V7）',
     `acknowledged_by` BIGINT      DEFAULT NULL             COMMENT '确认人 ID（V7）',
     `resolved_by`   BIGINT        DEFAULT NULL             COMMENT '解决人 ID（V7）',
     `created_at`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间（V7）',
+    `active_alarm_key` VARCHAR(96) GENERATED ALWAYS AS (
+        CASE WHEN `status` IN (0,1) THEN CONCAT(`device_id`, ':', `alarm_type`) ELSE NULL END
+    ) COMMENT '活动告警唯一键（V16）',
     PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_alarm_active_device_type` (`active_alarm_key`),
     KEY `idx_alarm_device_id` (`device_id`),
     KEY `idx_alarm_level` (`alarm_level`),
     KEY `idx_alarm_status` (`status`),
     KEY `idx_alarm_triggered_at` (`triggered_at`),
+    KEY `idx_alarm_last_triggered_at` (`last_triggered_at`),
     KEY `idx_alarm_acknowledged_by` (`acknowledged_by`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='告警表';
 

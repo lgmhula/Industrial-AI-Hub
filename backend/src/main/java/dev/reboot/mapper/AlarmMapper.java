@@ -56,10 +56,27 @@ public interface AlarmMapper {
     @Select("SELECT * FROM alarm WHERE id = #{id}")
     Alarm findById(@Param("id") Long id);
 
-    @Insert("INSERT INTO alarm(device_id, alarm_type, alarm_level, alarm_message, status, triggered_at) "
-          + "VALUES(#{deviceId}, #{alarmType}, #{alarmLevel}, #{alarmMessage}, #{status}, #{triggeredAt})")
-    @Options(useGeneratedKeys = true, keyProperty = "id")
-    int insert(Alarm alarm);
+    /**
+     * 活动告警按 (deviceId, alarmType) 原子合并。
+     *
+     * <p>{@code active_alarm_key} 生成列仅在 status=0/1 时有值，唯一索引保证
+     * 多实例并发触发时也只会保留一条活动记录；resolve 后生成列变 NULL，
+     * 下一次触发自然创建新一轮告警。</p>
+     */
+    @Insert("INSERT INTO alarm(device_id, alarm_type, alarm_level, alarm_message, status, "
+          + "triggered_at, last_triggered_at, repeat_count) "
+          + "VALUES(#{deviceId}, #{alarmType}, #{alarmLevel}, #{alarmMessage}, #{status}, "
+          + "#{triggeredAt}, #{lastTriggeredAt}, 1) "
+          + "ON DUPLICATE KEY UPDATE "
+          + "alarm_level=#{alarmLevel}, alarm_message=#{alarmMessage}, "
+          + "repeat_count=repeat_count+1, last_triggered_at=#{lastTriggeredAt}, "
+          + "updated_at=NOW()")
+    int upsertActive(Alarm alarm);
+
+    @Select("SELECT * FROM alarm WHERE device_id=#{deviceId} AND alarm_type=#{alarmType} "
+          + "AND status IN (0,1) ORDER BY id DESC LIMIT 1")
+    Alarm findActiveByDeviceAndType(@Param("deviceId") Long deviceId,
+                                    @Param("alarmType") String alarmType);
 
     @Update("UPDATE alarm SET status=1, acknowledged_at=NOW(), acknowledged_by=#{userId} WHERE id=#{id}")
     int acknowledge(@Param("id") Long id, @Param("userId") Long userId);

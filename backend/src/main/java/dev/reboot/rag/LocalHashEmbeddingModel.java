@@ -6,7 +6,6 @@ import org.springframework.ai.embedding.Embedding;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
-import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,13 +20,13 @@ import java.util.List;
  * @author AI 助手
  * @since 2026-08-29
  */
-@Component
 public class LocalHashEmbeddingModel implements EmbeddingModel {
 
     private final int dimensions;
 
     public LocalHashEmbeddingModel(RagProperties properties) {
-        this.dimensions = Math.max(1, properties.getEmbeddingDimensions());
+        int configured = properties.getEmbeddingDimensions();
+        this.dimensions = configured > 0 ? configured : 256;
     }
 
     @Override

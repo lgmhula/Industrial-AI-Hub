@@ -1,7 +1,7 @@
 # 技术债务清单（Technical Debt）
 
 > **SSOT**：本文档是技术债务的唯一权威清单（迁移自 `backend/REVIEW/Phase2-Summary.md` §四，并持续更新）。
-> **最后更新**：2026-10-14（Day 104 编排日：TD-038 结清）
+> **最后更新**：2026-10-18（路线后增强：TD-035 与六项演进候选结清，生产 HA 边界继续单列）
 
 ---
 
@@ -28,12 +28,19 @@
 | 36 | 缺 HTTP 延迟直方图（TD-036） | 2026-10-13（Day 103：开启 `management.metrics.distribution.percentiles-histogram.http.server.requests`；运行时 `http_server_requests_seconds_bucket` 系列 **0 → 69**，Prometheus 可算 p95/p99） |
 | 37 | 写路径尾部延迟不稳定（TD-037） | 2026-10-13（Day 103：定位为**环境噪声而非 SQL/连接池**——2.5× 速率（50.2 req/s）写入 1,506 次 100% 成功且 0 条 >100ms 慢查询（带对照组）、Hikari acquire max 8ms / pending 0、GC pause max 27ms，读组同期 max 136ms；进一步压缩需移出压测机 + 分段埋点，非当前债务） |
 | 38 | `HttpMessageNotReadableException`（畸形 JSON）走兜底 `@ExceptionHandler(Exception)`（TD-038） | 2026-10-14（Day 104：新增显式处理器 → **400** + WARN 日志，不再污染 error.log；standalone MockMvc 3 用例锁定语义；容器化实测畸形 JSON 返回 `{"code":400,"message":"请求体格式错误…"}`） |
+| 35 | 限流桶全局单桶（TD-035）：key 只有 path，非 per-user/IP | 2026-10-18（ADR 0039：`RateLimitStore` 支持 local/redis，Redis Lua 原子令牌桶；通用限流改为 identity + path 双层桶，AI 限流复用同一 Store；默认配置仍可无 Redis 运行） |
+| 39 | 持续超限时每条遥测创建一条活动告警（报警风暴） | 2026-10-18（ADR 0038：Flyway V16 增加 `repeat_count` / `last_triggered_at` / 活动周期生成列唯一索引；`AlarmService` 原子 upsert，resolved 后重新开启周期；存量重复项迁移时归并保留审计） |
+| 40 | SSE 浏览器生命周期只有服务端 IT，缺真实页面证据 | 2026-10-18（ADR 0039：Playwright 验证 `/inspection` 建连、停留、离开和重连；后端正常输出 connected/disconnected，无 `AsyncRequestNotUsableException`） |
+| 41 | RabbitMQ 消费实例与浏览器 SSE 连接实例可能不同；限流/日志节流 per-JVM | 2026-10-18（ADR 0039：Redis Pub/Sub fan-out 到本机 emitter；`RATE_LIMIT_MODE=redis` 共享令牌桶与跨实例日志节流；Redis 异常回退 local，边界见 §四） |
+| 42 | 前端只有 Vite dev server 运行路径，未进入 Compose | 2026-10-18（ADR 0041：Vue 静态构建 + Nginx 运行镜像；`frontend` 加入 core，`/api/` 反代后端，`/api/push/` 关闭缓冲并设置长连接超时） |
+| 43 | 缺 Grafana、集中日志与可查询运行视图 | 2026-10-18（ADR 0041：Loki + Promtail + Grafana 进入 observability/full profile；Promtail 采集 `backend-logs`，预置 Prometheus/Loki 数据源与 runtime dashboard） |
+| 44 | RAG 只能使用内存 SimpleVectorStore + hash embedding | 2026-10-18（ADR 0040：新增可选 `QdrantVectorStore` 与 OpenAI-compatible `/embeddings`；默认仍为 `simple + hash`，外部模式需显式配置） |
 
 ---
 
 ## 二、未解决（按优先级）
 
-### P1（进入 Phase 4 前建议处理）
+### P1（当前优先级）
 
 | # | 问题 | 影响 | 建议 |
 |:--:|------|------|------|
@@ -51,7 +58,7 @@
 | 9 | 零外键约束 | 可能孤儿数据 | 应用层保证 + 定期审计脚本 |
 | 10 | Swagger 示例值注解不丰富 | API 文档可读性 | 补 `@Schema`/`@ExampleObject` |
 | 25 | AI 业务 DTO 枚举字段为纯 String（priority/healthLevel） | 前端映射/校验依赖约定 | 引入枚举或 `@Schema(allowableValues)` |
-| 35 | 限流桶全局单桶（TD-035）：key 只有 path，非 per-user/IP | 单客户端可耗尽某路径的全站配额（饥饿型 DoS，多租户下危险）。~~被拒请求阻塞线程最长 500ms~~ → **Day 103 按响应码拆分 JTL 证伪**：429 avg 0.9ms/p99 3ms（从不阻塞），~500ms 等待只属于被放行的 200（有界背压队列，占用线程上界 ≈ permits×timeout ≈ 25） | 桶按 userId/IP 细分（全局桶 + 客户端桶双层设计），需独立 ADR + 安全评审（Day 103 未做） |
+无新增 P2 债务。
 
 ### P3（后续迭代）
 
@@ -68,8 +75,23 @@
 
 | 项 | 状态 |
 |----|------|
-| Elasticsearch 是否真正集成 | 已决策为 Day 101「ELK 日志（可选）」，届时再定去留 |
+| Elasticsearch 是否真正集成 | 当前集中日志采用可选 Loki/Promtail/Grafana（ADR 0041）；ES 8.17 保留为 full-profile 预留，不宣称 ELK 已集成 |
 | Nacos 是否彻底移除 | 已决策为「预留基础设施：不纳入路线/不启动/无业务依赖」，仍留在 compose `full` profile |
+
+---
+
+## 四、生产化边界（未完成，不等于已解决）
+
+以下能力不属于“多实例基础能力已落地”的完成范围：
+
+| 边界 | 当前事实 | 后续验证 |
+|------|----------|----------|
+| 跨主机高可用与故障切换 | Redis Pub/Sub、共享限流和数据库唯一键已降低单机绑定风险，但未做多主机故障演练 | 多后端 + Redis/MySQL/MQTT 故障注入、RTO/RPO 目标 |
+| 滚动升级 | Compose 可重建容器，但未验证多副本滚动发布、会话排空和版本兼容 | 反向代理健康摘除、双版本共存、数据库前后向兼容 |
+| 网络分区 | 未演练 Redis/RabbitMQ/MySQL/EMQX 分区下的降级、恢复与补偿 | 分区矩阵、超时/重试策略、脑裂和恢复脚本 |
+| 容量与 SLA/SLO | 仅有单机压测与限流行为证据，不构成线上容量承诺 | 独立压测机、长稳压测、SLO、容量水位和告警阈值 |
+| 日志长期存储与审计 | Loki/文件滚动满足当前排障，未承诺合规留存、不可篡改与长期审计 | 保留周期、对象存储、访问控制、归档与成本评估 |
+| 多设备规模 | 真机验证为 1 台 ESP32-S3，模拟器压力测试不等同量产接入 | 多节点弱网、重连风暴、固件升级和设备生命周期验证 |
 
 ---
 

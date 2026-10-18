@@ -1,9 +1,9 @@
-# Application Architecture V2.2
+# Application Architecture V2.6
 
 > **Status:** Active
-> **Version:** 2.5
-> **Updated:** 2026-09-05
-> **Based on:** Phase 3 收官 + 安全治理合并（站点授权 / 用户安全状态 / JWT 生命周期 / 登录审计 / 限流 / 注册治理 + V7-V15 迁移）+ Phase 4 Day 66-91（DeepSeek / Spring AI / Function Calling / RAG / Agent / MCP Server + Client + 巡检联调 + Day 85 Phase1-7 SSE 推送链路全链路 + Day 86 AI→ALARM 业务闭环 + Day 87 前端 AI 4 页工业化打磨 + Day 88 推送链路架构图 V2.5 + Day 89 AI 模块重构 escapeHtml/AiJsonFallbackUtil/AiRateLimitInterceptor + Day 90 phase4-integration-guide runbook + Day 91 Week14 收官 + Git tag v2.0-ai + Day 91 Exit Audit P0 修复：5 分支合并 main + ADR 0032 E2E IT 策略 / InspectionPushChainIT 3 用例）+ Phase 5 Day 92-96（PLC/Modbus 概念 → EMQX/Paho → Java PLC 模拟 → MQTT Listener 生产接入，ADR 0033/0034）
+> **Version:** 2.6
+> **Updated:** 2026-10-18
+> **Based on:** Phase 3 中间件与安全治理 + Phase 4 AI 集成（Day 66-91，ADR 0021-0032）+ Phase 5 PLC/MQTT/观测与发布（Day 92-112，ADR 0033-0037）+ 路线后增强（活动告警聚合、Redis SSE fan-out、分布式限流、可选 Qdrant、前端容器与观测栈，ADR 0038-0041；Schema V16）
 > **Governs:** All application-layer decisions for Industrial AI Hub Backend
 
 ---
@@ -45,6 +45,7 @@
 | AuthInterceptor | RBAC 权限拦截 |
 | JwtAuthFilter | Token 解析 + 注入 |
 | RateLimitInterceptor | API 限流 |
+| RateLimitStore | `local`（Guava）/`redis`（Lua 原子令牌桶）双模；Redis 异常回退本机桶（ADR 0039） |
 
 ### Infrastructure (compose.yml)
 
@@ -58,7 +59,12 @@
 | Nacos | 2.4.3 | 8848, 9848 | Configured |
 | MinIO | RELEASE.2025-09-07 | 9000, 9001 | Configured |
 | Elasticsearch | 8.17 | 9200, 9300 | Configured |
+| EMQX | 5.8.9 | 1883, 8083, 18083 | Active |
+| Prometheus | 2.55.1 | 9090 | Active |
 | Backend (Spring Boot) | JDK 25 | 8080 | Active (compose build) |
+| Frontend (Nginx) | Nginx 1.27 | 3000 | Active (compose build) |
+| Qdrant | 1.12.4 | 6333, 6334 | Configured（full profile） |
+| Loki / Promtail / Grafana | 3.2.1 / 3.2.1 / 11.3.0 | 3100 / — / 3001 | Configured（observability/full profile） |
 
 ### AI（Phase 4 新增）
 
@@ -72,14 +78,17 @@
 | MCP Server | `spring-ai-starter-mcp-server-webmvc:1.0.3`（ADR 0027 / ADR 0028）：SSE `/mcp/sse` + `/mcp/message`，仅 tools 能力，`McpDeviceTools` 7 个只读设备/数据查询工具显式注册 |
 | MCP Client | `io.modelcontextprotocol.sdk:mcp:0.10.0`（ADR 0029）：`McpClientService` SSE 握手 + 工具清单 + 只读探针；`POST /api/mcp/smoke`（ADMIN）；`McpAccessFilter` 可选 `X-MCP-Token` 传输鉴权 |
 | Agent + MCP | `McpInspectionAgentService` 复用 `ToolCallingAgent`（6 轮硬限，ADR 0026）+ `McpInspectionSession` / `McpToolCallbackAdapter`（ADR 0030）：一次巡检一个 SSE 会话，自动巡检设备并生成中文日报；`POST /api/ai/agents/inspection-report`（ADMIN，INSPECTION/MCP 审计） |
+| RAG 后端 | 默认 `SimpleVectorStore + LocalHashEmbeddingModel`；可切换 `QdrantVectorStore` 与 `OpenAiCompatibleEmbeddingModel`（ADR 0040），业务接口不变 |
 
-### Observability & 部署 (Baseline V2.1)
+### Observability & 部署 (Baseline V1.8)
 
 | 项 | 说明 |
 |------|------|
 | Spring Profiles | `application.yml`（基础）+ `-dev.yml`（DEBUG/SQL stdout/Swagger）+ `-prod.yml`（WARN/Slf4j/Swagger 关）；`SPRING_PROFILES_ACTIVE` 切换，默认 dev |
-| Actuator | 仅暴露 `health`（show-details: never），供 Dockerfile/compose HEALTHCHECK 探测 |
+| Actuator | 暴露 `health/info/prometheus`；health 供 Dockerfile/compose 探测，Prometheus 抓取三把业务指标尺与 HTTP 延迟直方图 |
 | Dockerfile | `backend/Dockerfile`：multi-stage（25-jdk-alpine 构建 → 25-jre-alpine 运行），non-root 用户，layer caching，HEALTHCHECK /actuator/health |
+| 前端交付 | `frontend/Dockerfile`：Node 22 构建 Vue，Nginx 1.27 提供静态资源、`/api/` 反代与 `/api/push/` SSE 专用配置 |
+| 集中日志 | `observability`/`full` profile 可选 Loki + Promtail + Grafana；Promtail 读取 `backend-logs`，Grafana 预置 Prometheus/Loki 数据源 |
 | JWT 密钥 | 生产环境由 compose 注入 `JWT_SECRET`；测试环境使用 `application-test.yml` 隔离配置 |
 
 ---
@@ -88,8 +97,11 @@
 
 ```
 HTTP Request
+  → TraceIdFilter        (MDC traceId + X-Trace-Id 透传/回传)
+  → McpAccessFilter      (可选 X-MCP-Token 传输门)
   → JwtAuthFilter        (Bearer Token 解析，注入 userId/roles)
-  → RateLimitInterceptor (QPS 限流)
+  → AiRateLimitInterceptor (AI 端点独立桶)
+  → RateLimitInterceptor (identity + path 双层桶；local/redis 双模)
   → AuthInterceptor      (@RequireRole 角色校验)
   → Controller            (@RestController)
   → Service               (@Service + BusinessException)
@@ -101,8 +113,8 @@ HTTP Request
 
 ## 2a. AI 巡检日报推送链路完整图（Phase 4 Day 85 + Day 86 闭环，ADR 0031 + ADR 0030 合并）
 
-> 目标：ADMIN 手动 `POST /api/ai/agents/inspection-report` 触发一次巡检 → 毫秒级落 alarm（AI 异常转业务报警，Day 86）→ 秒级经 RabbitMQ → 消费幂等 → Push Gateway 按 siteIds 路由 → SSE 具名事件 → nginx 反代 → 浏览器 InspectionReport.vue 卡片实时追加。
-> 所有组件均为**独立可降级**（单点失败不阻塞其他组件）。边界决策见 ADR 0031。
+> 目标：ADMIN 手动 `POST /api/ai/agents/inspection-report` 触发一次巡检 → 毫秒级落 alarm（AI 异常转业务报警，Day 86）→ 秒级经 RabbitMQ → 消费幂等 → Redis Pub/Sub fan-out → 各实例本地 Push Gateway 按 siteIds 路由 → SSE 具名事件 → Nginx 反代 → 浏览器 InspectionReport.vue 卡片实时追加。
+> 所有组件均为**独立可降级**（单点失败不阻塞其他组件）。基础边界见 ADR 0031，多实例 fan-out 与首帧/心跳见 ADR 0039。
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -152,27 +164,26 @@ HTTP Request
 │        └─ Redis↓ → 降级：不幂等，直接推送（宁可重复不丢，前端 reportDate 去重二次防线）                                     │
 │     3) 处理成功 basicAck；处理失败 basicNack(requeue=false) → DLQ → 消峰                                                  │
 │          │                                                                                                              │
-│          ▼ 【@Nullable 注入，PushGateway==null 时 skip 兼容 test】                                                      │
-│     InspectionPushGateway.sendToSites(message, accessibleSiteIdsFromMessage)                                            │
-│          │                                                                                                              │
-│          │ siteIds 路由：                                                                                               │
-│          │   - 空集合语义 = ADMIN 全站点（收到的 emitter 会收到所有站点）                                                 │
-│          │   - 非空集合 = 按 siteId 精确匹配 SseEmitterSession.canReceive(siteIds)                                      │
-│          │                                                                                                              │
-│          ▼ sendSafely() 每条 emitter 独立 try/catch（单点失败不阻塞其他站点）                                            │
-│     ┌─ IOException / IllegalStateException → 立即从 Registry 移除失效会话                                                │
-│     └─ 成功 → emitter.send(SseEvent)  具名事件 event='inspection-report'  + id=reportDate + data=JSON(message)         │
+│          ▼ InspectionPushPubSub.publish(message, accessibleSiteIdsFromMessage)                                         │
+│     Redis channel「industrial-ai-hub:inspection-report」                                                               │
+│       ├─ Redis 不可用或无订阅者 → 回退本实例 Push Gateway（单机仍可用）                                                │
+│       └─ 每个后端实例订阅 → 仅向本机 SseEmitterRegistry 推送                                                           │
 │                                                                                                                         │
-│     SseEmitterRegistry（ConcurrentHashMap<userId, SseEmitterSession>）                                                 │
-│       ├─ 30 min timeout（inspection 日报是低频，不是聊天 SSE）                                                         │
-│       ├─ onCompletion / onTimeout / onError 回调自动 remove                                                            │
+│     本实例 InspectionPushGateway.sendToSites(...)                                                                       │
+│       ├─ 空 siteIds = ADMIN 全站点；非空按 SseEmitterSession.canReceive(siteIds) 精确匹配                              │
+│       ├─ sendSafely() 每条 emitter 独立 try/catch，失败只触发本地条件删除                                              │
+│       └─ 成功 → event='inspection-report' + id=reportDate + data=JSON(message)                                         │
+│                                                                                                                         │
+│     SseEmitterRegistry（每实例 ConcurrentHashMap<userId, SseEmitterSession>）                                          │
+│       ├─ 建连发送 connected comment 首帧；15 秒 comment heartbeat；30 min timeout                                      │
+│       ├─ onCompletion / onTimeout / onError 按 emitter 实例条件删除，旧回调不误删新连接                               │
 │       └─ @PreDestroy ApplicationContext shutdown 三重泄漏防护                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
                                            │
                                            ▼  HTTP text/event-stream over SSE
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │  ③ Push Controller + JWT（Spring Boot 8080） @Profile("!test")     @OperationLog(PUSH/SSE)                           │
-│  GET /api/push/inspection  produces=text/event-stream                                                                 │
+│  GET /api/push/inspection/access（普通权限探测） + /api/push/inspection（SSE）                                       │
 │     │ JwtAuthFilter：❲双 token 源 ❳                                                                                    │
 │     │   ① Header Authorization: Bearer <token>（优先，防 query 覆盖攻击）                                              │
 │     │   ② Query  ?token=<token>（fallback，仅 /api/push/** 路径启用；REST 路径不读，防 URL 泄漏 token 到 access_log） │
@@ -187,12 +198,12 @@ HTTP Request
                                            │  HTTP 1.1 反代
                                            ▼
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│  ④ Nginx（compose.yml nginx 容器，Docker 唯一入站口）                                                                  │
+│  ④ Nginx（compose 服务名 frontend，Docker 唯一入站口）                                                                │
 │  location /api/push/ {                                                                                                 │
 │      proxy_pass http://backend:8080;                                                                                   │
 │      proxy_buffering off;            # SSE 关键：立即 flush 给浏览器，不缓冲                                            │
 │      proxy_cache off;                # 不缓存任何 SSE 片段                                                              │
-│      proxy_read_timeout 3600s;       # 覆盖默认 60s：长连接保活 1h                                                     │
+│      proxy_read_timeout 2100s;       # 覆盖默认 60s：高于 30min emitter 超时                                          │
 │      proxy_http_version 1.1;         # 支持持久连接                                                                     │
 │      proxy_set_header Connection ""; # 关闭 close hop，Spring Boot 端保持长连接                                        │
 │      access_log off;                 # P0 安全：token 在 ?token=，关日志防 token 泄漏到磁盘                           │
@@ -203,9 +214,10 @@ HTTP Request
                                            ▼
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │  ⑤ 浏览器 InspectionReport.vue（Vue 3 + EventSource）                                                                 │
-│  const es = new EventSource(`/api/push/inspection?token=${jwt}`)    ❲JWT 仅 URL 携带，不写入 localStorage❳            │
+│  先请求 /access 探测权限 → new EventSource(`/api/push/inspection?token=${jwt}`)  ❲JWT 仅 URL 携带❳                  │
 │     │                                                                                                                  │
-│     ├─ onopen → 连接态脉冲圆点 connected                                                                               │
+│     ├─ 收到 connected comment / onopen → 连接态脉冲圆点 connected                                                     │
+│     ├─ 15 秒 heartbeat comment 保持连接；断线按 readyState 进入重连态                                                  │
 │     ├─ onerror readyState===2(CLOSED) → 手动 3s 重试 + reconnecting 圆点（EventSource 默认自动重连指数退避一起生效）   │
 │     ├─ addEventListener('inspection-report', e → JSON.parse(e.data))                                                  │
 │     │      │                                                                                                          │
@@ -238,14 +250,15 @@ HTTP Request
 2. **JwtAuthFilter 仅 `/api/push/**` 启用 query token fallback**：REST 端点不读 query，防止 ?token= 被"复制 URL 分享到飞书/钉钉"泄漏；同时 header 优先级高于 query，防 query 参数覆盖 header 攻击；
 3. **nginx `/api/push/` access_log off**：?token= 会写进默认 access_log $request_uri，必须显式关；其余 `/api/*` 保持审计开启。
 
-### 2a.3 扩展点（Phase 4 后续 / Phase 5 PLC 接入时复用）
+### 2a.3 能力状态（原扩展点更新）
 
-| 能力 | 改造点 | 复杂度 |
-|------|--------|--------|
-| cron 每日定时巡检（不依赖 ADMIN 手动 POST） | Spring `@Scheduled` + McpInspectionAgentService.generate(systemUserId=1)，同 Day 86 Agent 侧双幂等自动防重 | L |
-| 多实例负载均衡下的全局 Push（跨 JVM 广播） | InspectionPushGateway 增加 Redis PubSub `channel:inspection-push` 桥：本实例收到消息 → PUBLISH 给所有实例 → 所有实例的 emitter 都 sendSafely | M |
-| SSE 心跳 / 保活事件（防 3600s 期间 lb 断连） | InspecctionPushController `setTimeout(sendHeartbeat)` 每 30s `event:heartbeat\n:\n\n`，浏览器忽略 | L |
-| PLC 异常经 MQTT 入站触发即时推送 | PLC → MQTT Broker → RabbitMQ `plc-alert.exchange` → 新增 `PlcAlertConsumer` → 同一 InspectionPushGateway.sendToSites(siteIds, plcMessage) | M |
+| 能力 | 状态 | 实现/边界 |
+|------|:--:|------|
+| 多实例 SSE 广播（跨 JVM fan-out） | ✅ 已落地基础能力 | `InspectionPushPubSub` 使用 Redis channel 广播，各实例只推本机 emitter；实例故障仍依赖浏览器重连，未做跨主机 HA SLA |
+| SSE 首帧与心跳 | ✅ 已落地 | 建连首帧 `connected` comment + 15 秒 heartbeat；失败仅移除本地会话，不调用全局 `complete()` |
+| 浏览器级 SSE E2E | ✅ 已完成 | `/inspection` 连接、停留、离开与重连实测；后端无 `AsyncRequestNotUsableException` |
+| cron 每日定时巡检 | 未实现 | 当前仍由 ADMIN 手动 POST 触发，不能写成已自动化 |
+| PLC 异常即时推送 | 未实现 | PLC telemetry 已接入报警；独立 `plc-alert.exchange` 推送链路不在当前范围 |
 
 ---
 
@@ -279,7 +292,7 @@ HTTP Request
 
 | 包 | 内容 |
 |----|------|
-| `mq/` | RabbitMQ 管线：`AlarmProducer`/`AlarmConsumer`（工作队列）、`DeviceDataProducer`/`DeviceDataSyncConsumer`（发布/订阅）、`AlarmEscalationConsumer`（延迟队列 30s 升级）、`InspectionReportMessage`/`InspectionReportProducer`/`InspectionReportConsumer`（Day 85 AI 巡检日报全链路，ADR 0031 Phase 1-3；Redis SETNX 跨实例幂等 `inspection:{date}:{siteId}/all` TTL 24h；Push Gateway + SseEmitter + SSE Controller + 前端 EventSource + nginx `/api/push/` 反代 全部完工，见 §2a 推送链路完整图） |
+| `mq/` | RabbitMQ 管线：`AlarmProducer`/`AlarmConsumer`（工作队列）、`DeviceDataProducer`/`DeviceDataSyncConsumer`（发布/订阅）、`AlarmEscalationConsumer`（延迟队列 30s 升级）、`InspectionReportMessage`/`InspectionReportProducer`/`InspectionReportConsumer`（AI 巡检日报，ADR 0031）；`InspectionPushPubSub` 在 Redis 幂等后 fan-out 到各实例，本机 `InspectionPushGateway` + `SseEmitterRegistry` 推送，见 §2a |
 | `rule/` | 报警规则引擎：`AlarmRule` / `AlarmRuleConfig` / `Operator` |
 | 缓存 | Spring Cache（`@Cacheable`/`@CacheEvict`）+ Redisson 分布式锁（设备数据上报防重） |
 
@@ -295,7 +308,9 @@ HTTP Request
 | `service/DeviceStatusAgentService` | Function Calling 手动工具循环：最大 3 轮硬限、强制收尾、未参考实时数据标注、FUNCTION_CALL 审计元数据 |
 | `service/DeviceAnalysisAgentService` | 多步推理 Agent：先查设备 → 再查数据 → 再分析，最大 4 轮硬限（ADR 0026） |
 | `service/McpInspectionAgentService` | 巡检日报 Agent：单 MCP SSE 会话 + `ToolCallingAgent`（6 轮硬限），生成中文日报并返回设备/告警统计（ADR 0030）；Day 85 Phase 2 接入 `@Nullable InspectionReportProducer`，`generate()` 末尾投递 `InspectionReportMessage` 到 `inspection.exchange`，AmqpException 降级不阻塞主流程（ADR 0031 §3.1/§6） |
-| `service/Rag*` | 文档切片 + 哈希向量 + 内存向量库入库/检索 + PDFBox 导入（ADR 0024/0025） |
+| `service/Rag*` | 文档切片 + 入库/检索 + PDFBox 导入（ADR 0024/0025）；`RagConfig` 通过 `rag.vector-store` 选择 Simple/Qdrant，通过 `rag.embedding.provider` 选择 hash/OpenAI-compatible（ADR 0040） |
+| `rag/QdrantVectorStore` | Qdrant REST VectorStore：Cosine collection、稳定 UUID、payload 原文/metadata、维度冲突显式失败（ADR 0040） |
+| `rag/OpenAiCompatibleEmbeddingModel` | JDK HttpClient 调 `/embeddings`，支持 dimensions 开关、响应排序/维度校验；Key 缺失 fail-fast（ADR 0040） |
 | `controller/AiController` | `/api/ai/*`（VIEWER+），设备状态问答带 `@OperationLog(FUNCTION_CALL, {ret})`，巡检日报带 `@OperationLog(INSPECTION/MCP, {ret})` 且仅 ADMIN |
 | `mcp/` | `McpDeviceTools` 7 个只读 @Tool + `McpToolConfig` 显式 ToolCallbackProvider（ADR 0027 / ADR 0028）+ `McpClientService` / `McpController`（`/api/mcp/smoke`）+ `McpAccessFilter`（X-MCP-Token 传输鉴权，ADR 0029）+ `McpInspectionSession` / `McpToolCallbackAdapter`（巡检会话与工具适配，ADR 0030） |
 
@@ -329,6 +344,8 @@ HTTP Request
 | UserList | /users | ✅ 含角色分配/锁定/解锁/重置密码 |
 | RoleList | /roles | ✅ 角色 CRUD |
 | OperationLogList | /logs | ✅ 服务端筛选 |
+| InspectionReport | /inspection | ✅ SSE 日报订阅 + 权限探测 + 重连/心跳状态 |
+| RagAssistant | /assistant | ✅ RAG 知识库问答 + 引文展示 |
 | NotFound | /:pathMatch(.*)* | ✅ 404 兜底 |
 
 ---
@@ -341,7 +358,7 @@ HTTP Request
 
 ## 5. 数据库
 
-`reboot` 数据库，10 张表（user / role / user_role / site / user_site / device / device_data / alarm / operation_log / login_audit），由 Flyway 管理（V1 基线 + V3 CHECK 扩展 + V4 站点授权 + V5 用户安全状态 + V6 登录审计 + V7 alarm/role 审计字段 + V8 admin 密码更新 + V9 AI 操作日志类型 + V10 FUNCTION_CALL + V11 RAG 知识 + V12 MCP_SMOKE/MCP + V13 INSPECTION 操作日志类型 + V14 PUSH/SSE + V15 AUTO_ALARM；V1 + V3-V15 共 14 个活动迁移文件），零 FK，软删除策略。
+`reboot` 数据库，10 张表（user / role / user_role / site / user_site / device / device_data / alarm / operation_log / login_audit），由 Flyway 管理（V1 基线 + V3 CHECK 扩展 + V4 站点授权 + V5 用户安全状态 + V6 登录审计 + V7 alarm/role 审计字段 + V8 admin 密码更新 + V9 AI 操作日志类型 + V10 FUNCTION_CALL + V11 RAG 知识 + V12 MCP_SMOKE/MCP + V13 INSPECTION 操作日志类型 + V14 PUSH/SSE + V15 AUTO_ALARM + V16 活动告警聚合；V1 + V3-V16 共 15 个活动迁移文件），零 FK，软删除策略。V16 为 `alarm` 增加 `repeat_count`、`last_triggered_at`、生成列 `active_alarm_key` 与 `uk_alarm_active_device_type`（ADR 0038）。
 
 ---
 
@@ -354,5 +371,5 @@ HTTP Request
 | Phase 1 | 第 1-3 周 | Day 1-21 | Java 复苏 | ✅ |
 | Phase 2 | 第 4-6 周 | Day 22-42 | 项目 V1：CRUD / JWT / RBAC / 告警 / 前端 | ✅ v1.0 + Baseline V2.1 |
 | Phase 3 | 第 7-9 周 | Day 43-63 | 中间件武装：Redis + RabbitMQ + Docker + Linux | ✅ 2026-08-16 |
-| Phase 4 | 第 10-13 周 | Day 64-91 | AI 集成：DeepSeek → RAG → Agent/MCP → AI→业务闭环 → 前端 AI 工业化 | 🔨 Day 66-87 已完成 DeepSeek + ChatClient + Function Calling + RAG + Agent + MCP Server/Client + 巡检联调（ADR0030）+ SSE 推送链路 7 Phase 收官（ADR0031）+ AI 巡检异常自动生成报警 AiAlarmAutoCreator（Day86）+ 前端 4 AI 页面工业化打磨（Day87） |
-| Phase 5 | 第 14-16 周 | Day 92-112 | PLC + MQTT + 完整系统 | 🔨 Day 92-96 已完成：PLC/Modbus 概念 / EMQX / Paho / Java PLC 模拟器 / MQTT Listener 入库（ADR 0033-0034）；Day 97-112 计划 |
+| Phase 4 | 第 10-13 周 | Day 64-91 | AI 集成：DeepSeek → RAG → Agent/MCP → AI→业务闭环 → 前端 AI 工业化 | ✅ Day 66-91 完成，tag `v2.0-ai`；ADR 0021-0032 |
+| Phase 5 | 第 14-16 周 | Day 92-112 | PLC + MQTT + 完整系统 | ✅ Day 92-112 完成，tag `v3.0-final`；路线后增强见 ADR 0038-0041 |

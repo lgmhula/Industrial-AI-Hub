@@ -4,6 +4,7 @@ import dev.reboot.config.MQConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.lang.Nullable;
@@ -22,9 +23,10 @@ import java.util.List;
  * AI 巡检日报消息消费者 — 手动 ACK + Redis SETNX 跨实例幂等 + Push Gateway 接入
  * （Day 85 Phase 3 + Phase 4，ADR 0031）。
  *
- * <p>本类是 ADR 0031 六段链路中「RabbitMQ → Consumer → Push Gateway」段，承接
+ * <p>本类是 ADR 0031 六段链路中「RabbitMQ → Consumer → Redis fanout」段，承接
  * {@link InspectionReportProducer} 投递的 {@link InspectionReportMessage}，
- * 完成幂等检查后调用 {@link InspectionPushGateway#push} 路由到本地 SSE emitter。</p>
+ * 完成幂等检查后通过 {@link InspectionPushPubSub#publish} 广播给所有后端实例，
+ * 各实例再向本机 SSE emitter 投递。</p>
  *
  * <h3>可靠性机制（对齐 AlarmConsumer + ADR 0031 §6 增强）</h3>
  * <table>
@@ -48,15 +50,15 @@ import java.util.List;
  * <pre>
  * inspection.queue → Consumer.handleReport()
  *   ├─ 幂等键已存在 → 跳过推送 → basicAck（防重复推送）
- *   ├─ 幂等键不存在 → SETNX → gateway.push(message) → basicAck
+ *   ├─ 幂等键不存在 → SETNX → Redis Pub/Sub fanout（失败回退本机 gateway）→ basicAck
  *   └─ 处理异常 → basicNack(requeue=false) → inspection.dlx → inspection.dlq
  * </pre>
  *
- * <h3>Push Gateway 接入（ADR 0031 §5.3）</h3>
- * <p>幂等通过后调用 {@link InspectionPushGateway#push} 推送到本地 SSE emitter；
- * gateway.push 内部捕获 IOException/IllegalStateException 移除失效 emitter，
- * <b>不向上抛</b> —— Consumer 主流程 ack 成功。Push Gateway 仅在非 test profile
- * 下注入；test profile 下为 null，{@link #dispatchToPushGateway} 跳过日志降级。</p>
+ * <h3>多实例推送</h3>
+ * <p>幂等通过后优先通过 Redis Pub/Sub 广播。Redis 不可用或没有订阅者时回退到本机
+ * {@link InspectionPushGateway}，保证单实例仍可工作。Push Gateway 内部捕获
+ * IOException/IllegalStateException 并移除失效 emitter，不向上抛；test profile
+ * 下相关 bean 可为 null，{@link #dispatchToPushGateway} 记录降级日志。</p>
  *
  * @author AI 助手
  * @since 2026-08-31 (Day 85, Phase 3)；Phase 4 接入 PushGateway (2026-09-01)
@@ -85,10 +87,24 @@ public class InspectionReportConsumer {
     @Nullable
     private final InspectionPushGateway pushGateway;
 
+    @Nullable
+    private final InspectionPushPubSub pushPubSub;
+
+    /**
+     * 兼容既有单测和非 Spring 调用。实际运行时 Spring 使用下方三参构造器。
+     */
     public InspectionReportConsumer(StringRedisTemplate redis,
                                     @Nullable InspectionPushGateway pushGateway) {
+        this(redis, pushGateway, null);
+    }
+
+    @Autowired
+    public InspectionReportConsumer(StringRedisTemplate redis,
+                                    @Nullable InspectionPushGateway pushGateway,
+                                    @Nullable InspectionPushPubSub pushPubSub) {
         this.redis = redis;
         this.pushGateway = pushGateway;
+        this.pushPubSub = pushPubSub;
     }
 
     /**
@@ -161,7 +177,8 @@ public class InspectionReportConsumer {
     /**
      * 推送日报到 Push Gateway（ADR 0031 §5.3）。
      *
-     * <p>幂等通过后调用 {@link InspectionPushGateway#push} 路由到本地 SSE emitter。
+     * <p>幂等通过后优先调用 {@link InspectionPushPubSub#publish} 广播到所有实例，
+     * 失败时回退本机 {@link InspectionPushGateway#push}。
      * Push Gateway 内部已捕获单 emitter 的 IOException/IllegalStateException 并移除失效会话，
      * 不向上抛；若仍出现未预期异常（如 registry 状态损坏），由 {@link #handleReport}
      * 的外层 catch 兜底 nack → DLQ（ADR 0031 §6 失败策略一致语义）。</p>
@@ -170,10 +187,14 @@ public class InspectionReportConsumer {
      * 跳过推送仅 INFO 日志，保证单测可在无 SSE 环境下运行。</p>
      */
     private void dispatchToPushGateway(InspectionReportMessage message) {
+        if (pushPubSub != null && pushPubSub.publish(message)) {
+            return;
+        }
         if (pushGateway == null) {
             log.info("[test profile] 巡检日报跳过推送（PushGateway 未注入）: {}", message);
             return;
         }
+        // Redis 广播不可用或无订阅者时回退本机，保证单实例仍可推送。
         pushGateway.push(message);
     }
 

@@ -12,25 +12,27 @@ import java.util.List;
 /**
  * AI 巡检日报推送网关 — 按 siteIds 路由到本地 SSE emitter（Day 85 Phase 4，ADR 0031 §5.3）。
  *
- * <p>本类是 ADR 0031 六段链路中「Push Gateway」层的路由器，承接
- * {@link InspectionReportConsumer} 的调用，遍历 {@link SseEmitterRegistry}
- * 中本地 emitter，按 {@link SseEmitterSession#canReceive} 匹配后
+ * <p>本类是 ADR 0031 六段链路中「Push Gateway」层的实例内路由器，承接
+ * {@link InspectionPushPubSub} 的 Redis fanout 后，遍历 {@link SseEmitterRegistry}
+ * 中本机 emitter，按 {@link SseEmitterSession#canReceive} 匹配后
  * {@code emitter.send()} 推送日报。</p>
  *
- * <h3>路由策略（ADR 0031 §5.3 单副本进程内直连）</h3>
+ * <h3>路由策略（Redis fanout + 实例内投递）</h3>
  * <pre>
  * Consumer.handleReport(message)
- *   ↓ gateway.push(message)
+ *   ↓ Redis Pub/Sub
+ * InspectionPushPubSub.onMessage(message)
+ *   ↓ pushGateway.push(message)
  * PushGateway.push()
  *   ├─ 遍历 registry.findAll() 快照
  *   ├─ session.canReceive(message.siteIds) 命中 → emitter.send()
- *   └─ emitter.send 抛 IOException → registry.remove(userId) 避免泄漏
+ *   └─ emitter.send 抛 IOException → 按 emitter 实例条件移除，避免泄漏
  * </pre>
  *
  * <h3>失败策略（ADR 0031 §6 各异常行）</h3>
  * <ul>
- *   <li>emitter.send IOException —— 连接已断，{@code registry.remove} 后继续推送其他用户，
- *       不影响 Consumer 主流程；</li>
+ *   <li>emitter.send IOException —— 连接已断，按 emitter 实例条件移除后继续推送其他用户，
+ *       不影响 Consumer 主流程，也不会误删同用户的新连接；</li>
  *   <li>无在线 emitter —— 日志 INFO，不报错（日报已生成，无人订阅属正常）。</li>
  * </ul>
  *
@@ -57,7 +59,7 @@ public class InspectionPushGateway {
     /**
      * 推送巡检日报到所有匹配的在线 emitter（ADR 0031 §5.3 路由）。
      *
-     * <p>由 {@link InspectionReportConsumer#handleReport} 在幂等检查通过后调用。
+     * <p>由 {@link InspectionPushPubSub#onMessage} 在 Redis fanout 到达后调用。
      * 单个 emitter 推送失败不阻塞其他用户，整体失败由 Consumer catch 后 nack→DLQ。</p>
      *
      * @param message 巡检日报消息（不可为 null）
@@ -95,18 +97,21 @@ public class InspectionPushGateway {
                     .name("inspection-report")
                     .data(message)
                     .id(String.valueOf(System.currentTimeMillis()));
-            session.getEmitter().send(builder);
+            SseEmitter emitter = session.getEmitter();
+            synchronized (emitter) {
+                emitter.send(builder);
+            }
             return true;
         } catch (IOException e) {
             log.warn("SSE 推送失败，移除失效会话 userId={}: {}",
                     session.getUserId(), e.getMessage());
-            registry.remove(session.getUserId());
+            registry.removeIfCurrent(session.getUserId(), session.getEmitter());
             return false;
         } catch (IllegalStateException e) {
             // emitter 已 complete/timeout 后再 send 也会抛 IllegalStateException
             log.warn("SSE 推送失败（emitter 已关闭）userId={}: {}",
                     session.getUserId(), e.getMessage());
-            registry.remove(session.getUserId());
+            registry.removeIfCurrent(session.getUserId(), session.getEmitter());
             return false;
         }
     }

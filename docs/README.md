@@ -9,7 +9,7 @@
 | 目录 | 用途 | 入口 |
 |------|------|------|
 | [Architecture/](Architecture/README.md) | 应用架构、系统架构、API、ER、基础设施基线 | 6 份核心架构文档 |
-| [decision-log/](decision-log/README.md) | ADR 决策记录（编号 0001-0037）+ 一页决策导览 | 37 份 ADR |
+| [decision-log/](decision-log/README.md) | ADR 决策记录（编号 0001-0041）+ 一页决策导览 | 41 份 ADR |
 | [reports/](reports/README.md) | 审计报告、压测报告、工程踩坑手册、部署手册 | 当前有效 + 历史归档 |
 | [interview/](interview/) | 面试项目介绍、Java 集合 / 并发 / JVM / Spring 八股与简历材料 | 3 份面试材料 |
 | [security/](security/) | 安全治理设计与审计（P1-01/P1-02 系列） | 6 份安全文档 |
@@ -25,7 +25,7 @@
 | [SETUP.md](SETUP.md) | 从零复刻指南（克隆 → 配置 → 运行 → 验证） |
 | [TECH-DEBT.md](TECH-DEBT.md) | 技术债务 SSOT 清单（已解决 / 未解决 / 遗留决策） |
 | [reports/v3.0-final-release-report.md](reports/v3.0-final-release-report.md) | v3.0-final Release Gate、验证矩阵、已知边界与后续优先级 |
-| [decision-log/README.md](decision-log/README.md) | ADR 0001-0037 一页导览（决策、理由、当前边界） |
+| [decision-log/README.md](decision-log/README.md) | ADR 0001-0041 一页导览（决策、理由、当前边界） |
 | [reports/engineering-pitfalls.md](reports/engineering-pitfalls.md) | Day 1-107 工程踩坑手册（按主题归并 43 条真实故障） |
 | [interview/project-introduction.md](interview/project-introduction.md) | 面试项目介绍：30 秒 / 3 分钟 / 10 分钟 + 高频追问与数字证据 |
 | [interview/java-interview-guide.md](interview/java-interview-guide.md) | Java 后端八股：集合 / 并发 / JVM / Spring + 项目代码映射 + 30 题自测 |

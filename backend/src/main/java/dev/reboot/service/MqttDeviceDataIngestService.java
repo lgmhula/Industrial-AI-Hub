@@ -249,7 +249,8 @@ public class MqttDeviceDataIngestService {
                 }
                 count(METRIC_ALARM, "device_code", device.getDeviceCode(),
                         "alarm_type", String.valueOf(alarm.getAlarmType()));
-                if (alarmProducer != null) {
+                boolean firstTrigger = alarm.getRepeatCount() == null || alarm.getRepeatCount() <= 1;
+                if (alarmProducer != null && firstTrigger) {
                     AlarmMessage msg = new AlarmMessage(
                             row.getDeviceId(),
                             alarm.getAlarmType(),
@@ -259,6 +260,9 @@ public class MqttDeviceDataIngestService {
                             row.getRecordedAt());
                     alarmProducer.send(msg);
                     alarmProducer.sendDelayCheck(msg);
+                } else if (alarmProducer != null) {
+                    log.debug("活动告警已合并，跳过重复 MQ 通知: deviceId={} type={} repeatCount={}",
+                            device.getId(), alarm.getAlarmType(), alarm.getRepeatCount());
                 }
                 maybeSendRelayCommand(device, siteCode, alarm, row);
             }

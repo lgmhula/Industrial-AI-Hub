@@ -8,7 +8,7 @@
 ## 1. 项目简介
 
 **Industrial AI Hub** — 工业 AI 设备管理平台。
-后端 Spring Boot 3.5 + MyBatis + MySQL，前端预留（Vue3），基础设施 Docker Compose 统一管理。
+后端 Spring Boot 3.5 + MyBatis + MySQL，前端 Vue 3 + Element Plus 已落地，基础设施 Docker Compose 统一管理。
 目标：从 Java 基础到 AI 集成的完整技术栈闭环（16 周路线图）。
 
 ***
@@ -26,7 +26,7 @@
 | ★★☆ | 从零复刻指南       | `docs/SETUP.md`                                        | 克隆 → 配置 → 运行 → 验证 全流程                                         |
 | ★★☆ | AI 模块集成 Runbook | `docs/ai/phase4-integration-guide.md`                  | Phase 4 AI 6 步打通（启用→RAG→巡检→SSE→限流→故障速查），Day 90 交付      |
 | ★★☆ | 基础设施基线       | `docs/Architecture/Infrastructure-Baseline.md`         | Docker/网络/端口规范                                                |
-| ★★☆ | 架构决策记录       | `docs/decision-log/README.md`                          | ADR 0001-0037 一页导览 + 37 份原文入口（含密钥 SSOT / 分支策略 / AI / RAG / MCP / SSE / MQTT / Prometheus / 限流治理） |
+| ★★☆ | 架构决策记录       | `docs/decision-log/README.md`                          | ADR 0001-0041 一页导览 + 41 份原文入口（含密钥 SSOT / 分支策略 / AI / RAG / MCP / SSE / MQTT / Prometheus / 限流治理 / 多实例增强 / 观测栈） |
 | ★★☆ | Phase 3-A 计划 | `docs/plans/phase3-a-infrastructure-stabilization.md`  | 基础设施稳定化任务分解 + 验收标准                                            |
 | ★★☆ | 新设备部署手册      | `docs/reports/deploy-runbook-new-device.md`            | 全量坑位 + 一键部署指令（副本免扫描）                                          |
 | ★★☆ | 工程踩坑手册       | `docs/reports/engineering-pitfalls.md`                 | Day 1-107 真实故障按连接/配置/数据/硬件/测量/AI/部署七类归并，含再发规则 |
@@ -44,7 +44,9 @@
 
 ## 3. 当前状态
 
-* **最终基线**：`v3.0-final`（annotated tag，Day 112）——官方 112/112 天路线完成；后端 **375/375**（57 测试类）、前端 build **1.12s 0 errors**、Compose **v1.7**（core 6 / full 15，full profile 15/15 healthy）、Baseline **V1.7**；tag 必须指向 `main` 的 Day 112 合并 commit。该 tag 是学习路线最终检查点，不是生产级高可用承诺；边界与后续优先级见 `ROADMAP-COMPLETE.md` 与发布报告
+* **历史最终基线**：`v3.0-final`（annotated tag，Day 112）——官方 112/112 天路线完成；后端 **375/375**（57 测试类）、前端 build **1.12s 0 errors**、Compose **v1.7**（core 6 / full 15，full profile 15/15 healthy）、Baseline **V1.7**；tag 必须继续指向 `main` 的 Day 112 合并 commit。该 tag 是学习路线最终检查点，不是生产级高可用承诺
+
+* **路线后增强基线（2026-10-18）**：后端实测 **403/403**（61 测试类，0 failures / 0 errors / 0 skipped）、Compose **v1.8**（core 7 / full 20，另有 `observability` profile）、Baseline **V1.8**、Schema **V16**（V1 + V3-V16 共 15 个活动迁移）与 ADR 0001-0041；已落地活动报警聚合、Redis Pub/Sub SSE fan-out、Redis 原子令牌桶与身份/路径双层限流、可选 Qdrant/OpenAI-compatible embedding、Nginx 前端容器、Loki/Promtail/Grafana。**边界：多实例 SSE/限流基础能力已落地，跨主机故障切换、滚动升级、网络分区、容量 SLA 仍未完成**
 
 * **上一发布基线**：v2.3.0（Tag: `v2.3.0`，建议打在 pc\_hula 合并 commit）——PR #13 squash 合并成功；Release Gate: **GO**（见 Day 65 验收报告）
 
@@ -57,7 +59,7 @@
   * P0-2 E2E IT 真实贯通（ADR 0032）：新增 `it` profile + `InspectionPushChainIT.java` 3 用例，连真实 docker-compose RabbitMQ+Redis，覆盖 Producer→Consumer→Redis SETNX→DLQ 链路（不再全 mock）；默认 `./mvnw test` 仍 343/343，IT 显式 `RUN_INSPECTION_IT=true` 触发
   * P0-5 MQ 可靠性 IT：重复消费跳过 + 失败→DLQ 路由真实验证
   * P0-4 SSE 回调边界（明确不覆盖）：SseEmitter 在无 Web 异步上下文时 `complete()` 是 no-op，IT 无法触发回调；留作 Phase 5 真实浏览器 E2E（Selenium/Playwright）覆盖，本 ADR 0032 §4.1 缓解策略：sendSafely 兜底 + @PreDestroy shutdown + 30min timeout 三重泄漏防护
-  * 待收口 P1-2 多副本风险：SseEmitterRegistry 进程内 + inspectionQueue work-queue + AiRateLimitInterceptor per-JVM + SimpleVectorStore 内存 → Phase 5 启动前 Redis pub/sub 桥 + fanout queue + Redis 限流 + Qdrant 改造
+  * P1-2 多副本风险（路线后已补基础能力）：SseEmitterRegistry 仍是各实例本地状态，现由 Redis Pub/Sub fan-out 将巡检日报广播到所有实例；通用/AI 限流支持 `RATE_LIMIT_MODE=redis` 原子令牌桶并在 Redis 故障时本地回退；RAG 可选 Qdrant。跨主机故障切换、滚动升级、网络分区和容量 SLA 仍不在当前交付范围
 
 * **Day 92 已完成（2026-09-04，Phase 5 启动）**：PLC/Modbus 学习笔记 `docs/notes/plc-modbus-learning-notes.md`——PLC 扫描周期 / I-O 映像区 / 梯形图概念 + Modbus RTU vs TCP / Client-Server / 功能码 / 线圈/离散输入/输入寄存器/保持寄存器 4 类数据区 / 点位表与 `device_data` 映射；纯文档日 0 代码变更，分支收口后本地仅保留 `main` + `pc_hula`
 
@@ -106,7 +108,7 @@
 
 * **已完成模块**：设备 CRUD、JWT/BCrypt 认证、RBAC 权限 + 站点资源作用域（ADR 0020）、分页查询、全局异常处理、@Valid 校验、报警规则引擎（8 规则）、AOP 操作日志、Postman 测试集、Vue 3 前端（登录/仪表盘/设备/告警/日志/用户/角色 9 页面 + Register/NotFound）、Redis 缓存（Spring Cache + Redisson 分布式锁）、RabbitMQ 消息（工作队列/发布订阅/DLQ/延迟队列）、Docker 容器化 + Nginx 反代、Linux 部署（systemd）、**Day 66 DeepSeek AI**（/api/ai/chat 文本补全 + 告警摘要 + 设备健康诊断，token 用量 + 结构化 JSON，ADR 0021）、**Day 67 Spring AI**（ChatClient/PromptTemplate 抽象 + 告警列表 AI 摘要 Dialog + 设备详情 AI 健康诊断卡片 + Flyway V9 AI 操作日志，ADR 0022）、**Day 68 Function Calling**（@Tool 声明式三工具 + 3 轮硬限 Agent + POST /api/ai/agents/device-status + 设备详情问答折叠面板 + Flyway V10 FUNCTION_CALL 审计，ADR 0023）、**Day 69 前端视觉升级**（DESIGN.md 深色工业控制中心 + Element Plus 暗色覆盖 + 表格/AI 卡/认证页统一 + ECharts 按需注册）、**Day 70 复盘/笔记**（Week10 周复盘 + docs/ai/phase4-ai-learning-notes.md）、**Day 71/72 RAG 入库**（Qdrant 选型 ADR 0024 + TextChunker + LocalHashEmbeddingModel + SimpleVectorStore + RagIngestionService）、**Day 73 RAG 检索**（RagRetrievalService + KnowledgeChunk，Top-K 余弦相似度检索）、**Day 74 RAG PDF 导入**（PDFBox 3.0.8 + RagController 上传 + Flyway V11 INGEST/KNOWLEDGE 审计）、**Day 75 RAG 运维助手**（AiService.answerWithRag + POST /api/rag/ask）、**Day 76 RAG 前端**（RagAssistant 对话页 + /assistant 路由 + Sidebar AI 助手入口）、**Day 77 复盘/笔记**（Week11 周复盘 + docs/ai/rag-learning-notes.md）、**Day 78 Agent 概念**（ReAct 手动循环 + 3 轮硬限 + 可观测性，ADR 0026）、**Day 79 多步 Agent**（ToolCallingAgent 通用循环 + list_device_recent_data 工具 + DeviceAnalysisAgentService + /api/ai/agents/device-analysis）、**Day 80 MCP Server**（spring-ai-starter-mcp-server-webmvc + SSE 端点 + McpDeviceTools 4 只读工具 + McpToolConfig 显式暴露边界，ADR 0027）、**Day 81 MCP 数据工具**（mcp_get_device_data_range / mcp_get_device_data_stats / mcp_search_devices，时间范围 + 聚合统计 + 动态搜索，ADR 0028）、**Day 82 MCP 客户端**（MCP Java SDK 0.10.0 + McpClientService SSE 握手/工具清单/只读探针 + POST /api/mcp/smoke（ADMIN）+ McpAccessFilter X-MCP-Token 传输鉴权，ADR 0029）、**Day 83 缺口补齐**（`.env.example` 补 MCP 3 变量模板 DG-001；`POST /api/mcp/smoke` 增 `@OperationLog(MCP_SMOKE/MCP)` + Flyway V12，DG-002）、**Day 83 Agent + MCP 联调**（McpInspectionAgentService 单会话巡检 + McpToolCallbackAdapter + POST /api/ai/agents/inspection-report（ADMIN，INSPECTION/MCP 审计）+ Flyway V13，ADR 0030）、**Day 84 复盘/笔记**（Week12 周复盘 + agent/mcp 学习笔记更新，Day 78-83 Agent+MCP 收官）、**Day 85 Phase 1 投递侧**（InspectionReportMessage DTO + MQConfig 增 inspection.exchange/queue/DLX/DLQ/binding（与 alarm 同模式无 TTL）+ InspectionReportProducer + 单元测试 4/4，ADR 0031 架构边界冻结，274/274 全绿）、**Day 85 Phase 2 Agent 接入**（McpInspectionAgentService 构造器 @Nullable 注入 Producer + generate() 末尾投递 + AmqpException 降级不阻塞主流程 + toMessage 字段映射 + null Producer 跳过 + 单元测试新增 3 个共 5/5，ADR 0031 §3.1/§6 落地，277/277 全绿）、**Day 85 Phase 3 Consumer 幂等**（InspectionReportConsumer @RabbitListener ackMode=MANUAL + Redis SETNX 跨实例幂等键 inspection:{reportDate}:{siteId}/all TTL 24h + 多站点部分命中语义 + 失败 nack(requeue=false)→DLQ + PushGateway 占位 + 单元测试 6/6，ADR 0031 §5.1/§6 落地，283/283 全绿）、**Day 85 Phase 4 Push Gateway**（SseEmitterSession 值对象 canReceive 三段语义 + SseEmitterRegistry ConcurrentHashMap 线程安全 + 30min timeout + onCompletion/onTimeout/onError 回调自动 remove + @PreDestroy shutdown 三重泄漏防护 + InspectionPushGateway 按 siteIds 路由 + sendSafely 捕获 IOException/IllegalStateException 移除失效会话 + 单点失败不阻塞 + InspectionReportConsumer 构造器增 @Nullable PushGateway 替换占位 + 单元测试新增 25 个共 15+8+2，ADR 0031 §5.2/§5.3/§5.4/§6 落地，308/308 全绿）、**Day 85 Phase 6 Push Controller**（InspectionPushController GET /api/push/inspection produces=text/event-stream + @RequireRole(VIEWER+) + @OperationLog(PUSH/SSE) + JWT userId 解析 + SiteAccessService.accessibleSiteIds 站点解析 + 非 ADMIN 无站点 403 拒绝（P0 安全防护：空 siteIds 在 SseEmitterSession 被当作 ADMIN 全站点语义）+ @Profile(!test) + Flyway V14 PUSH/SSE CHECK 约束 + 单元测试 3/3（ADMIN/non-ADMIN/no-access），ADR 0031 §5.2/§5.5/§9 落地，311/311 全绿）、**Day 85 Phase 7 前端订阅 + nginx 反代**（JwtAuthFilter 增 `/api/push/` 路径 `?token=` query fallback（仅 SSE 端点，REST 端点不读 query 防 token 泄漏）+ resolveToken 私有方法 + header 优先级高于 query 防 query 覆盖攻击 + 单元测试新增 5 个共 11/11（valid/invalid/no-token/non-sse-ignored/header-wins）+ 前端 InspectionReport.vue EventSource 订阅 + addEventListener('inspection-report') 监听后端具名事件 + JSON.parse + reportDate 去重 + 最多 50 条 + onerror readyState=2(CLOSED) 手动 3s 重试 + 原生指数退避自动重连 + onUnmounted close 防泄漏 + 三态 UI（connecting/connected/reconnecting）脉冲圆点 + 日报卡片标签 + EmptyState 三态 + router /inspection 路由 + App.vue Sidebar Notification 菜单项 + titleMap 巡检日报 + main.js 全局注册 Notification 图标 + nginx.conf location /api/push/ 反代缓冲关闭（proxy_buffering off + proxy_cache off + proxy_read_timeout 3600s + proxy_http_version 1.1 + Connection "" + access_log off 防 token 泄漏），ADR 0031 §5.2/§5.5/§6/§4.1 落地，316/316 绿 + 前端 build 744ms 0 错误）、**Day 86 AI 巡检异常自动生成报警（AI 与业务闭环）**（AiInspectionDetectedIssue 结构化异常 DTO + AiInspectionReportResult 扩 detectedIssues/autoAlarmCount + AiAlarmAutoCreator 服务（Redis SETNX `ai-alarm:{deviceId}:{alarmType}:{date}` 24h 跨实例幂等 + 设备 ID 解析 deviceCode fallback DeviceMapper.findByCode + severity clamp 1-3 + 6 级降级（空/null/设备不存在/Redis 异常/null Redis/DB 异常）+ `@OperationLog(AUTO_ALARM/ALARM)` 审计）+ McpInspectionAgentService.generate() 接入（构造器 @Nullable 5 参 + `toResult → autoCreateAlarms → dispatchReport` 顺序保证报警落盘先于 MQ 投递 + Agent 层二次兜底 RuntimeException 不阻塞）+ Flyway V15 operation_log chk_operation_type 扩 AUTO_ALARM（同步 H2 schema + OperationLog Javadoc + FlywayProductionSeedIsolationTest 列表）+ 单元测试 13 新增（AiAlarmAutoCreatorTest 10 覆盖全降级矩阵 + McpInspectionAgentServiceTest 扩 3 验证 InOrder 调用顺序/异常兜底/null AutoCreator），330/330 全绿）、**Day 87 前端 AI 功能工业化打磨（4 页面 15+ 缺口全量修复）**（InspectionReport 异常折叠卡 + severity 徽章 + autoAlarmCount/detectedIssues 字段映射 + XSS 双转义；RagAssistant 时间戳 + retry + 引文结构化（序号/相似度/片段号）+ 快捷提问 + 安全转义 + loading 文案准确化；DeviceDetail AI 面板诊断/问答双 retry 按钮 + 回答时间戳 + health severity 图标徽章 + issues L2 徽章 + 复制回答 + 安全转义 + 空态统一；AlarmList AI 摘要 Dialog 当前页/已选/单条范围切换 + shimmer 骨架屏 + 重试 + 全文复制 + 双空态 + priority 图标徽章 + 安全转义 + 统一 runAiSummary 抽象；后端 InspectionReportMessage 同步扩 autoAlarmCount/detectedIssues 字段，前端 build 698ms 0 errors，RagAssistant 5.25kB / InspectionReport 6.20kB / AlarmList 13.36kB / DeviceDetail 83.01kB）、**Day 88 周复盘 + 推送链路架构图**（Week13.md 6 大章节 + Application-Architecture.md V2.5 §2a 5 段 ASCII 全链路图（Agent→MQ→Consumer→Redis→PushGW→SSE→nginx→浏览器）+ 三道附表（幂等/安全/扩展点）+ Version/Updated/BasedOn bump 2.5）、**Day 89 AI 模块代码重构（公共组件+异常+限流）**（前端：新增 `src/utils/escapeHtml.js`（escapeHtml/escapeText/safeJoin 3 API + 详尽 JSDoc），4 页面（InspectionReport/RagAssistant/DeviceDetail/AlarmList）删除本地 escapeText 定义（net 去重 38 行），模板 0 改动；后端：新增 `util/AiJsonFallbackUtil.java`（unwrap ```json fence + 2MB 硬上限 + parseOrFallback 统一 fallback 工厂模式 + BiConsumer warnHandler 审计钩子），AiService.summarizeAlarm/diagnoseDevice 统一替换（删 unwrapJsonFence 私有 12 行 + 2 处 try/catch 净 14 行缩减），补 healthLevel="未知" 降级语义；新增 `security/AiRateLimitInterceptor.java`（Guava RateLimiter 独立桶，order=-1 先于通用限流，三粒度=已登录 userId 桶 / ADMIN 放宽桶 / 匿名 IP 桶，可配置 rate.limit.ai.{permits,adminPermits,acquireTimeoutMs} 默认=2/5/150ms，429 ApiResponse JSON 响应 code=429 + AI 限流说明 message + warn 日志含 key/path/rate/admin/userId/ip），WebMvcConfig 注册拦截路径 /api/ai/**, /api/agents/**, /api/rag/**, /api/mcp/**；新单测 AiJsonFallbackUtilTest 9 场景 + AiRateLimitInterceptorTest 5 场景（含 20 并发 ×10 次安全），后端测试 343/343 0 failures 0 skipped，前端 build 954ms 0 errors）
 
-* **路线后待办**：浏览器级 SSE E2E、报警合并去重、多实例 SSE/限流/日志状态、Qdrant/真实 Embedding、前端容器化、Grafana/集中日志、MinIO 镜像源与多机部署验证、ELK（可选）；**Phase 5 PLC + MQTT + 完整系统上线已完成**（Day 92-112；**真实物理硬件已采购——comprehensive-review-2026-08-22 第八章 §8.1：ESP32-S3-N16R8 ×2 / DHT22 ×2 / GY-302 BH1750 ×1 / 0.96" OLED ×2 / 9205 数字万用表 ×1 / Arduino 学习套件 ×1 / 1 路继电器 ×1 / Type-C 线 ×2，§8.2 评估"足够满足 Phase 5 MQTT 学习"**；Java 模拟 PLC 与 ESP32 真实硬件**并行接入同一 EMQX**，Topic/Payload 契约由 Day 95 定稿，Day 99 已实测验证“传感器→EMQX→后端→Redis 幂等→MySQL→规则报警→继电器”的完整物理闭环）
+* **路线后增强已完成**：活动报警聚合/重复计数、Redis SSE fan-out、Redis 分布式限流与双层桶、Qdrant/OpenAI-compatible embedding 可选后端、前端 Nginx 容器、Loki/Promtail/Grafana、浏览器级 SSE E2E；**仍待后续**：MinIO 镜像源与多机部署验证、跨主机 HA/滚动升级/故障切换、容量 SLA、ELK（可选）；**Phase 5 PLC + MQTT + 完整系统上线已完成**（Day 92-112；**真实物理硬件已采购——comprehensive-review-2026-08-22 第八章 §8.1：ESP32-S3-N16R8 ×2 / DHT22 ×2 / GY-302 BH1750 ×1 / 0.96" OLED ×2 / 9205 数字万用表 ×1 / Arduino 学习套件 ×1 / 1 路继电器 ×1 / Type-C 线 ×2，§8.2 评估"足够满足 Phase 5 MQTT 学习"**；Java 模拟 PLC 与 ESP32 真实硬件**并行接入同一 EMQX**，Topic/Payload 契约由 Day 95 定稿，Day 99 已实测验证“传感器→EMQX→后端→Redis 幂等→MySQL→规则报警→继电器”的完整物理闭环）
 
 ***
 
@@ -193,7 +195,7 @@
 | DeepSeek API        | deepseek-chat / deepseek-reasoner | OpenAI 兼容，Phase 4 LLM（ADR 0021，可选启用） |
 | Eclipse Paho mqttv3 | 1.2.5            | MQTT 客户端（Day 94/96，ADR 0034）         |
 | Spring Boot Actuator + Micrometer Prometheus | Boot 3.5.0 parent 管理 | 指标观测（Day 100，ADR 0036） |
-| Prometheus (Docker) | 2.55.1           | compose v1.7 锁定，抓 /actuator/prometheus |
+| Prometheus (Docker) | 2.55.1           | compose v1.8 锁定，抓 /actuator/prometheus |
 
 > **规则**：未经讨论，不得升级任何依赖版本。新增依赖必须在 ADR 中记录理由。
 
@@ -204,7 +206,7 @@
 ```
 Industrial-AI-Hub/
 ├── AGENTS.md                  ← 你正在读的文件
-├── compose.yml                # Docker 编排 v1.7（core 6 / full 15）
+├── compose.yml                # Docker 编排 v1.8（core 7 / full 20）
 ├── .env / .env.example        # 环境变量
 ├── backend/
 │   ├── pom.xml                # Maven POM（Spring Boot 3.5 parent）
@@ -232,6 +234,8 @@ Industrial-AI-Hub/
 │           ├── mq/            # RabbitMQ 生产者/消费者
 │           ├── rule/          # 报警规则引擎
 │           └── util/          # JwtUtils 等工具类
+├── frontend/                  # Vue 3 + Vite + Nginx 容器
+├── observability/             # Loki / Promtail / Grafana 配置与仪表盘
 ├── docs/
 │   ├── Architecture/          # 架构文档
 │   ├── decision-log/          # ADR 决策记录
@@ -245,7 +249,7 @@ Industrial-AI-Hub/
 
 ## 7. 关键约定
 
-* **数据库**：`reboot`，**V15 / 10 张表**（user/role/user\_role/device/device\_data/alarm/operation\_log/site/user\_site/login\_audit）；schema 由 **Flyway** 管理（`backend/src/main/resources/db/migration/`，V1 + V3-V15 共 14 个活动迁移文件，ADR 0019），变更 = 新增 `V###__*.sql`；**演示/测试种子数据禁止放入迁移目录**，唯一事实源 `db/seed/dev/seed_demo_data.sql`，开发环境经 `scripts/seed-dev.sh` 显式执行（幂等，见 ADR 0019 §5）；`site/user_site` 由 V4 引入（P1-01 站点作用域，ADR 0020），`login_audit` 由 V6 引入
+* **数据库**：`reboot`，**V16 / 10 张表**（user/role/user\_role/device/device\_data/alarm/operation\_log/site/user\_site/login\_audit）；schema 由 **Flyway** 管理（`backend/src/main/resources/db/migration/`，V1 + V3-V16 共 15 个活动迁移文件，ADR 0019），变更 = 新增 `V###__*.sql`；V16 为 `alarm` 增加 `repeat_count/last_triggered_at/active_alarm_key` 活动报警聚合字段（ADR 0038）；**演示/测试种子数据禁止放入迁移目录**，唯一事实源 `db/seed/dev/seed_demo_data.sql`，开发环境经 `scripts/seed-dev.sh` 显式执行（幂等，见 ADR 0019 §5）；`site/user_site` 由 V4 引入（P1-01 站点作用域，ADR 0020），`login_audit` 由 V6 引入
 
 * **API 前缀**：`/api/`
 

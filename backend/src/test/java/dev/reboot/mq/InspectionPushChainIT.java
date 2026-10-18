@@ -1,5 +1,6 @@
 package dev.reboot.mq;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -8,13 +9,20 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,7 +77,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Day 91 Exit Audit P0-2 / P0-5 修复
  * @since 2026-09-03
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.NONE,
+        properties = "mqtt.enabled=false")
 @ActiveProfiles("it")
 @EnabledIfEnvironmentVariable(named = "RUN_INSPECTION_IT", matches = "true")
 class InspectionPushChainIT {
@@ -85,8 +95,14 @@ class InspectionPushChainIT {
     @Autowired private SseEmitterRegistry registry;
     @Autowired private StringRedisTemplate redis;
     @Autowired private RabbitTemplate rabbitTemplate;
+    @Autowired private RedisConnectionFactory redisConnectionFactory;
+    @Autowired private ObjectMapper objectMapper;
 
     private String todayKeyAll;
+    private RecordingRegistry registryA;
+    private RecordingRegistry registryB;
+    private RedisMessageListenerContainer listenerA;
+    private RedisMessageListenerContainer listenerB;
 
     @BeforeEach
     void setUp() {
@@ -98,6 +114,11 @@ class InspectionPushChainIT {
         // 清理 inspection.queue 和 inspection.dlq 中可能残留的消息
         purgeQueues();
         todayKeyAll = "inspection:" + LocalDate.now() + ":all";
+
+        registryA = new RecordingRegistry();
+        registryB = new RecordingRegistry();
+        listenerA = startListener(registryA);
+        listenerB = startListener(registryB);
     }
 
     @AfterEach
@@ -108,7 +129,46 @@ class InspectionPushChainIT {
         if (keys != null && !keys.isEmpty()) {
             redis.delete(keys);
         }
+        stopListener(listenerA);
+        stopListener(listenerB);
+        if (registryA != null) {
+            registryA.shutdown();
+        }
+        if (registryB != null) {
+            registryB.shutdown();
+        }
         purgeQueues();
+    }
+
+    /**
+     * 跨实例 SSE fanout：RabbitMQ 消息只被一个 Consumer 消费并完成一次 Redis SETNX，
+     * 但 Redis Pub/Sub 应把同一日报送到两个独立实例的本机 emitter。
+     */
+    @Test
+    void oneRabbitMessage_fansOutToTwoInstanceRegistries_onlyOnce() {
+        registryA.register(91_001L, List.of());
+        registryB.register(91_002L, List.of());
+
+        InspectionReportMessage message = adminAllSitesMessage();
+        message.setReport("跨实例 SSE fanout 验证日报");
+        producer.send(message);
+
+        // 每个 emitter 先收到 registry 写入的 "connected" comment，再收到日报事件。
+        boolean delivered = waitFor(() -> recordingEmitters(registryA).getFirst().eventCount() == 2
+                && recordingEmitters(registryB).getFirst().eventCount() == 2);
+        assertThat(delivered)
+                .as("两个独立实例的本地 emitter 应各收到一次 Redis fanout")
+                .isTrue();
+
+        producer.send(message);
+        sleep(1_500L);
+
+        assertThat(recordingEmitters(registryA).getFirst().eventCount())
+                .as("重复 RabbitMQ 消息命中 Redis SETNX 后不应再次广播")
+                .isEqualTo(2);
+        assertThat(recordingEmitters(registryB).getFirst().eventCount())
+                .as("重复 RabbitMQ 消息命中 Redis SETNX 后不应再次广播")
+                .isEqualTo(2);
     }
 
     /**
@@ -253,6 +313,51 @@ class InspectionPushChainIT {
         return false;
     }
 
+    private RedisMessageListenerContainer startListener(RecordingRegistry targetRegistry) {
+        InspectionPushGateway gateway = new InspectionPushGateway(targetRegistry);
+        InspectionPushPubSub pubSub = new InspectionPushPubSub(redis, objectMapper, gateway);
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(redisConnectionFactory);
+        container.addMessageListener(pubSub, new ChannelTopic(InspectionPushPubSub.CHANNEL));
+        try {
+            container.afterPropertiesSet();
+            container.start();
+            sleep(250L);
+            return container;
+        } catch (Exception e) {
+            throw new IllegalStateException("启动测试 Redis listener 失败", e);
+        }
+    }
+
+    private void stopListener(RedisMessageListenerContainer container) {
+        if (container != null) {
+            container.stop();
+            try {
+                container.destroy();
+            } catch (Exception e) {
+                throw new IllegalStateException("停止测试 Redis listener 失败", e);
+            }
+        }
+    }
+
+    private List<RecordingEmitter> recordingEmitters(RecordingRegistry targetRegistry) {
+        List<RecordingEmitter> result = new ArrayList<>();
+        for (SseEmitterSession session : targetRegistry.findAll()) {
+            if (session.getEmitter() instanceof RecordingEmitter recording) {
+                result.add(recording);
+            }
+        }
+        return result;
+    }
+
+    private void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     /** 清理 inspection.queue 和 inspection.dlq 中可能残留的消息。 */
     private void purgeQueues() {
         try {
@@ -263,6 +368,47 @@ class InspectionPushChainIT {
             });
         } catch (Exception e) {
             // 队列不存在或连接异常时忽略（@BeforeEach 首次执行时可能未声明）
+        }
+    }
+
+    private static final class RecordingRegistry extends SseEmitterRegistry {
+        private final ThreadPoolTaskScheduler scheduler;
+
+        private RecordingRegistry() {
+            this(new ThreadPoolTaskScheduler());
+        }
+
+        private RecordingRegistry(ThreadPoolTaskScheduler scheduler) {
+            super(scheduler);
+            this.scheduler = scheduler;
+            scheduler.setPoolSize(1);
+            scheduler.setThreadNamePrefix("sse-it-");
+            scheduler.setDaemon(true);
+            scheduler.initialize();
+        }
+
+        @Override
+        protected SseEmitter createEmitter() {
+            return new RecordingEmitter();
+        }
+
+        @Override
+        public void shutdown() {
+            super.shutdown();
+            scheduler.destroy();
+        }
+    }
+
+    private static final class RecordingEmitter extends SseEmitter {
+        private final List<SseEventBuilder> events = new CopyOnWriteArrayList<>();
+
+        @Override
+        public void send(SseEventBuilder builder) {
+            events.add(builder);
+        }
+
+        int eventCount() {
+            return events.size();
         }
     }
 }

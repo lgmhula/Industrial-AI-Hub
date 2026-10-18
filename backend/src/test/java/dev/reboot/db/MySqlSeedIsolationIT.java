@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>覆盖 ADR 0019「演示种子与生产 Flyway 隔离」要求的四种数据库场景：</p>
  * <ol>
- *   <li>全新生产库：Flyway 只执行 V1+V3，无任何 Demo 用户/设备/告警；</li>
+ *   <li>全新生产库：Flyway 只执行正式迁移，无任何 Demo 用户/设备/告警；</li>
  *   <li>全新开发库：正式迁移后显式执行 dev seed，Demo 数据生成且幂等；</li>
  *   <li>已有开发库（无 flyway 历史）：baseline@2 跳过 V1，业务数据保留，不产生 Demo；</li>
  *   <li>已有执行过旧 V2 的库：V2 文件退役后，靠 ignore-migration-patterns 平滑升级，
@@ -113,8 +113,11 @@ class MySqlSeedIsolationIT {
             Flyway fw = prodFlyway(db);
             fw.migrate();
 
-            assertEquals(List.of("1", "3", "4", "5", "6", "7", "8"), appliedVersions(fw),
-                    "全新库只执行 V1 + V3 + V4 + V5 + V6 + V7 + V8（V2 已退役；V6 登录审计；V7 alarm/role 审计字段；V8 admin 密码）");
+            assertEquals(List.of(
+                            "1", "3", "4", "5", "6", "7", "8",
+                            "9", "10", "11", "12", "13", "14", "15", "16"),
+                    appliedVersions(fw),
+                    "全新库应执行 V1 + V3-V16（V2 已退役；V16 为活动告警合并）");
             assertEquals(1L, scalar(db, "SELECT COUNT(*) FROM `user`"), "只有 admin，无 Demo 用户");
             assertEquals(0L, scalar(db, "SELECT COUNT(*) FROM device"), "无 Demo 设备");
             assertEquals(0L, scalar(db, "SELECT COUNT(*) FROM alarm"), "无 Demo 告警");
@@ -141,7 +144,7 @@ class MySqlSeedIsolationIT {
                 ScriptUtils.executeSqlScript(c, utf8("db/seed/dev/seed_demo_data.sql"));
                 long[] first = counts(db);
                 assertEquals(21L, first[0]);
-                assertEquals(50L, first[1]);
+                assertEquals(52L, first[1]);
                 assertEquals(12L, first[2]);
                 assertEquals(78L, first[3]);
                 assertEquals(7L, first[4]);
@@ -150,22 +153,22 @@ class MySqlSeedIsolationIT {
                 ScriptUtils.executeSqlScript(c, utf8("db/seed/dev/seed_demo_data.sql"));
                 assertArrayEquals(first, counts(db), "seed 二次执行不得产生重复数据");
 
-                // P1-01：站点成员幂等分配（20 个演示用户 → 默认站点）
-                assertEquals(20L, scalar(db, "SELECT COUNT(*) FROM user_site"), "user_site 应为 20（不重复）");
+                // P1-01：站点成员幂等分配（20 个演示用户分配到默认/一车间/二车间）
+                assertEquals(26L, scalar(db, "SELECT COUNT(*) FROM user_site"), "user_site 应为 26（不重复）");
                 assertTrue(exists(db, """
                         SELECT 1 FROM user_site us
                         JOIN `user` u ON u.id = us.user_id
                         JOIN role r ON r.id = us.role_id
                         JOIN site s ON s.id = us.site_id
-                        WHERE u.username = 'operator01' AND r.role_code = 'OPERATOR' AND s.site_code = 'DEFAULT'"""),
-                        "operator01 应为默认站点 OPERATOR");
+                        WHERE u.username = 'operator01' AND r.role_code = 'OPERATOR' AND s.site_code = 'PLANT_A'"""),
+                        "operator01 应为一车间 OPERATOR");
                 assertTrue(exists(db, """
                         SELECT 1 FROM user_site us
                         JOIN `user` u ON u.id = us.user_id
                         JOIN role r ON r.id = us.role_id
                         JOIN site s ON s.id = us.site_id
-                        WHERE u.username = 'viewer01' AND r.role_code = 'VIEWER' AND s.site_code = 'DEFAULT'"""),
-                        "viewer01 应为默认站点 VIEWER");
+                        WHERE u.username = 'viewer01' AND r.role_code = 'VIEWER' AND s.site_code = 'PLANT_A'"""),
+                        "viewer01 应为一车间 VIEWER");
             }
         } finally {
             dropDb(db);
@@ -239,7 +242,7 @@ class MySqlSeedIsolationIT {
             fw.migrate();
             assertTrue(appliedEntries(fw).contains("SQL@2"), "V2 历史行保留（不再执行，仅被容忍）");
             assertEquals(21L, scalar(db, "SELECT COUNT(*) FROM `user`"), "Demo 用户不重复");
-            assertEquals(50L, scalar(db, "SELECT COUNT(*) FROM device"), "Demo 设备不重复");
+            assertEquals(52L, scalar(db, "SELECT COUNT(*) FROM device"), "Demo 设备不重复");
             assertEquals(12L, scalar(db, "SELECT COUNT(*) FROM alarm"), "Demo 告警不重复");
             assertTrue(exists(db, "SELECT 1 FROM `user` WHERE username = 'operator01'"), "既有 Demo 数据保留");
         } finally {
@@ -257,16 +260,23 @@ class MySqlSeedIsolationIT {
         return new EncodedResource(new ClassPathResource(location), StandardCharsets.UTF_8);
     }
 
-    /** 旧链 V2 代理：取当前 seed 但截断 user_site 段（历史 V2 无站点段；user_site 由 V4 建立）。 */
+    /**
+     * 旧链 V2 代理：取当前 seed 的历史业务数据段。
+     *
+     * <p>当前 seed 的 admin 重置段使用 V5 才加入的 failed_attempts/locked_until，
+     * 站点成员段依赖 V4 才建立的 user_site，因此都必须在旧 V2 夹具中剔除。</p>
+     */
     private static byte[] seedProxyForOldChain() throws Exception {
         String content = org.springframework.util.StreamUtils.copyToString(
                 new EncodedResource(new ClassPathResource("db/seed/dev/seed_demo_data.sql"),
                         StandardCharsets.UTF_8).getInputStream(), StandardCharsets.UTF_8);
-        int idx = content.indexOf("7. 站点成员分配");
-        if (idx > 0) {
-            content = content.substring(0, idx);
+        int usersStart = content.indexOf("-- 1. 测试用户");
+        int sitesStart = content.indexOf("-- 7. 多站点创建");
+        if (usersStart < 0 || sitesStart <= usersStart) {
+            throw new IllegalStateException("无法从 dev seed 提取旧 V2 兼容段");
         }
-        return content.getBytes(StandardCharsets.UTF_8);
+        return ("SET NAMES utf8mb4;\n\n" + content.substring(usersStart, sitesStart))
+                .getBytes(StandardCharsets.UTF_8);
     }
 
     private static void copyTo(String classpath, Path target) throws Exception {

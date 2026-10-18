@@ -125,8 +125,13 @@ management:
 # ========================
 rate:
   limit:
+    # local = 单实例 Guava；redis = Lua 原子令牌桶，多实例共享额度。
+    # Redis 异常时自动回退本机桶，不阻断业务。
+    mode: ${RATE_LIMIT_MODE:local}
     # 每个参数化路径（数字段归一化为 {id}）独立的令牌桶速率
     permits: ${RATE_LIMIT_PERMITS:50}
+    # 单个登录用户/IP 的通用接口额度；与 path 全局桶同时生效，防止单客户端吃满路径额度。
+    identity-permits: ${RATE_LIMIT_IDENTITY_PERMITS:20}
     # 拿不到令牌时的等待上限（毫秒）：500 = 保持 Day 37 以来行为（有界背压队列，
     # 把一部分本该拒绝的突发请求转为「稍慢但成功」；占用线程数上界 ≈ permits×timeout ≈ 25）。
     # 置 0 = 立即 429、不排队（延迟可预测，但牺牲突发容忍度）。
@@ -166,11 +171,27 @@ deepseek:
   temperature: 0.3
 
 # ========================
-# RAG 知识库（Week 11，ADR 0024）
-# 第一版使用离线哈希向量 + 内存向量库；后续替换真实 embedding 与 Qdrant。
+# RAG 知识库（Week 11，ADR 0024 / ADR 0040）
+# 默认保持离线：hash Embedding + SimpleVectorStore。
+# 生产化验证可按需切换 openai-compatible + qdrant，不改变业务接口。
 # ========================
 rag:
-  embedding-dimensions: 256
+  vector-store: ${RAG_VECTOR_STORE:simple}
+  embedding:
+    provider: ${RAG_EMBEDDING_PROVIDER:hash}
+    # 0 = provider 默认值（hash 256 / OpenAI-compatible 1536）
+    dimensions: ${RAG_EMBEDDING_DIMENSIONS:0}
+    base-url: ${RAG_EMBEDDING_BASE_URL:https://api.openai.com/v1}
+    api-key: ${RAG_EMBEDDING_API_KEY:}
+    model: ${RAG_EMBEDDING_MODEL:text-embedding-3-small}
+    timeout-seconds: ${RAG_EMBEDDING_TIMEOUT_SECONDS:30}
+    # text-embedding-3 支持 dimensions；部分兼容服务不支持时设为 false
+    send-dimensions: ${RAG_EMBEDDING_SEND_DIMENSIONS:true}
+  qdrant:
+    base-url: ${QDRANT_BASE_URL:http://127.0.0.1:6333}
+    collection: ${QDRANT_COLLECTION:industrial_ai_hub_knowledge}
+    api-key: ${QDRANT_API_KEY:}
+    timeout-seconds: ${QDRANT_TIMEOUT_SECONDS:10}
   chunk-size: 500
   chunk-overlap: 50
 

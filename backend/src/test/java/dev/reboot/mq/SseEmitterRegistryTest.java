@@ -2,9 +2,14 @@ package dev.reboot.mq;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ScheduledFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -13,6 +18,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * SseEmitterRegistry 单元测试（Day 85 Phase 4，ADR 0031 §5.2）。
@@ -22,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>register —— 创建会话、返回 emitter、size+1、get 可取回；</li>
  *   <li>register ADMIN —— 空 siteIds 语义保留；null siteIds 归一化为空；</li>
  *   <li>register 同 userId 重复 —— 旧会话被替换（覆盖语义，防泄漏）；</li>
+ *   <li>register 首帧 —— 调度 comment 提交响应头；失败时移除会话且不向 HTTP 调用方抛错；</li>
  *   <li>findBySiteId —— 返回 ADMIN + 站点匹配会话；</li>
  *   <li>findAdmins —— 仅返回 siteIds 为空的 ADMIN 会话；</li>
  *   <li>findAll —— 返回快照副本，修改快照不影响 registry；</li>
@@ -39,10 +51,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SseEmitterRegistryTest {
 
     private SseEmitterRegistry registry;
+    private TaskScheduler firstFrameScheduler;
 
     @BeforeEach
     void setUp() {
-        registry = new SseEmitterRegistry();
+        firstFrameScheduler = mock(TaskScheduler.class);
+        when(firstFrameScheduler.schedule(any(Runnable.class), any(Instant.class)))
+                .thenAnswer(invocation -> {
+                    invocation.<Runnable>getArgument(0).run();
+                    return mock(ScheduledFuture.class);
+                });
+        registry = new SseEmitterRegistry(firstFrameScheduler);
     }
 
     @Test
@@ -56,6 +75,77 @@ class SseEmitterRegistryTest {
         assertEquals(1L, session.getUserId());
         assertEquals(List.of(10L, 20L), session.getSiteIds());
         assertSame(emitter, session.getEmitter());
+    }
+
+    @Test
+    void register_shouldScheduleConnectedComment() throws Exception {
+        SseEmitter emitter = Mockito.mock(SseEmitter.class);
+        registry = new SseEmitterRegistry(firstFrameScheduler) {
+            @Override
+            protected SseEmitter createEmitter() {
+                return emitter;
+            }
+        };
+
+        SseEmitter returned = registry.register(1L, List.of());
+
+        assertSame(emitter, returned);
+        verify(firstFrameScheduler).schedule(any(Runnable.class), any(Instant.class));
+        verify(emitter).send(any(SseEmitter.SseEventBuilder.class));
+    }
+
+    @Test
+    void heartbeat_shouldSendCommentAndKeepSession() throws Exception {
+        SseEmitter emitter = Mockito.mock(SseEmitter.class);
+        registry = new SseEmitterRegistry(firstFrameScheduler) {
+            @Override
+            protected SseEmitter createEmitter() {
+                return emitter;
+            }
+        };
+        registry.register(1L, List.of());
+        Mockito.clearInvocations(emitter);
+
+        registry.sendHeartbeat();
+
+        verify(emitter).send(any(SseEmitter.SseEventBuilder.class));
+        assertEquals(1, registry.size());
+    }
+
+    @Test
+    void heartbeatFailure_shouldRemoveStaleSession() throws Exception {
+        SseEmitter emitter = Mockito.mock(SseEmitter.class);
+        registry = new SseEmitterRegistry(firstFrameScheduler) {
+            @Override
+            protected SseEmitter createEmitter() {
+                return emitter;
+            }
+        };
+        registry.register(1L, List.of());
+        Mockito.doThrow(new IOException("network gone"))
+                .when(emitter).send(any(SseEmitter.SseEventBuilder.class));
+
+        registry.sendHeartbeat();
+
+        assertEquals(0, registry.size());
+        verify(emitter, never()).complete();
+    }
+
+    @Test
+    void register_connectedCommentFailure_shouldRemoveSessionWithoutThrowing() throws Exception {
+        SseEmitter emitter = Mockito.mock(SseEmitter.class);
+        Mockito.doThrow(new IOException("client gone"))
+                .when(emitter).send(any(SseEmitter.SseEventBuilder.class));
+        registry = new SseEmitterRegistry(firstFrameScheduler) {
+            @Override
+            protected SseEmitter createEmitter() {
+                return emitter;
+            }
+        };
+
+        assertDoesNotThrow(() -> registry.register(1L, List.of()));
+        assertEquals(0, registry.size());
+        verify(emitter, never()).complete();
     }
 
     @Test
@@ -89,6 +179,34 @@ class SseEmitterRegistryTest {
         assertSame(newEmitter, session.getEmitter());
         assertNotSame(oldEmitter, newEmitter);
         assertEquals(List.of(20L), session.getSiteIds());
+    }
+
+    @Test
+    void oldEmitterCompletion_shouldNotRemoveReplacementSession() throws Exception {
+        SseEmitter oldEmitter = Mockito.mock(SseEmitter.class);
+        SseEmitter newEmitter = Mockito.mock(SseEmitter.class);
+        java.util.concurrent.atomic.AtomicReference<Runnable> completion =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        doAnswer(invocation -> {
+            completion.set(invocation.getArgument(0));
+            return null;
+        }).when(oldEmitter).onCompletion(any(Runnable.class));
+        registry = new SseEmitterRegistry(firstFrameScheduler) {
+            private final java.util.ArrayDeque<SseEmitter> emitters =
+                    new java.util.ArrayDeque<>(List.of(oldEmitter, newEmitter));
+
+            @Override
+            protected SseEmitter createEmitter() {
+                return emitters.removeFirst();
+            }
+        };
+
+        registry.register(1L, List.of(10L));
+        registry.register(1L, List.of(20L));
+        completion.get().run();
+
+        assertEquals(1, registry.size());
+        assertSame(newEmitter, registry.get(1L).getEmitter());
     }
 
     @Test

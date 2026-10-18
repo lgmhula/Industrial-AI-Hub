@@ -70,6 +70,17 @@
         <el-table-column label="触发时间" width="170" class-name="mono">
           <template #default="{ row }">{{ fmtTime(row.triggeredAt) }}</template>
         </el-table-column>
+        <el-table-column label="告警合并" width="150" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="(row.repeatCount || 1) > 1" size="small" type="warning" effect="plain">
+              ×{{ row.repeatCount }}
+            </el-tag>
+            <span v-else class="done-text">首次</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="最近触发" width="170" class-name="mono">
+          <template #default="{ row }">{{ fmtTime(row.lastTriggeredAt || row.triggeredAt) }}</template>
+        </el-table-column>
         <el-table-column label="操作" width="230" fixed="right">
           <template #default="{ row }">
             <el-button link type="warning" size="small" :icon="MagicStick" :loading="aiLoadingId === row.id"

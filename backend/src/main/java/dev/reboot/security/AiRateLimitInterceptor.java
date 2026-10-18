@@ -1,21 +1,17 @@
 package dev.reboot.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.util.concurrent.RateLimiter;
 import dev.reboot.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
-
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 /**
  * AI 专属限流拦截器（Day 89 Phase 4 AI 模块重构）。
@@ -58,19 +54,26 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
     private static final String USER_PREFIX = "u:";
     private static final String ADMIN_ROLE_NAME = "ADMIN";
 
-    /** 每个 user/ip 的令牌桶缓存；LRU 未来可替换为 Caffeine，当前 ConcurrentHashMap 足够（<10k 用户）。 */
-    private final Map<String, RateLimiter> limiters = new ConcurrentHashMap<>();
+    private final RateLimitStore rateLimitStore;
     private final double defaultPermits;
     private final double adminPermits;
     private final long acquireTimeoutMs;
 
+    @Autowired
     public AiRateLimitInterceptor(
             @Value("${rate.limit.ai.permits:2}") double defaultPermits,
             @Value("${rate.limit.ai.adminPermits:5}") double adminPermits,
-            @Value("${rate.limit.ai.acquireTimeoutMs:150}") long acquireTimeoutMs) {
+            @Value("${rate.limit.ai.acquireTimeoutMs:150}") long acquireTimeoutMs,
+            RateLimitStore rateLimitStore) {
         this.defaultPermits = positive(defaultPermits, "rate.limit.ai.permits", 2.0);
         this.adminPermits = positive(adminPermits, "rate.limit.ai.adminPermits", 5.0);
         this.acquireTimeoutMs = acquireTimeoutMs > 0 ? acquireTimeoutMs : 150;
+        this.rateLimitStore = rateLimitStore;
+    }
+
+    /** 单测/嵌入场景的本地模式兼容构造器。 */
+    public AiRateLimitInterceptor(double defaultPermits, double adminPermits, long acquireTimeoutMs) {
+        this(defaultPermits, adminPermits, acquireTimeoutMs, new RateLimitStore(null, "local"));
     }
 
     @Override
@@ -83,12 +86,7 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
         String bucketKey = bucketKey(userId, request);
         double rate = isAdmin(roles) ? adminPermits : defaultPermits;
 
-        RateLimiter limiter = limiters.computeIfAbsent(bucketKey, k -> RateLimiter.create(rate));
-        // 热更新：用户升级到 ADMIN 后（桶已存在按旧 rate），显式同步
-        if (Math.abs(limiter.getRate() - rate) > 0.001) {
-            limiter.setRate(rate);
-        }
-        if (limiter.tryAcquire(acquireTimeoutMs, TimeUnit.MILLISECONDS)) {
+        if (rateLimitStore.tryAcquire("ai:" + bucketKey, rate, acquireTimeoutMs)) {
             return true;
         }
         log.warn("AI 限流触发 key={} path={} rate={}/s admin={} userId={} ip={}",

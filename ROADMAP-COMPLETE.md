@@ -22,6 +22,8 @@ Industrial AI Hub 已完成从 Java 基础到工业 AI 设备管理平台的完�
 `v3.0-final` 是 **112 天学习路线终点**，不是生产级高可用、分布式扩容或线上容量承诺。
 
 > Day 113-120 不属于当前官方路线图，不应把后续设想写成已完成任务。
+>
+> 本报告第二至七章冻结 Day 112 / `v3.0-final` 的历史口径；tag 之后完成的增强统一记录在第八章，不移动 tag，也不回写 375/V15 的历史验收事实。
 
 ---
 
@@ -129,9 +131,9 @@ Industrial AI Hub 已完成从 Java 基础到工业 AI 设备管理平台的完�
 
 ---
 
-## 六、当前边界
+## 六、`v3.0-final` 时边界（历史口径）
 
-以下能力明确未完成，不能写入简历或发布结论中的“已实现”：
+以下能力在 Day 112 发布时明确未完成；其路线后状态见第八章：
 
 - 浏览器级 SSE E2E 尚未补齐，已有 RabbitMQ/Redis 集成链路测试；
 - RAG 使用 `SimpleVectorStore + LocalHashEmbeddingModel`，尚未接入 Qdrant；
@@ -144,7 +146,7 @@ Industrial AI Hub 已完成从 Java 基础到工业 AI 设备管理平台的完�
 
 ---
 
-## 七、路线后待办
+## 七、当时路线后待办（执行状态）
 
 后续工作按风险优先，不以增加技术名词为目标：
 
@@ -158,7 +160,33 @@ Industrial AI Hub 已完成从 Java 基础到工业 AI 设备管理平台的完�
 
 ---
 
-## 八、复现入口
+## 八、路线后增强（tag 之后）
+
+`v3.0-final` 保持不动；以下增强位于独立分支，按 2026-10-18 收口结果记录：
+
+- 活动告警聚合：Flyway V16 为 `alarm` 增加 `repeat_count`、`last_triggered_at` 和活动周期生成列唯一索引；`AlarmService.createAlarm()` 使用原子 upsert，已解决告警再次触发会开启新周期（ADR 0038）；
+- Redis SSE fan-out：RabbitMQ 消费实例取得幂等权后发布 Redis Pub/Sub，各实例向本机 emitter 推送；首帧确认与 15 秒 comment 心跳已落地，浏览器 `/inspection` 连接/离开/重连实测不再出现 `AsyncRequestNotUsableException`（ADR 0039）；
+- 分布式限流：`RateLimitStore` 支持 `local|redis` 双模，Redis Lua 令牌桶使用 Redis `TIME` 保持跨实例原子性；通用限流为 identity + path 双层桶，Redis 异常回退本地并节流告警日志（ADR 0039）；
+- RAG 可选后端：新增 `QdrantVectorStore` 与 `OpenAiCompatibleEmbeddingModel`，默认仍为 `simple + hash`；Qdrant 1.12.4 位于 full profile（ADR 0040）；
+- 交付与观测：新增 Vue 静态构建 + Nginx 前端容器；新增可选 Loki/Promtail/Grafana 10 服务 `observability` profile，full profile 同步包含观测栈（ADR 0041）；
+- Compose v1.8：core 7 / full 20 / observability 10；MinIO 本地固定镜像 digest 为 `sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e`。
+
+路线后质量口径：
+
+| 指标 | 路线后结果 | 证据 |
+|------|------------|------|
+| 后端测试 | 403 / 403，61 测试类，0 failures / 0 errors / 0 skipped | `./mvnw clean test` |
+| 数据库 | Schema V16，V1 + V3-V16 共 15 个活动迁移，10 张表 | Flyway |
+| 架构决策 | ADR 0001-0041 | `docs/decision-log/` |
+| 编排 | core 7 / full 20 / observability 10 | `docker compose config --services` |
+| 前端交付 | Vue build + Nginx 容器，`/api/` 反代与 SSE 独立缓冲策略 | ADR 0041 |
+| 观测 | Prometheus + 可选 Loki/Promtail/Grafana | ADR 0036 / 0041 |
+
+仍未完成：跨主机故障切换、滚动升级、网络分区演练、容量 SLA、生产级日志长期存储与审计承诺。多实例 SSE/限流应表述为“基础能力已落地”，不能表述为“生产级高可用已完成”。
+
+详细验证矩阵与边界见 [`docs/reports/post-roadmap-optimization-report-2026-10-18.md`](docs/reports/post-roadmap-optimization-report-2026-10-18.md)。
+
+## 九、复现入口
 
 ```bash
 # 后端测试
@@ -181,7 +209,7 @@ curl http://localhost:8080/actuator/health
 
 ---
 
-## 九、最终结论
+## 十、最终结论
 
 这条路线已经完成“学习技术 -> 形成业务闭环 -> 用测试和实测证明 -> 记录取舍与边界 -> 打包发布”的完整过程。`v3.0-final` 可以作为求职展示和继续演进的稳定检查点，但不应被描述为生产级平台交付。
 

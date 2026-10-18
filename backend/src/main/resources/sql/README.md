@@ -36,13 +36,14 @@ sql/
 | V13 | `V13__inspection_operation_type.sql` | Agent + MCP 巡检审计（INSPECTION，Day 83，ADR 0030） |
 | V14 | `V14__push_sse_operation_types.sql` | SSE 推送审计（PUSH/SSE，Day 85，ADR 0031） |
 | V15 | `V15__auto_alarm_operation_type.sql` | AI 巡检自动报警审计（AUTO_ALARM，Day 86） |
+| V16 | `V16__alarm_aggregation.sql` | 活动告警聚合：重复次数、最近触发时间、活动周期生成列唯一索引（ADR 0038） |
 
 > ⚠️ **演示/测试种子数据不在迁移链内**（ADR 0019 §5，P0）：原 `V2__seed_test_data.sql` 已退役，
 > 唯一事实源为 `db/seed/dev/seed_demo_data.sql`，开发环境经 `scripts/seed-dev.sh` 显式执行（幂等）。
 
 ## 迁移机制（Flyway，ADR 0019）
 
-- **全新库**：backend 首次启动 → Flyway 自动执行 V1 + V3-V15（**不产生任何 Demo 数据**）；
+- **全新库**：backend 首次启动 → Flyway 自动执行 V1 + V3-V16（**不产生任何 Demo 数据**）；
 - **既有库**：`baseline-on-migrate + baseline-version=2` 基线到 2（跳过 V1 重放），零干预升级；
 - **既有已执行过旧 V2 的库**：`ignore-migration-patterns: "*:missing"` 容忍退役的 V2，正常启动；
 - **未来变更**：新增 `V###__描述.sql`，所有环境自动升级；
@@ -74,7 +75,7 @@ mysql --default-character-set=utf8mb4 -u root -p reboot < backend/src/main/resou
 
 ## 当前 Schema 版本
 
-**V15** — 10 张表（含 `login_audit`）；CHECK 约束含 AI/审计操作类型与 AI/KNOWLEDGE/MCP/SSE 目标类型
+**V16** — 10 张表（含 `login_audit`）；CHECK 约束含 AI/审计操作类型与 AI/KNOWLEDGE/MCP/SSE 目标类型；`alarm` 支持活动周期聚合与重复触发计数
 
 详见 [Database Changelog](../../../../../docs/decision-log/0012-database-changelog.md)
 

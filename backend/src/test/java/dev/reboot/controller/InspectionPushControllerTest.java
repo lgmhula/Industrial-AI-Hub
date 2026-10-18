@@ -4,6 +4,7 @@ import dev.reboot.exception.BusinessException;
 import dev.reboot.mq.SseEmitterRegistry;
 import dev.reboot.service.SiteAccessService;
 import jakarta.servlet.http.HttpServletRequest;
+import dev.reboot.dto.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,6 +14,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -93,6 +95,28 @@ class InspectionPushControllerTest {
         // P0 安全防护：空 siteIds 会被 SseEmitterSession 当作 ADMIN 全站点 → 拒绝
         assertTrue(ex.getMessage().contains("无可访问站点"));
         // 不应调用 register（避免无站点用户建立 emitter 后收到所有日报）
+        verify(registry, never()).register(any(Long.class), any());
+    }
+
+    @Test
+    void access_authorizedAdmin_shouldNotCreateEmitter() {
+        when(request.getAttribute("userId")).thenReturn(1L);
+        when(siteAccessService.accessibleSiteIds(1L)).thenReturn(null);
+
+        ApiResponse<java.util.Map<String, Object>> result = controller.access(request);
+
+        assertEquals(200, result.getCode());
+        assertEquals(Boolean.TRUE, result.getData().get("authorized"));
+        verify(registry, never()).register(any(Long.class), any());
+    }
+
+    @Test
+    void access_nonAdminNoSites_shouldThrow403AndNotCreateEmitter() {
+        when(request.getAttribute("userId")).thenReturn(3L);
+        when(siteAccessService.accessibleSiteIds(3L)).thenReturn(List.of());
+
+        assertThrows(BusinessException.class, () -> controller.access(request));
+
         verify(registry, never()).register(any(Long.class), any());
     }
 }

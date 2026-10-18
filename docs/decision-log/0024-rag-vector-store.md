@@ -2,7 +2,7 @@
 
 | 属性 | 值 |
 |------|-----|
-| **状态** | ✅ 已采纳 |
+| **状态** | ✅ 已采纳（后续实现见 ADR 0040） |
 | **决策日期** | 2026-08-29 |
 | **决策者** | hula0710 + AI 助手 |
 | **关联** | Day 71 / Day 72 / ADR 0022 / DAILY_ROADMAP Week 11 |
@@ -64,9 +64,14 @@ Phase 4 第 11 周进入 RAG（检索增强生成）。已有 AI 能力（告警
 | 风险 | 缓解 |
 |------|------|
 | 哈希向量语义召回弱 | 明确标记为第一版离线实现；Day 73+ 检索效果不达标时替换真实 embedding |
-| Qdrant 尚未实际接入 | ADR 明确生产目标与阶段边界，Day 73/74 补 Docker 服务与适配器 |
+| 外部向量库与真实 embedding 增加依赖/成本 | ADR 0040 以显式配置提供 Qdrant/OpenAI-compatible 可选实现，默认仍保持 `simple + hash` |
 | 切片破坏上下文 | 使用 overlap 重叠保留跨边界语义，chunk-size 可配置 |
+
+## 6. 后续实现状态
+
+ADR 0040 已实现可切换的 `QdrantVectorStore` 与 `OpenAiCompatibleEmbeddingModel`，并增加真实 Qdrant
+集成测试。默认启动仍不依赖外部服务，生产目标与默认配置的差异继续保留。
 
 ---
 
-> 最后更新：2026-08-29 | 维护者：AI 助手 + hula0710
+> 最后更新：2026-10-18 | 维护者：AI 助手 + hula0710

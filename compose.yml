@@ -1,11 +1,12 @@
 # ========================
 # industrial ai hub — unified docker compose
-# Version: v1.7 | Updated: 2026-10-18
+# Version: v1.8 | Updated: 2026-10-18
 # Infrastructure Baseline V3 + Prometheus metrics scraping (Phase 5 Day 100, ADR 0036)
 # Backend MQTT Listener enabled in container network (Phase 5 Day 96, ADR 0034)
 # Day 104 完整编排：
-#   · 默认（无 profile）= core：mysql/redis/rabbitmq/emqx/prometheus/backend（6 服务）
-#   · --profile full = 全量 15 服务（另含 nacos/minio/elasticsearch/mysql 主从×3/redis-sentinel×3）
+#   · 默认（无 profile）= core：mysql/redis/rabbitmq/emqx/prometheus/backend/frontend（7 服务）
+#   · --profile full = 全量 20 服务（另含 nacos/minio/elasticsearch/mysql 主从×3/redis-sentinel×3/
+#     qdrant/loki/grafana/promtail）
 #   · backend 日志卷 backend-logs（logback FILE/ERROR_FILE 落盘，Day 101）
 #   · backend 数据卷 backend-data（SimpleVectorStore 跨容器重建保留，Day 111）
 #   · 容器 MQTT clientId 独立（与宿主机实例并存不互踢，Day 101 坑位）
@@ -136,6 +137,98 @@ services:
       - prometheus-data:/prometheus
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # Qdrant — vector database (ADR 0040)
+  # 默认 RAG 仍使用 SimpleVectorStore；切到 qdrant 时启用本服务。
+  # ==========================================
+  qdrant:
+    profiles: ["full"]
+    image: qdrant/qdrant:v1.12.4
+    container_name: qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # Loki — centralized logs (ADR 0041)
+  # ==========================================
+  loki:
+    profiles: ["observability", "full"]
+    image: grafana/loki:3.2.1
+    container_name: loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3100/ready | grep -q ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # Promtail — backend file log collector
+  # ==========================================
+  promtail:
+    profiles: ["observability", "full"]
+    image: grafana/promtail:3.2.1
+    container_name: promtail
+    restart: unless-stopped
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./observability/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - backend-logs:/var/log/backend:ro
+      - promtail-positions:/var/lib/promtail
+    depends_on:
+      loki:
+        condition: service_healthy
+    networks:
+      - industrial-network
+
+  # ==========================================
+  # Grafana — dashboards for Loki + Prometheus
+  # ==========================================
+  grafana:
+    profiles: ["observability", "full"]
+    image: grafana/grafana:11.3.0
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      loki:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
     networks:
       - industrial-network
 
@@ -401,6 +494,19 @@ services:
       RATE_LIMIT_PERMITS: ${RATE_LIMIT_PERMITS:-50}
       RATE_LIMIT_ACQUIRE_TIMEOUT_MS: ${RATE_LIMIT_ACQUIRE_TIMEOUT_MS:-500}
       RATE_LIMIT_LOG_INTERVAL_MS: ${RATE_LIMIT_LOG_INTERVAL_MS:-5000}
+      RATE_LIMIT_MODE: ${RATE_LIMIT_MODE:-local}
+      RATE_LIMIT_IDENTITY_PERMITS: ${RATE_LIMIT_IDENTITY_PERMITS:-20}
+      # RAG（ADR 0040）：默认离线；切 Qdrant 时把 * vector-store/embedding provider 一并切换
+      RAG_VECTOR_STORE: ${RAG_VECTOR_STORE:-simple}
+      RAG_EMBEDDING_PROVIDER: ${RAG_EMBEDDING_PROVIDER:-hash}
+      RAG_EMBEDDING_DIMENSIONS: ${RAG_EMBEDDING_DIMENSIONS:-0}
+      RAG_EMBEDDING_BASE_URL: ${RAG_EMBEDDING_BASE_URL:-https://api.openai.com/v1}
+      RAG_EMBEDDING_API_KEY: ${RAG_EMBEDDING_API_KEY:-}
+      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-text-embedding-3-small}
+      RAG_EMBEDDING_SEND_DIMENSIONS: ${RAG_EMBEDDING_SEND_DIMENSIONS:-true}
+      QDRANT_BASE_URL: ${QDRANT_BASE_URL:-http://qdrant:6333}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-industrial_ai_hub_knowledge}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
       # DeepSeek AI（opt-in，ADR 0021）：容器默认关闭；未配置 Key 时 /api/ai/* 返回 503
       DEEPSEEK_ENABLED: ${DEEPSEEK_ENABLED:-false}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
@@ -432,6 +538,30 @@ services:
     networks:
       - industrial-network
 
+  # ==========================================
+  # Frontend — Vue static build + Nginx reverse proxy (ADR 0041)
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: industrial-ai-hub-frontend:latest
+    container_name: iah-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_HOST_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - industrial-network
+
 # Named volumes (managed by Docker, not bind-mounted)
 volumes:
   rabbitmq-data:
@@ -440,3 +570,7 @@ volumes:
   prometheus-data:
   backend-logs:
   backend-data:
+  qdrant-data:
+  loki-data:
+  promtail-positions:
+  grafana-data:

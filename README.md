@@ -14,7 +14,7 @@
 
 Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台：**真实 ESP32 硬件 + MQTT 上报传感器数据 → 规则引擎报警 → 继电器下行联动 → AI 诊断与巡检日报 → SSE 实时推送**，全链路可观测、可压测、可一键编排。
 
-- 后端 Spring Boot 3.5 + MyBatis，前端 Vue 3 + Element Plus + ECharts（12 页面，深色工业控制中心风格）
+- 后端 Spring Boot 3.5 + MyBatis，前端 Vue 3 + Element Plus + ECharts（深色工业控制中心风格）
 - 基础设施 Docker Compose 统一编排：**默认 6 服务一键启动，`--profile full` 15 服务**
 - 按 16 周路线图渐进构建（Day 1-112），Phase 5 已完成真实硬件 6 段物理闭环
 
@@ -32,7 +32,7 @@ Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台�
 ## 架构总览
 
 ```text
-                 浏览器（Vue 3 + Element Plus + ECharts，12 页面）
+                 浏览器（Vue 3 + Element Plus + ECharts）
                       │ REST /api/*（JWT + RBAC + 站点作用域）
                       ▼
    ┌──────────────────────── Spring Boot 3.5 后端 ────────────────────────┐
@@ -161,7 +161,7 @@ Industrial-AI-Hub/
 │       ├── controller/ service/ mapper/ entity/ dto/     # 分层架构
 │       ├── client/ mcp/ rule/ mq/                        # DeepSeek / MCP 工具 / 规则引擎 / 消息
 │       ├── config/ security/ aop/ annotation/ enums/ exception/ util/
-├── frontend/src/                # 12 页面（含 AI 助手/巡检日报/设备 AI 面板）
+├── frontend/src/                # Vue 3 业务视图（含 AI 助手/巡检日报/设备 AI 面板）
 ├── prometheus/                  # 抓取配置（双部署模式并存观测）
 ├── docs/
 │   ├── Architecture/            # 应用架构 V2.5 + 基础设施基线 V1.6
@@ -203,7 +203,7 @@ Industrial-AI-Hub/
 | Phase 4 | Week 10-13 | AI 集成（Day 64-91，tag `v2.0-ai`） |
 | Phase 5 | Week 14-16 | PLC + MQTT + 真实硬件 + 完整系统上线（Day 92-112） |
 
-> 当前进度：Day 108（Week 17 收尾周），Phase 5 系统主线完整收官。
+> 当前进度：Day 109（Week 17 收尾周），Phase 5 系统主线完整收官，进入面试与发布准备。
 
 ## 文档索引
 
@@ -215,6 +215,7 @@ Industrial-AI-Hub/
 | [`docs/ai/phase4-integration-guide.md`](docs/ai/phase4-integration-guide.md) | AI 模块 6 步集成 Runbook + 故障速查 |
 | [`docs/decision-log/`](docs/decision-log/) | ADR 0001-0037 + [一页决策导览](docs/decision-log/README.md) |
 | [`docs/reports/`](docs/reports/) | 压测 / 性能 / 审计报告 + [工程踩坑手册](docs/reports/engineering-pitfalls.md) |
+| [`docs/interview/project-introduction.md`](docs/interview/project-introduction.md) | 面试项目介绍（30 秒 / 3 分钟 / 10 分钟 + 高频追问与数字证据） |
 | [`docs/TECH-DEBT.md`](docs/TECH-DEBT.md) | 技术债务 SSOT 清单 |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | 分支流程 + 自测清单 |
 
@@ -231,4 +232,4 @@ MIT
 
 ---
 
-> 最后更新：2026-10-18（Day 108：ADR 0001-0037 导览 + 43 条工程踩坑手册 + V15/10 表文档口径校正；375 tests 基线不变）| 维护者：[hula0710](https://github.com/lgmhula)
+> 最后更新：2026-10-18（Day 109：3 分钟 + 10 分钟面试项目介绍、高频追问与统一数字证据；演示视频按用户安排延后）| 维护者：[hula0710](https://github.com/lgmhula)

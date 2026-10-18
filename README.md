@@ -203,7 +203,7 @@ Industrial-AI-Hub/
 | Phase 4 | Week 10-13 | AI 集成（Day 64-91，tag `v2.0-ai`） |
 | Phase 5 | Week 14-16 | PLC + MQTT + 真实硬件 + 完整系统上线（Day 92-112） |
 
-> 当前进度：Day 109（Week 17 收尾周），Phase 5 系统主线完整收官，进入面试与发布准备。
+> 当前进度：Day 110（Week 17 收尾周），Phase 5 系统主线完整收官，进入面试与发布准备。
 
 ## 文档索引
 
@@ -216,6 +216,7 @@ Industrial-AI-Hub/
 | [`docs/decision-log/`](docs/decision-log/) | ADR 0001-0037 + [一页决策导览](docs/decision-log/README.md) |
 | [`docs/reports/`](docs/reports/) | 压测 / 性能 / 审计报告 + [工程踩坑手册](docs/reports/engineering-pitfalls.md) |
 | [`docs/interview/project-introduction.md`](docs/interview/project-introduction.md) | 面试项目介绍（30 秒 / 3 分钟 / 10 分钟 + 高频追问与数字证据） |
+| [`docs/interview/java-interview-guide.md`](docs/interview/java-interview-guide.md) | Java 后端八股（集合 / 并发 / JVM / Spring）+ 项目证据映射 + 30 题自测 |
 | [`docs/TECH-DEBT.md`](docs/TECH-DEBT.md) | 技术债务 SSOT 清单 |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | 分支流程 + 自测清单 |
 
@@ -232,4 +233,4 @@ MIT
 
 ---
 
-> 最后更新：2026-10-18（Day 109：3 分钟 + 10 分钟面试项目介绍、高频追问与统一数字证据；演示视频按用户安排延后）| 维护者：[hula0710](https://github.com/lgmhula)
+> 最后更新：2026-10-18（Day 110：Java 集合 / 并发 / JVM / Spring 八股与项目证据映射；演示视频按用户安排延后）| 维护者：[hula0710](https://github.com/lgmhula)

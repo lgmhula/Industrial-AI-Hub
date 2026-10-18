@@ -1,6 +1,6 @@
 # Reports 目录索引
 
-> 最后更新：2026-08-26 | 维护：AI 助手 + hula0710
+> 最后更新：2026-10-18 | 维护：AI 助手 + hula0710
 
 本目录包含项目所有审计报告、Release Note、部署手册。**历史归档位于 `archive/` 子目录**，新读者优先阅读"当前有效"清单。
 
@@ -30,6 +30,12 @@
 | [SQL-Audit-Report.md](SQL-Audit-Report.md) | SQL 文件一致性审计 |
 | [Code-Security-Scan-2026-08-04.md](Code-Security-Scan-2026-08-04.md) | 代码安全扫描 |
 | [phase3-drift-audit.md](phase3-drift-audit.md) | Phase 3 漂移审计 |
+
+### 工程经验（长期有效）
+
+| 文档 | 范围 |
+|------|------|
+| [engineering-pitfalls.md](engineering-pitfalls.md) | Day 1-107 工程踩坑手册：连接、配置、数据、硬件、测试、AI/部署七类 43 条 |
 
 ### 部署手册（长期有效）
 

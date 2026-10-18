@@ -341,7 +341,7 @@ HTTP Request
 
 ## 5. 数据库
 
-`reboot` 数据库，9 张表（user / role / user_role / site / user_site / device / device_data / alarm / operation_log + login_audit），由 Flyway 管理（V1 基线 + V3 CHECK 扩展 + V4 站点授权 + V5 用户安全状态 + V6 登录审计 + V7 alarm/role 审计字段 + V8 admin 密码更新 + V9 AI 操作日志类型 + V10 FUNCTION_CALL + V11 RAG 知识 + V12 MCP_SMOKE/MCP + V13 INSPECTION 操作日志类型 + V14 PUSH/SSE + V15 AUTO_ALARM），零 FK，软删除策略。
+`reboot` 数据库，10 张表（user / role / user_role / site / user_site / device / device_data / alarm / operation_log / login_audit），由 Flyway 管理（V1 基线 + V3 CHECK 扩展 + V4 站点授权 + V5 用户安全状态 + V6 登录审计 + V7 alarm/role 审计字段 + V8 admin 密码更新 + V9 AI 操作日志类型 + V10 FUNCTION_CALL + V11 RAG 知识 + V12 MCP_SMOKE/MCP + V13 INSPECTION 操作日志类型 + V14 PUSH/SSE + V15 AUTO_ALARM；V1 + V3-V15 共 14 个活动迁移文件），零 FK，软删除策略。
 
 ---
 

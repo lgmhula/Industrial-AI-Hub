@@ -12,6 +12,7 @@
 
 | 文档 | 日期 | 范围 |
 |------|------|------|
+| [post-roadmap-optimization-report-2026-10-18.md](post-roadmap-optimization-report-2026-10-18.md) | 2026-10-18 | `v3.0-final` 后增强：403 测试、V16、Redis SSE/限流、Qdrant、前端容器与观测栈 |
 | [v3.0-final-release-report.md](v3.0-final-release-report.md) | 2026-10-18 | v3.0-final Release Gate、验证矩阵、已知边界和后续优先级 |
 | [comprehensive-review-2026-08-22.md](comprehensive-review-2026-08-22.md) | 2026-08-22 | 整合版：全方位审查 + 数据库对比 + RBAC 升级 + Phase 5 硬件 + Phase 4 计划 |
 | [phase3-quality-audit-2026-08-23.md](phase3-quality-audit-2026-08-23.md) | 2026-08-23 | Phase 3 工程质量专项审计（8 维度评分 + 4 周修复计划） |

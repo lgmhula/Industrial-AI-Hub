@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Industrial AI Hub
+    orgId: 1
+    folder: Industrial AI Hub
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /var/lib/grafana/dashboards

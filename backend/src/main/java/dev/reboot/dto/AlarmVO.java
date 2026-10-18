@@ -18,7 +18,9 @@ public class AlarmVO {
     private Integer alarmLevel;
     private String alarmMessage;
     private Integer status;
+    private Integer repeatCount;
     private LocalDateTime triggeredAt;
+    private LocalDateTime lastTriggeredAt;
     private LocalDateTime resolvedAt;
 
     public Long getId() { return id; }
@@ -33,8 +35,12 @@ public class AlarmVO {
     public void setAlarmMessage(String alarmMessage) { this.alarmMessage = alarmMessage; }
     public Integer getStatus() { return status; }
     public void setStatus(Integer status) { this.status = status; }
+    public Integer getRepeatCount() { return repeatCount; }
+    public void setRepeatCount(Integer repeatCount) { this.repeatCount = repeatCount; }
     public LocalDateTime getTriggeredAt() { return triggeredAt; }
     public void setTriggeredAt(LocalDateTime triggeredAt) { this.triggeredAt = triggeredAt; }
+    public LocalDateTime getLastTriggeredAt() { return lastTriggeredAt; }
+    public void setLastTriggeredAt(LocalDateTime lastTriggeredAt) { this.lastTriggeredAt = lastTriggeredAt; }
     public LocalDateTime getResolvedAt() { return resolvedAt; }
     public void setResolvedAt(LocalDateTime resolvedAt) { this.resolvedAt = resolvedAt; }
 
@@ -46,7 +52,9 @@ public class AlarmVO {
         vo.setAlarmLevel(alarm.getAlarmLevel());
         vo.setAlarmMessage(alarm.getAlarmMessage());
         vo.setStatus(alarm.getStatus());
+        vo.setRepeatCount(alarm.getRepeatCount());
         vo.setTriggeredAt(alarm.getTriggeredAt());
+        vo.setLastTriggeredAt(alarm.getLastTriggeredAt());
         vo.setResolvedAt(alarm.getResolvedAt());
         return vo;
     }

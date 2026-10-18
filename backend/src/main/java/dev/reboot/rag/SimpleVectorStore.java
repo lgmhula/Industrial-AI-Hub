@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,7 +33,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author AI 助手
  * @since 2026-08-29
  */
-@Component
 public class SimpleVectorStore implements VectorStore {
 
     private static final Logger log = LoggerFactory.getLogger(SimpleVectorStore.class);

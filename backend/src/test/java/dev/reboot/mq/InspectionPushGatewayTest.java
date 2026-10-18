@@ -128,7 +128,7 @@ class InspectionPushGatewayTest {
         gateway.push(message);
 
         // 失效会话应被移除
-        verify(registry).remove(1L);
+        verify(registry).removeIfCurrent(1L, mockEmitter);
     }
 
     @Test
@@ -142,7 +142,7 @@ class InspectionPushGatewayTest {
 
         gateway.push(message);
 
-        verify(registry).remove(1L);
+        verify(registry).removeIfCurrent(1L, mockEmitter);
     }
 
     @Test
@@ -159,7 +159,7 @@ class InspectionPushGatewayTest {
         gateway.push(message);
 
         // 失败会话移除，成功会话推送 —— 单点失败不阻塞其他用户
-        verify(registry).remove(1L);
+        verify(registry).removeIfCurrent(1L, failEmitter);
         verify(okEmitter).send(any(SseEmitter.SseEventBuilder.class));
     }
 

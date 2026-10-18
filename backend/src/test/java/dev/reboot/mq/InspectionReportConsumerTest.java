@@ -43,6 +43,7 @@ class InspectionReportConsumerTest {
     @Mock private ValueOperations<String, String> valueOps;
     @Mock private Channel channel;
     @Mock private InspectionPushGateway pushGateway;
+    @Mock private InspectionPushPubSub pushPubSub;
 
     private InspectionReportConsumer consumer;
 
@@ -182,6 +183,39 @@ class InspectionReportConsumerTest {
         // 重复消息不应调用 push（幂等短路）
         verify(pushGateway, never()).push(any());
         verify(channel).basicAck(deliveryTag, false); // 重复仍 ack 防堆积
+    }
+
+    @Test
+    void handleReport_firstMessage_pubSubSuccess_shouldNotPushLocally() throws Exception {
+        InspectionReportConsumer consumerWithPubSub =
+                new InspectionReportConsumer(redis, pushGateway, pushPubSub);
+        when(redis.opsForValue()).thenReturn(valueOps);
+        when(valueOps.setIfAbsent(anyString(), eq("1"), any())).thenReturn(true);
+        when(pushPubSub.publish(any(InspectionReportMessage.class))).thenReturn(true);
+        long deliveryTag = 202L;
+        InspectionReportMessage message = adminAllSitesMessage();
+
+        consumerWithPubSub.handleReport(message, channel, deliveryTag);
+
+        verify(pushPubSub).publish(message);
+        verify(pushGateway, never()).push(any());
+        verify(channel).basicAck(deliveryTag, false);
+    }
+
+    @Test
+    void handleReport_pubSubFailure_shouldFallbackToLocalGateway() throws Exception {
+        InspectionReportConsumer consumerWithPubSub =
+                new InspectionReportConsumer(redis, pushGateway, pushPubSub);
+        when(redis.opsForValue()).thenReturn(valueOps);
+        when(valueOps.setIfAbsent(anyString(), eq("1"), any())).thenReturn(true);
+        when(pushPubSub.publish(any(InspectionReportMessage.class))).thenReturn(false);
+        long deliveryTag = 203L;
+        InspectionReportMessage message = adminAllSitesMessage();
+
+        consumerWithPubSub.handleReport(message, channel, deliveryTag);
+
+        verify(pushGateway).push(message);
+        verify(channel).basicAck(deliveryTag, false);
     }
 
     private InspectionReportMessage adminAllSitesMessage() {

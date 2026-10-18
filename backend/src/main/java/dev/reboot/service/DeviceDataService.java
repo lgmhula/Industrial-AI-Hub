@@ -105,6 +105,11 @@ public class DeviceDataService {
             // ── 异步发送报警消息到 RabbitMQ（工作队列） ──
             if (alarmProducer != null) {
                 for (AlarmVO alarm : alarms) {
+                    if (alarm.getRepeatCount() != null && alarm.getRepeatCount() > 1) {
+                        log.debug("活动告警已合并，跳过重复 MQ 通知: device={} type={} repeatCount={}",
+                                deviceId, alarm.getAlarmType(), alarm.getRepeatCount());
+                        continue;
+                    }
                     AlarmMessage msg = new AlarmMessage(
                             deviceId,
                             alarm.getAlarmType(),

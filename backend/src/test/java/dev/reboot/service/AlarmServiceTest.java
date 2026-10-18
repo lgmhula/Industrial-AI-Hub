@@ -145,11 +145,38 @@ class AlarmServiceTest {
     }
 
     @Test
-    void createAlarm_shouldReturnVO() {
-        when(alarmMapper.insert(any(Alarm.class))).thenReturn(1);
-        AlarmVO vo = alarmService.createAlarm(1L, "OVER_TEMP", 2, "过热", LocalDateTime.now());
+    void createAlarm_firstTrigger_shouldPersistAsActive() {
+        LocalDateTime now = LocalDateTime.now();
+        when(alarmMapper.upsertActive(any(Alarm.class))).thenReturn(1);
+        Alarm persisted = newAlarm(10L, 0);
+        persisted.setRepeatCount(1);
+        persisted.setLastTriggeredAt(now);
+        when(alarmMapper.findActiveByDeviceAndType(1L, "OVER_TEMP")).thenReturn(persisted);
+
+        AlarmVO vo = alarmService.createAlarm(1L, "OVER_TEMP", 2, "过热", now);
+
         assertNotNull(vo);
-        assertEquals("OVER_TEMP", vo.getAlarmType());
-        verify(alarmMapper).insert(any(Alarm.class));
+        assertEquals(10L, vo.getId());
+        assertEquals(1, vo.getRepeatCount());
+        verify(alarmMapper).upsertActive(argThat(a ->
+                a.getDeviceId().equals(1L)
+                        && a.getAlarmType().equals("OVER_TEMP")
+                        && a.getStatus().equals(0)
+                        && a.getRepeatCount().equals(1)
+                        && now.equals(a.getLastTriggeredAt())));
+        verify(alarmMapper).findActiveByDeviceAndType(1L, "OVER_TEMP");
+    }
+
+    @Test
+    void createAlarm_repeatedTrigger_shouldReturnMergedRecord() {
+        Alarm persisted = newAlarm(10L, 0);
+        persisted.setRepeatCount(7);
+        when(alarmMapper.upsertActive(any(Alarm.class))).thenReturn(1);
+        when(alarmMapper.findActiveByDeviceAndType(1L, "OVER_TEMP")).thenReturn(persisted);
+
+        AlarmVO vo = alarmService.createAlarm(1L, "OVER_TEMP", 2, "仍过热", LocalDateTime.now());
+
+        assertEquals(10L, vo.getId());
+        assertEquals(7, vo.getRepeatCount());
     }
 }

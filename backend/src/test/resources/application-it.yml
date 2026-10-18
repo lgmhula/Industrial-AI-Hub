@@ -70,6 +70,10 @@ deepseek:
   base-url: https://api.deepseek.com
   model: deepseek-chat
 
+# 集成测试不连接宿主机常驻实例的 EMQX clientId / Paho 持久化目录。
+mqtt:
+  enabled: false
+
 app:
   mcp:
     access-token: ""

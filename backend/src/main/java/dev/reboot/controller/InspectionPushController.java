@@ -2,6 +2,7 @@ package dev.reboot.controller;
 
 import dev.reboot.annotation.OperationLog;
 import dev.reboot.annotation.RequireRole;
+import dev.reboot.dto.ApiResponse;
 import dev.reboot.enums.ErrorCode;
 import dev.reboot.enums.RoleEnum;
 import dev.reboot.exception.BusinessException;
@@ -20,13 +21,16 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * AI 巡检日报 SSE 推送控制器 — 浏览器建连入口（Day 85 Phase 6，ADR 0031 §5.2/§5.5/§9）。
  *
  * <p>本类是 ADR 0031 六段链路中「SSE/WebSocket」段的 Controller 层，承接浏览器
  * EventSource 建连请求，通过 JWT 解析 userId + {@link SiteAccessService} 解析站点范围，
- * 调用 {@link SseEmitterRegistry#register} 建立 30min timeout 的 SseEmitter 并返回。</p>
+ * 调用 {@link SseEmitterRegistry#register} 建立 30min timeout 的 SseEmitter；Spring MVC
+ * 进入异步响应模式后由调度器提交首帧。Redis Pub/Sub fanout 到达后，各实例通过本地
+ * Gateway 向自己的连接推送日报。</p>
  *
  * <h3>鉴权链路（ADR 0031 §5.2/§5.5）</h3>
  * <pre>
@@ -50,8 +54,7 @@ import java.util.List;
  * <ul>
  *   <li>SSE 端点必须走 JWT Filter + AuthInterceptor，禁止匿名建立 emitter；</li>
  *   <li>Controller 只在建连时解析一次 userId + siteIds 并绑定到 emitter，
- *       后续 Consumer 推送时 Push Gateway 只认 emitter 绑定的 siteIds，
- *       不信任 Consumer 传入的 triggeredByUserId；</li>
+     *       后续推送只认 emitter 绑定的 siteIds，不信任消息中的 triggeredByUserId；</li>
  *   <li>非 ADMIN 且无站点访问权的用户拒绝建连（403），避免 P0 跨站点泄漏缺陷。</li>
  * </ul>
  *
@@ -93,7 +96,7 @@ public class InspectionPushController {
      *
      * <p>浏览器用 {@code new EventSource('/api/push/inspection', { headers: { Authorization: 'Bearer ...' } })}
      * 或在 URL 携带 token 建连。返回的 SseEmitter 由 Spring MVC 持有，
-     * {@link InspectionPushGateway#push} 会按 siteIds 路由日报到该 emitter。</p>
+     * Redis fanout 后各实例的本地 Gateway 会按 siteIds 路由日报到该 emitter。</p>
      *
      * @param request HTTP 请求（JwtAuthFilter 已注入 userId attribute）
      * @return 30min timeout 的 SseEmitter
@@ -106,16 +109,7 @@ public class InspectionPushController {
     @Operation(summary = "订阅巡检日报 SSE 推送（需登录，VIEWER+）")
     public SseEmitter subscribe(HttpServletRequest request) {
         Long userId = currentUserId(request);
-        List<Long> siteIds = siteAccessService.accessibleSiteIds(userId);
-
-        // P0 安全防护：非 ADMIN 且无站点访问权 → 拒绝建连
-        // 理由：空 siteIds 在 SseEmitterSession.canReceive 中被当作 ADMIN 全站点语义
-        // （canReceive 第一行 this.siteIds.isEmpty() → return true），
-        // 若放行无站点用户建连，会导致其收到所有站点的日报（跨站点泄漏，ADR 0031 §5.5 P0）
-        if (siteIds != null && siteIds.isEmpty()) {
-            log.warn("拒绝建连：用户 {} 非 ADMIN 且无站点访问权", userId);
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无可访问站点，无法订阅巡检日报");
-        }
+        List<Long> siteIds = resolveAuthorizedSites(userId);
 
         // ADMIN (null) → 传 List.of()（SseEmitterSession 空 siteIds = ADMIN 全站点语义）
         // 非 ADMIN 有站点 → 传实际 siteIds（canReceive 按交集匹配）
@@ -123,6 +117,32 @@ public class InspectionPushController {
         SseEmitter emitter = registry.register(userId, registrySiteIds);
         log.info("SSE 巡检日报连接建立 userId={} siteIds={}", userId, registrySiteIds);
         return emitter;
+    }
+
+    /**
+     * 仅做登录/角色/站点权限探测，不创建 emitter。
+     *
+     * <p>浏览器 EventSource 不能可靠读取 403 body，前端在建立长连接前先用普通 GET
+     * 调本端点；成功即表示可以继续建立 SSE。</p>
+     */
+    @GetMapping("/inspection/access")
+    @RequireRole({RoleEnum.VIEWER, RoleEnum.OPERATOR, RoleEnum.ADMIN})
+    @Operation(summary = "探测巡检日报 SSE 权限（不创建连接）")
+    public ApiResponse<Map<String, Object>> access(HttpServletRequest request) {
+        Long userId = currentUserId(request);
+        resolveAuthorizedSites(userId);
+        return ApiResponse.ok("巡检日报 SSE 可订阅", Map.of("authorized", true));
+    }
+
+    private List<Long> resolveAuthorizedSites(Long userId) {
+        List<Long> siteIds = siteAccessService.accessibleSiteIds(userId);
+        // P0 安全防护：空 siteIds 在 SseEmitterSession 中表示 ADMIN 全站点，
+        // 非 ADMIN 无站点时必须拒绝，否则会跨站点泄漏。
+        if (siteIds != null && siteIds.isEmpty()) {
+            log.warn("拒绝 SSE：用户 {} 非 ADMIN 且无站点访问权", userId);
+            throw new BusinessException(ErrorCode.FORBIDDEN, "无可访问站点，无法订阅巡检日报");
+        }
+        return siteIds;
     }
 
     /** 从 JWT Filter 注入的 request attribute 读取当前登录用户 ID。 */

@@ -10,6 +10,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
  *   <li>{@link BusinessException} → 按 ErrorCode 定义的状态码和消息返回</li>
  *   <li>{@link MethodArgumentNotValidException} → 400，列出所有字段校验失败信息</li>
  *   <li>{@link HttpMessageNotReadableException} → 400，畸形 JSON / 缺失请求体（TD-038）</li>
+ *   <li>{@link AsyncRequestNotUsableException} → 客户端已断开，仅记录调试日志</li>
  *   <li>其他未捕获异常 → 500，隐藏内部细节，打印完整堆栈</li>
  * </ul>
  *
@@ -94,6 +96,18 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handleUnreadableBody(HttpMessageNotReadableException e) {
         log.warn("请求体不可读: {}", e.getMostSpecificCause().getMessage());
         return ApiResponse.error(400, "请求体格式错误，请检查 JSON 语法与必填字段");
+    }
+
+    /**
+     * 异步请求的客户端已断开（常见于 SSE 页面离页）。
+     *
+     * <p>此时 Servlet 响应通道已不可写，处理器必须返回 {@code void}，仅把异常
+     * 标记为已处理。若落入通用兜底并尝试写 JSON，会触发二次
+     * {@code AsyncRequestNotUsableException} 和误导性的 ERROR 日志。</p>
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleAsyncRequestNotUsable(AsyncRequestNotUsableException e) {
+        log.debug("异步请求客户端已断开: {}", e.getMessage());
     }
 
     /** 兜底 — 所有未预期的异常。 */

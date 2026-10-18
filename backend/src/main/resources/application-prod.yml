@@ -5,6 +5,9 @@
 logging:
   level:
     dev.reboot: WARN
+    # SSE 是长连接状态机，连接建立/移除日志量低但对排障必要。
+    dev.reboot.controller.InspectionPushController: INFO
+    dev.reboot.mq.SseEmitterRegistry: INFO
     org.springframework: WARN
 
 mybatis:

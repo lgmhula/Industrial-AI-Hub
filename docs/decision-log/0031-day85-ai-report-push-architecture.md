@@ -234,9 +234,20 @@ Report Consumer 解析 `InspectionReportMessage.siteIds`，
 
 * 不替换 RabbitMQ 为 Kafka/Pulsar（技术栈锁定，AGENTS §5）。
 
+## 11. 后续实现状态
+
+ADR 0039 已把本 ADR 设计的 Redis Pub/Sub 多副本广播接入生产链路：RabbitMQ Consumer 取得幂等权后发布
+Redis channel，各实例再向本机 emitter 推送。该实现降低单机连接绑定风险，但仍保留实例本地 emitter 状态，
+不等于生产级高可用或跨主机故障切换承诺。
+
 ***
 
-> 最后更新：2026-08-31 | 维护者：AI 助手 + hula0710
+> 最后更新：2026-10-18 | 维护者：AI 助手 + hula0710
+
+> **路线后增强（ADR 0039 补充）**：首帧 comment 改为 Controller 返回 `SseEmitter` 后
+> 100ms 由独立 `sseFirstFrameScheduler` 异步发送，避免 Spring MVC 尚未进入异步上下文时
+> 首帧滞留在响应缓冲区。同一调度器每 15s 发送 heartbeat comment；前端同时监听浏览器
+> `online/offline` 事件主动切换“重连中/已连接”。心跳、日报推送和首帧共用 emitter 级同步锁，
+> 避免同一连接并发写导致事件交错。
 > 路径说明：本文件遵循项目约定置于 `docs/decision-log/`（与 ADR 0026-0030 同目录），
 > 而非任务原文 `docs/adr/`，以保持 AGENTS §2 文档索引一致性。
-

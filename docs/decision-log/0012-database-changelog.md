@@ -27,10 +27,11 @@
 | V13 | 2026-08-30 | ALTER | Agent + MCP 巡检审计：`chk_operation_type` 增加 `INSPECTION`（Day 83，ADR 0030） | operation_log |
 | V14 | 2026-09-01 | ALTER | SSE 推送审计：`chk_operation_type` 增加 `PUSH`，`chk_target_type` 增加 `SSE`（Day 85，ADR 0031） | operation_log |
 | V15 | 2026-09-01 | ALTER | AI 巡检自动报警审计：`chk_operation_type` 增加 `AUTO_ALARM`（Day 86） | operation_log |
+| V16 | 2026-10-18 | ALTER | 活动告警聚合：`repeat_count` / `last_triggered_at` / `active_alarm_key` 生成列 + `uk_alarm_active_device_type` 唯一索引 + `idx_alarm_last_triggered_at`；迁移内归并存量活动重复项（ADR 0038） | alarm |
 
 ## 当前 Schema 版本
 
-**Flyway 管理**（ADR 0019）—— `backend/src/main/resources/db/migration/`（V1 基线 + V3-V15 增量，共 14 个活动迁移文件）；当前 Schema 版本 **V15**，应用启动时自动迁移，变更 = 新增 `V###__*.sql`。演示/测试种子数据**不在迁移链内**：唯一事实源为 `db/seed/dev/seed_demo_data.sql`，开发环境经 `scripts/seed-dev.sh` 显式执行（幂等；原 `V2__seed_test_data.sql` 已于 2026-08-18 退役，见 ADR 0019 §5）。
+**Flyway 管理**（ADR 0019）—— `backend/src/main/resources/db/migration/`（V1 基线 + V3-V16 增量，共 15 个活动迁移文件）；当前 Schema 版本 **V16**，应用启动时自动迁移，变更 = 新增 `V###__*.sql`。演示/测试种子数据**不在迁移链内**：唯一事实源为 `db/seed/dev/seed_demo_data.sql`，开发环境经 `scripts/seed-dev.sh` 显式执行（幂等；原 `V2__seed_test_data.sql` 已于 2026-08-18 退役，见 ADR 0019 §5）。
 
 ### 表清单
 
@@ -41,11 +42,21 @@
 | 3 | `user_role` | 用户角色关联 | user_id + role_id 联合唯一 |
 | 4 | `device` | 设备 | is_deleted(CHECK), device_type(CHECK) |
 | 5 | `device_data` | 设备传感器数据 | DECIMAL(18,6), data_type(CHECK) |
-| 6 | `alarm` | 告警 | alarm_level(CHECK), status(CHECK) |
+| 6 | `alarm` | 告警 | alarm_level(CHECK), status(CHECK), repeat_count, last_triggered_at, active_alarm_key(生成列唯一) |
 | 7 | `operation_log` | 操作审计日志 | operation_type/target_type 均为 CHECK；最终枚举见下方约束清单 |
 | 8 | `site` | 站点 | 站点编码 + 名称；V4 引入 |
 | 9 | `user_site` | 用户站点授权关联 | user_id + site_id 联合约束；V4 引入 |
 | 10 | `login_audit` | 登录审计 | 成功/失败、IP、失败原因；V6 引入 |
+
+### V16 活动告警字段与索引
+
+| 对象 | 定义 | 用途 |
+|------|------|------|
+| `repeat_count` | `INT NOT NULL DEFAULT 1` | 活动周期内重复触发次数 |
+| `last_triggered_at` | `DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP` | 最近一次触发时间 |
+| `active_alarm_key` | `VARCHAR(96) GENERATED ALWAYS ... STORED` | 活动记录为 `device_id:alarm_type`，解决后为 `NULL` |
+| `uk_alarm_active_device_type` | UNIQUE (`active_alarm_key`) | 数据库兜底同设备同类型仅一个活动周期 |
+| `idx_alarm_last_triggered_at` | INDEX (`last_triggered_at`) | 最近触发时间查询 |
 
 ### 约束清单（8 个 CHECK，V9-V15 扩展 AI 与审计枚举）
 
@@ -63,13 +74,15 @@
 
 ## 数据库连接
 
-| 环境 | 端口 | 密码 | 用途 |
+| 环境 | 默认端口 | 连接凭据来源 | 用途 |
 |------|:---:|------|------|
-| Docker MySQL (compose) | 3307 | `1zxcvbnm` | 开发主库 |
-| 本机 MySQL | 3306 | `1zxcvbnm` | 本地备用 |
-| Docker Master | 13306 | `admin123456` | 主从写入 |
-| Docker Slave1 | 13307 | `admin123456` | 主从只读 |
-| Docker Slave2 | 13308 | `admin123456` | 主从只读 |
+| Docker MySQL (compose) | 3307 | 根 `.env` 的 `MYSQL_ROOT_PASSWORD` / `MYSQL_DATABASE` | 开发主库 |
+| 本机 MySQL | 3306 | 本地环境自行配置 | 本地备用 |
+| Docker Master | 13306 | 根 `.env` 的 `MYSQL_MS_ROOT_PASSWORD` | 主从写入 |
+| Docker Slave1 | 13307 | 根 `.env` 的 `MYSQL_MS_ROOT_PASSWORD` | 主从只读 |
+| Docker Slave2 | 13308 | 根 `.env` 的 `MYSQL_MS_ROOT_PASSWORD` | 主从只读 |
+
+> 敏感凭据遵守 ADR 0015：根 `.env` 是本地唯一事实源，`.env.example` 只提供占位值；文档禁止记录真实密码。
 
 ---
 

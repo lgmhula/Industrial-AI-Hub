@@ -180,6 +180,21 @@ class RateLimitInterceptorTest {
                 "数字段应被归一化为 {id}，共用桶");
     }
 
+    /** 身份桶：同一用户不能吃满路径额度；不同用户使用独立身份桶。 */
+    @Test
+    void shouldLimitEachIdentityIndependently() throws Exception {
+        RateLimitInterceptor interceptor = new RateLimitInterceptor(
+                100.0, 1.0, 200L, 5000L, new RateLimitStore(null, "local"));
+
+        MockHttpServletRequest user1 = new MockHttpServletRequest("GET", "/api/devices");
+        user1.setAttribute("userId", 1L);
+        assertTrue(interceptor.preHandle(user1, new MockHttpServletResponse(), HANDLER));
+        assertEquals(429, invokeAsUser(interceptor, "/api/devices", 1L).getStatus());
+
+        assertTrue(interceptor.preHandle(userReq("/api/devices", 2L),
+                new MockHttpServletResponse(), HANDLER), "不同用户应使用独立身份桶");
+    }
+
     /** 非法配置回退默认值，不抛异常。 */
     @Test
     void shouldFallbackOnIllegalPermits() throws Exception {
@@ -200,5 +215,18 @@ class RateLimitInterceptorTest {
     private void detachAppender(ListAppender<ILoggingEvent> appender) {
         Logger logger = (Logger) LoggerFactory.getLogger(RateLimitInterceptor.class);
         logger.detachAppender(appender);
+    }
+
+    private MockHttpServletResponse invokeAsUser(
+            RateLimitInterceptor interceptor, String uri, long userId) throws Exception {
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        interceptor.preHandle(userReq(uri, userId), response, HANDLER);
+        return response;
+    }
+
+    private MockHttpServletRequest userReq(String uri, long userId) {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", uri);
+        request.setAttribute("userId", userId);
+        return request;
     }
 }

@@ -9,8 +9,11 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import dev.reboot.mq.InspectionPushPubSub;
 
 /**
  * Redis 配置 —— RedisTemplate / StringRedisTemplate Bean。
@@ -37,6 +40,16 @@ public class RedisConfig {
     @Bean
     public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory factory) {
         return new StringRedisTemplate(factory);
+    }
+
+    /** 巡检日报跨实例 SSE fanout；各实例只推本机 registry 中的 emitter。 */
+    @Bean
+    public RedisMessageListenerContainer inspectionPushListenerContainer(
+            RedisConnectionFactory factory, InspectionPushPubSub pushPubSub) {
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(factory);
+        container.addMessageListener(pushPubSub, new ChannelTopic(InspectionPushPubSub.CHANNEL));
+        return container;
     }
 
     /**

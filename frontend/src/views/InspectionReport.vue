@@ -150,6 +150,7 @@ const failReason = ref('')
 const listEl = ref(null)
 let source = null
 let retryCount = 0
+let reconnectTimer = null
 const MAX_RETRY = 3
 
 const connLabel = computed(() => ({
@@ -212,6 +213,7 @@ function connect() {
     failReason.value = '未检测到登录凭证，请先登录后再访问巡检日报。'
     return
   }
+  clearReconnectTimer()
   // 重置计数器（用户手动重连时）
   retryCount = 0
   doConnect(token)
@@ -220,8 +222,8 @@ function connect() {
 async function doConnect(token) {
   // 预检查：先发普通 GET 验证权限，避免 EventSource 403 循环
   try {
-    const checkRes = await fetch('/api/push/inspection?token=' + encodeURIComponent(token), {
-      headers: { 'Accept': 'text/event-stream' },
+    const checkRes = await fetch('/api/push/inspection/access?token=' + encodeURIComponent(token), {
+      headers: { 'Accept': 'application/json' },
       signal: AbortSignal.timeout(5000),
     })
     if (checkRes.status === 403) {
@@ -240,6 +242,10 @@ async function doConnect(token) {
   }
 
   connState.value = 'connecting'
+  if (source) {
+    source.close()
+    source = null
+  }
   source = new EventSource(`/api/push/inspection?token=${encodeURIComponent(token)}`)
 
   source.onopen = () => {
@@ -274,10 +280,33 @@ async function doConnect(token) {
         connState.value = 'failed'
         failReason.value = `连续 ${MAX_RETRY} 次重连失败，可能是后端服务不可用或登录已过期。`
       } else {
-        setTimeout(() => doConnect(token), 3000)
+        clearReconnectTimer()
+        reconnectTimer = setTimeout(() => doConnect(token), 3000)
       }
     }
   }
+}
+
+function clearReconnectTimer() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+}
+
+function handleOffline() {
+  clearReconnectTimer()
+  if (source) {
+    source.close()
+    source = null
+  }
+  connState.value = 'reconnecting'
+  failReason.value = ''
+}
+
+function handleOnline() {
+  if (document.visibilityState !== 'visible' || source) return
+  connect()
 }
 
 function scrollToTop() {
@@ -296,8 +325,15 @@ function formatTime(iso) {
   }
 }
 
-onMounted(() => { connect() })
+onMounted(() => {
+  window.addEventListener('offline', handleOffline)
+  window.addEventListener('online', handleOnline)
+  connect()
+})
 onUnmounted(() => {
+  window.removeEventListener('offline', handleOffline)
+  window.removeEventListener('online', handleOnline)
+  clearReconnectTimer()
   if (source) {
     source.close()
     source = null

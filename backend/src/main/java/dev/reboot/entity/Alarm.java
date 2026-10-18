@@ -16,7 +16,9 @@ public class Alarm {
     private Integer alarmLevel;
     private String alarmMessage;
     private Integer status;
+    private Integer repeatCount;
     private LocalDateTime triggeredAt;
+    private LocalDateTime lastTriggeredAt;
     private LocalDateTime resolvedAt;
     private LocalDateTime acknowledgedAt;
     private Long acknowledgedBy;
@@ -36,8 +38,12 @@ public class Alarm {
     public void setAlarmMessage(String alarmMessage) { this.alarmMessage = alarmMessage; }
     public Integer getStatus() { return status; }
     public void setStatus(Integer status) { this.status = status; }
+    public Integer getRepeatCount() { return repeatCount; }
+    public void setRepeatCount(Integer repeatCount) { this.repeatCount = repeatCount; }
     public LocalDateTime getTriggeredAt() { return triggeredAt; }
     public void setTriggeredAt(LocalDateTime triggeredAt) { this.triggeredAt = triggeredAt; }
+    public LocalDateTime getLastTriggeredAt() { return lastTriggeredAt; }
+    public void setLastTriggeredAt(LocalDateTime lastTriggeredAt) { this.lastTriggeredAt = lastTriggeredAt; }
     public LocalDateTime getResolvedAt() { return resolvedAt; }
     public void setResolvedAt(LocalDateTime resolvedAt) { this.resolvedAt = resolvedAt; }
     public LocalDateTime getAcknowledgedAt() { return acknowledgedAt; }
@@ -53,7 +59,7 @@ public class Alarm {
 
     @Override
     public String toString() {
-        return String.format("Alarm{id=%d, deviceId=%d, type='%s', level=%d, status=%d}",
-                id, deviceId, alarmType, alarmLevel, status);
+        return String.format("Alarm{id=%d, deviceId=%d, type='%s', level=%d, status=%d, repeatCount=%d}",
+                id, deviceId, alarmType, alarmLevel, status, repeatCount);
     }
 }

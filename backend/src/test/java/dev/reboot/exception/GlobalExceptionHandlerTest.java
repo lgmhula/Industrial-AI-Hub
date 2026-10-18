@@ -6,13 +6,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
 import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -31,6 +35,11 @@ class GlobalExceptionHandlerTest {
         @PostMapping("/probe")
         ApiResponse<String> echo(@RequestBody Map<String, String> body) {
             return ApiResponse.ok(body.get("name"));
+        }
+
+        @GetMapping("/probe/disconnected")
+        void disconnected() throws AsyncRequestNotUsableException {
+            throw new AsyncRequestNotUsableException("Servlet container error notification for disconnected client");
         }
     }
 
@@ -68,5 +77,12 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").value("ok"));
+    }
+
+    @Test
+    void disconnectedAsyncRequestIsHandledWithoutWriting500Body() throws Exception {
+        mockMvc.perform(get("/probe/disconnected"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(""));
     }
 }

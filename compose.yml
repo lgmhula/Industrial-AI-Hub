@@ -1,12 +1,13 @@
 # ========================
 # industrial ai hub — unified docker compose
-# Version: v1.6 | Updated: 2026-10-14
+# Version: v1.7 | Updated: 2026-10-18
 # Infrastructure Baseline V3 + Prometheus metrics scraping (Phase 5 Day 100, ADR 0036)
 # Backend MQTT Listener enabled in container network (Phase 5 Day 96, ADR 0034)
 # Day 104 完整编排：
 #   · 默认（无 profile）= core：mysql/redis/rabbitmq/emqx/prometheus/backend（6 服务）
 #   · --profile full = 全量 15 服务（另含 nacos/minio/elasticsearch/mysql 主从×3/redis-sentinel×3）
 #   · backend 日志卷 backend-logs（logback FILE/ERROR_FILE 落盘，Day 101）
+#   · backend 数据卷 backend-data（SimpleVectorStore 跨容器重建保留，Day 111）
 #   · 容器 MQTT clientId 独立（与宿主机实例并存不互踢，Day 101 坑位）
 #   · 限流/节流 rate.limit.* 经环境变量注入（Day 103, ADR 0037）
 # ========================
@@ -411,6 +412,8 @@ services:
     volumes:
       # Day 101 logback FILE/ERROR_FILE 落盘目录（容器内 /app/logs，Dockerfile 已授权 app 用户）
       - backend-logs:/app/logs
+      # Day 111 SimpleVectorStore 文件持久化，容器重建后仍保留向量库数据
+      - backend-data:/app/data
     depends_on:
       mysql:
         condition: service_healthy
@@ -436,3 +439,4 @@ volumes:
   emqx-log:
   prometheus-data:
   backend-logs:
+  backend-data:

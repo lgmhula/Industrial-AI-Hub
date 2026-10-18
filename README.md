@@ -27,7 +27,7 @@ Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台�
 | 📊 **可观测三件套** | Prometheus 三把业务指标尺 + 全链路 traceId（`X-Trace-Id` 透传回传）+ 滚动日志归档（ERROR 独立文件） | ADR 0036，Day 100-101 |
 | ⚡ **性能有证据** | JMeter 压测：读 40.3 req/s（p99 18ms）、写 20.1 req/s；突发 4639 req/s 下限流拒绝率 98.87%、142,771 样本 traceId 零回归；优化后限流日志量 **−92.8%** | Day 102-103 报告，ADR 0037 |
 | 🧪 **375/375 全绿** | 57 个测试类；压测守卫样本级验证幂等/限流/traceId 语义 | 全量 `./mvnw test` |
-| 🐳 **一键编排** | compose v1.6：默认 6 服务；`--profile full` 15 服务全部 healthy（~75s）；Prometheus 双部署模式并存观测 | Baseline V1.6，Day 104 |
+| 🐳 **一键编排** | compose v1.7：默认 6 服务；`--profile full` 15 服务全部 healthy（~75s）；Prometheus 双部署模式并存观测；日志与向量库数据卷持久化 | Baseline V1.7，Day 111 |
 
 ## 架构总览
 
@@ -54,7 +54,7 @@ Industrial AI Hub 是一个面向工业场景的设备管理与 AI 分析平台�
 ```
 
 > 完整分层架构、全链路 ASCII 图与三道附表见 [`docs/Architecture/Application-Architecture.md`](docs/Architecture/Application-Architecture.md)；
-> 基础设施基线见 [`docs/Architecture/Infrastructure-Baseline.md`](docs/Architecture/Infrastructure-Baseline.md)（V1.6）。
+> 基础设施基线见 [`docs/Architecture/Infrastructure-Baseline.md`](docs/Architecture/Infrastructure-Baseline.md)（V1.7）。
 
 ## 技术栈
 
@@ -164,7 +164,7 @@ Industrial-AI-Hub/
 ├── frontend/src/                # Vue 3 业务视图（含 AI 助手/巡检日报/设备 AI 面板）
 ├── prometheus/                  # 抓取配置（双部署模式并存观测）
 ├── docs/
-│   ├── Architecture/            # 应用架构 V2.5 + 基础设施基线 V1.6
+│   ├── Architecture/            # 应用架构 V2.5 + 基础设施基线 V1.7
 │   ├── decision-log/            # ADR 0001-0037
 │   ├── ai/                      # AI 集成 Runbook + 学习笔记
 │   └── reports/                 # 压测/性能/审计报告
@@ -203,7 +203,7 @@ Industrial-AI-Hub/
 | Phase 4 | Week 10-13 | AI 集成（Day 64-91，tag `v2.0-ai`） |
 | Phase 5 | Week 14-16 | PLC + MQTT + 真实硬件 + 完整系统上线（Day 92-112） |
 
-> 当前进度：Day 110（Week 17 收尾周），Phase 5 系统主线完整收官，进入面试与发布准备。
+> 当前进度：Day 111 / 112（Week 17 收尾周），简历材料与 v3.0-final 全量预演完成，等待 Day 112 最终发布收口。
 
 ## 文档索引
 
@@ -211,12 +211,13 @@ Industrial-AI-Hub/
 |------|------|
 | [`docs/SETUP.md`](docs/SETUP.md) | 从零复刻指南（克隆→配置→运行→验证） |
 | [`docs/Architecture/Application-Architecture.md`](docs/Architecture/Application-Architecture.md) | 应用架构 V2.5（分层 + 全链路图 + 附表） |
-| [`docs/Architecture/Infrastructure-Baseline.md`](docs/Architecture/Infrastructure-Baseline.md) | 基础设施基线 V1.6（服务清单 + Profile 分级） |
+| [`docs/Architecture/Infrastructure-Baseline.md`](docs/Architecture/Infrastructure-Baseline.md) | 基础设施基线 V1.7（服务清单 + Profile 分级 + 持久卷） |
 | [`docs/ai/phase4-integration-guide.md`](docs/ai/phase4-integration-guide.md) | AI 模块 6 步集成 Runbook + 故障速查 |
 | [`docs/decision-log/`](docs/decision-log/) | ADR 0001-0037 + [一页决策导览](docs/decision-log/README.md) |
 | [`docs/reports/`](docs/reports/) | 压测 / 性能 / 审计报告 + [工程踩坑手册](docs/reports/engineering-pitfalls.md) |
 | [`docs/interview/project-introduction.md`](docs/interview/project-introduction.md) | 面试项目介绍（30 秒 / 3 分钟 / 10 分钟 + 高频追问与数字证据） |
 | [`docs/interview/java-interview-guide.md`](docs/interview/java-interview-guide.md) | Java 后端八股（集合 / 并发 / JVM / Spring）+ 项目证据映射 + 30 题自测 |
+| [`docs/interview/resume-materials.md`](docs/interview/resume-materials.md) | 简历材料（一句话 / 紧凑 / 扩展版 + STAR 故事 + 可写边界 + 投递检查） |
 | [`docs/TECH-DEBT.md`](docs/TECH-DEBT.md) | 技术债务 SSOT 清单 |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | 分支流程 + 自测清单 |
 
@@ -233,4 +234,4 @@ MIT
 
 ---
 
-> 最后更新：2026-10-18（Day 110：Java 集合 / 并发 / JVM / Spring 八股与项目证据映射；演示视频按用户安排延后）| 维护者：[hula0710](https://github.com/lgmhula)
+> 最后更新：2026-10-18（Day 111：简历材料、依赖清理、容器数据目录与持久卷修复、v3.0-final 全量预演；演示视频按用户安排延后）| 维护者：[hula0710](https://github.com/lgmhula)

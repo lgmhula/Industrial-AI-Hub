@@ -17,10 +17,11 @@ RUN ./mvnw -s .mvn/settings.xml package -DskipTests -B
 # Stage 2: Runtime
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
-# logs 目录预建并授权 app 用户：logback FILE/ERROR_FILE appender（Day 101）启动即落盘，
-# 容器编排将该目录挂载为 named volume backend-logs（compose v1.6，Day 104）
+# logs/data 目录预建并授权 app 用户：日志启动即落盘，并为
+# SimpleVectorStore 持久化提供可写目录。compose 分别挂载
+# backend-logs 与 backend-data named volume。
 RUN addgroup -S app && adduser -S app -G app \
- && mkdir -p /app/logs && chown -R app:app /app/logs
+ && mkdir -p /app/logs /app/data && chown -R app:app /app/logs /app/data
 USER app
 COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8080

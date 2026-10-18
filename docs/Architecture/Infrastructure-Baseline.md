@@ -1,9 +1,9 @@
-# Infrastructure Baseline V1.6
+# Infrastructure Baseline V1.7
 
 > **Status:** Active  
-> **Version:** 1.6
-> **Updated:** 2026-10-14
-> **Based on Commit:** Day 104 (Phase 5)
+> **Version:** 1.7
+> **Updated:** 2026-10-18
+> **Based on Commit:** Day 111 (Phase 5)
 > **Governs:** All infrastructure decisions for Industrial AI Hub
 
 ---
@@ -38,9 +38,9 @@
 | Elasticsearch | 8.17 | 9200, 9300 | Configured | ELK 日志（Day 101，可选） |
 | EMQX | 5.8.9 | 1883, 8083, 18083 | Active | Phase 5 MQTT Broker：PLC/模拟设备接入，ADR 0033；backend 容器自 v1.4 注入 `MQTT_ENABLED=true/MQTT_HOST=emqx` 并等待 healthy（Day 96, ADR 0034） |
 | Prometheus | 2.55.1 | 9090 | Active | Day 100 指标观测（ADR 0036）：**双抓取目标并存（v1.6）**——`industrial-ai-hub-backend`（宿主机 `host.docker.internal:8080`）+ `industrial-ai-hub-backend-container`（服务名 `backend:8080`），哪种部署模式在线哪个 up，`prometheus/prometheus.yml` bind mount + `prometheus-data` named volume |
-| Backend | Boot 3.5.0 / JDK 25 | 8080→`${BACKEND_HOST_PORT:-8080}` | Active | Spring Boot 应用容器（multi-stage Dockerfile + non-root + HEALTHCHECK）；v1.6：日志卷 `backend-logs`（logback FILE/ERROR_FILE，Day 101）挂 `/app/logs`、独立 MQTT clientId（默认 `iah-backend-container`，与宿主机实例并存不互踢）、`rate.limit.*` 三项经环境变量注入（ADR 0037）、DeepSeek/MCP 传输门变量透传、`TZ=Asia/Shanghai` |
+| Backend | Boot 3.5.0 / JDK 25 | 8080→`${BACKEND_HOST_PORT:-8080}` | Active | Spring Boot 应用容器（multi-stage Dockerfile + non-root + HEALTHCHECK）；v1.7：日志卷 `backend-logs`（logback FILE/ERROR_FILE，Day 101）挂 `/app/logs`，新增 `backend-data` 持久卷挂 `/app/data`（`SimpleVectorStore` 文件跨容器重建保留）；Dockerfile 预建并授权两目录给 `app` 用户；独立 MQTT clientId（默认 `iah-backend-container`，与宿主机实例并存不互踢）、`rate.limit.*` 三项经环境变量注入（ADR 0037）、DeepSeek/MCP 传输门变量透传、`TZ=Asia/Shanghai` |
 
-### 2.1 Profile 分级（compose v1.6 实测）
+### 2.1 Profile 分级（compose v1.7 实测）
 
 | 层级 | 启动方式 | 服务 | 用途 |
 |------|---------|------|------|
@@ -86,3 +86,4 @@
 | V1.4 | 2026-09-05 | Phase 5 Day 96：backend MQTT Listener 容器启用（compose v1.4 注入 MQTT_ENABLED/MQTT_HOST/MQTT_PORT + depends_on EMQX healthy），ADR 0034 |
 | V1.5 | 2026-10-13 | Phase 5 Day 100：新增 Prometheus 2.55.1 指标观测服务（9090，抓宿主机后端 `/actuator/prometheus`），compose v1.5 + `prometheus/prometheus.yml` + `prometheus-data` volume，ADR 0036 |
 | V1.6 | 2026-10-14 | Phase 5 Day 104 完整编排：backend 日志卷 `backend-logs` + Dockerfile 预建 `/app/logs`（Day 101 日志体系容器化落盘）；容器 MQTT clientId 独立（`MQTT_CLIENT_ID` 可配，Day 101 互踢坑位）；`rate.limit.*` / DeepSeek / MCP 变量经环境注入；Prometheus 双抓取目标（宿主机 + 容器模式并存）；`BACKEND_HOST_PORT` 可配端口避让宿主机 8080；**实测 `--profile full` 15 服务一键启动全部 healthy**（~75s 收敛）；发现并记录：MinIO 2025-09 起 Docker Hub 社区镜像 tag 已不可拉取（本地 `latest` 即 `RELEASE.2025-09-07T16-13-09Z`，新环境需自 quay.io 或离线导入）；compose v1.6；同日结清 TD-038（畸形 JSON 400） |
+| V1.7 | 2026-10-18 | Phase 5 Day 111 发布预演：运行镜像预建并授权 `/app/data`、`/app/logs` 给非 root `app` 用户；compose 新增 `backend-data` named volume 挂载 `/app/data`，使 `SimpleVectorStore` 文件跨容器重建保留；容器重建后持久化探针通过，完整日志无新的 `/app/data` 创建失败 WARN；full profile 15/15 healthy，Flyway 14 个活动迁移/V15 校验通过；compose v1.7 |

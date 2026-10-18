@@ -592,7 +592,7 @@
 | Day 108 | 整理项目技术文档（设计决策、踩坑记录） |
 | Day 109 | 准备面试项目介绍（3 分钟版本 + 10 分钟版本） |
 | Day 110 | Java 八股文梳理（集合、多线程、JVM、Spring） |
-| Day 111 | 简历重写（以 Industrial AI Hub 为核心） |
+| Day 111 | 简历重写（以 Industrial AI Hub 为核心）✅（`docs/interview/resume-materials.md`：一句话/紧凑/扩展简历、37 ADR 与 375 tests 证据口径、3 个 STAR 故事、可写/不可写边界；清理重复 Actuator 依赖；运行镜像修复 `/app/data` + `/app/logs` 非 root 写权限并挂载 `backend-data` 持久卷，Baseline V1.7；full profile 15/15 healthy + 容器 8082 重建验证） |
 | Day 112 | 最终复盘：ROADMAP-COMPLETE.md + Git tag: v3.0-final |
 
 ---

@@ -1,7 +1,7 @@
 # Industrial AI Hub 简历材料
 
 > 适用岗位：Java 后端开发
-> 事实基线：Day 111 / 2026-10-18
+> 事实基线：Day 112 / 2026-10-18
 > 使用原则：项目数字必须可追溯；未完成能力必须保留边界；不得虚构学历、公司、任职时间、职责或线上规模。
 
 ---
@@ -96,7 +96,7 @@ Industrial AI Hub 应当作为“独立完成的复杂后端项目”呈现，�
 
 | 指标 | 统一口径 | 证据 |
 |------|----------|------|
-| 后端测试 | 375/375，0 failures / 0 errors / 0 skipped | Day 111 全量回归 |
+| 后端测试 | 375/375，0 failures / 0 errors / 0 skipped | Day 112 最终全量回归 |
 | 架构决策 | 37 份 ADR，编号 0001-0037 | `docs/decision-log/` |
 | 数据库 | Schema V15，14 个活动迁移，10 张表 | Flyway / ADR 0012 |
 | 编排 | 默认 6 服务；full profile 15 服务全部 healthy | Day 104、Day 111 预演 |
